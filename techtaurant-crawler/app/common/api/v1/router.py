@@ -6,7 +6,7 @@ API v1 라우터
 
 from fastapi import APIRouter
 
-from app.domains.example.infrastructure.inport.api import router as example_router
+from app.domains.example.infrastructure.inport.example_controller import example_router
 
 # API 라우터 생성
 api_router = APIRouter()

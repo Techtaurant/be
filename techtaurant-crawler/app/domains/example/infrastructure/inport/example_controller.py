@@ -11,12 +11,13 @@ from app.common.base_response import BaseResponse, success_response
 from app.common.constants import API_V1
 from app.configs.base_status import BaseStatus
 from app.configs.database import get_db
+from app.configs.exceptions import InternalServerException
 from app.configs.redis import RedisClient, get_redis
 
-router = APIRouter(prefix=API_V1 + "/example", tags=["Example"])
+example_router = APIRouter(prefix=API_V1 + "/example", tags=["Example"])
 
 
-@router.get(
+@example_router.get(
     "/hello",
     response_model=BaseResponse[dict],
     summary="Hello World",
@@ -35,7 +36,7 @@ async def hello_world() -> BaseResponse[dict]:
     )
 
 
-@router.get(
+@example_router.get(
     "/redis/test",
     response_model=BaseResponse[dict],
     summary="Redis 테스트",
@@ -75,7 +76,7 @@ async def test_redis(
     )
 
 
-@router.get(
+@example_router.get(
     "/database/test",
     response_model=BaseResponse[dict],
     summary="데이터베이스 테스트",
@@ -110,7 +111,24 @@ async def test_database(
     )
 
 
-@router.get(
+@example_router.get(
+    "/status/error",
+    summary="에러 상태 코드 테스트",
+    description="500 Internal Server Error 상태 코드를 테스트합니다.",
+)
+async def test_error_status() -> None:
+    """
+    에러 상태 코드 테스트 API
+
+    500 Internal Server Error 상태 코드를 발생시킵니다.
+
+    Raises:
+        InternalServerException: 내부 서버 오류 예외
+    """
+    raise InternalServerException("의도된 내부 서버 오류 발생")
+
+
+@example_router.get(
     "/status/test",
     response_model=BaseResponse[dict],
     summary="다양한 상태 코드 테스트",
