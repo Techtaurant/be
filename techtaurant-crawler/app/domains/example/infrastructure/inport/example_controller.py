@@ -9,9 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.base_response import BaseResponse, success_response
 from app.common.constants import API_V1
+from app.configs.base_status import BaseStatus
 from app.configs.database import get_db
 from app.configs.redis import RedisClient, get_redis
-from app.configs.base_status import BaseStatus
 
 router = APIRouter(prefix=API_V1 + "/example", tags=["Example"])
 
