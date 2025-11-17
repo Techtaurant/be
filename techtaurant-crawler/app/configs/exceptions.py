@@ -4,7 +4,7 @@ API 예외 클래스 정의
 새로운 예외 타입 추가 시 BaseAPIException을 확장하여 사용
 """
 
-from app.configs.base_status import BaseStatus, get_default_message
+from app.configs.base_status import BaseStatus
 
 
 class BaseAPIException(Exception):
@@ -38,7 +38,7 @@ class BadRequestException(BaseAPIException):
     def __init__(self, message: str | None = None):
         super().__init__(
             BaseStatus.BAD_REQUEST,
-            message or get_default_message(BaseStatus.BAD_REQUEST),
+            message or BaseStatus.BAD_REQUEST.message,
         )
 
 
@@ -48,7 +48,7 @@ class UnauthorizedException(BaseAPIException):
     def __init__(self, message: str | None = None):
         super().__init__(
             BaseStatus.UNAUTHORIZED,
-            message or get_default_message(BaseStatus.UNAUTHORIZED),
+            message or BaseStatus.UNAUTHORIZED.message,
         )
 
 
@@ -58,7 +58,7 @@ class ForbiddenException(BaseAPIException):
     def __init__(self, message: str | None = None):
         super().__init__(
             BaseStatus.FORBIDDEN,
-            message or get_default_message(BaseStatus.FORBIDDEN),
+            message or BaseStatus.FORBIDDEN.message,
         )
 
 
@@ -68,7 +68,7 @@ class NotFoundException(BaseAPIException):
     def __init__(self, message: str | None = None):
         super().__init__(
             BaseStatus.NOT_FOUND,
-            message or get_default_message(BaseStatus.NOT_FOUND),
+            message or BaseStatus.NOT_FOUND.message,
         )
 
 
@@ -78,7 +78,7 @@ class ConflictException(BaseAPIException):
     def __init__(self, message: str | None = None):
         super().__init__(
             BaseStatus.CONFLICT,
-            message or get_default_message(BaseStatus.CONFLICT),
+            message or BaseStatus.CONFLICT.message,
         )
 
 
@@ -88,7 +88,7 @@ class ValidationException(BaseAPIException):
     def __init__(self, message: str | None = None):
         super().__init__(
             BaseStatus.VALIDATION_ERROR,
-            message or get_default_message(BaseStatus.VALIDATION_ERROR),
+            message or BaseStatus.VALIDATION_ERROR.message,
         )
 
 
@@ -99,7 +99,7 @@ class InternalServerException(BaseAPIException):
     def __init__(self, message: str | None = None):
         super().__init__(
             BaseStatus.INTERNAL_SERVER_ERROR,
-            message or get_default_message(BaseStatus.INTERNAL_SERVER_ERROR),
+            message or BaseStatus.INTERNAL_SERVER_ERROR.message,
         )
 
 
@@ -109,7 +109,7 @@ class DatabaseException(BaseAPIException):
     def __init__(self, message: str | None = None):
         super().__init__(
             BaseStatus.DATABASE_ERROR,
-            message or get_default_message(BaseStatus.DATABASE_ERROR),
+            message or BaseStatus.DATABASE_ERROR.message,
         )
 
 
@@ -119,5 +119,5 @@ class RedisException(BaseAPIException):
     def __init__(self, message: str | None = None):
         super().__init__(
             BaseStatus.REDIS_ERROR,
-            message or get_default_message(BaseStatus.REDIS_ERROR),
+            message or BaseStatus.REDIS_ERROR.message,
         )

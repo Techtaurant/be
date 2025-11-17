@@ -5,11 +5,10 @@
 """
 
 from datetime import UTC, datetime
-from enum import Enum
 from typing import Any, Generic, TypeVar
 
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.configs.base_status import BaseStatus
 
@@ -75,34 +74,6 @@ class BaseResponse(BaseModel, Generic[T]):
         }
     )
 
-    @model_validator(mode="before")
-    @classmethod
-    def convert_status_to_string(cls, data: Any) -> Any:
-        """
-        Status Enum을 status code 문자열로 변환합니다.
-
-        BaseStatus 및 도메인별 Status Enum을 모두 지원합니다.
-
-        Args:
-            data: 입력 데이터 (dict 형태)
-
-        Returns:
-            변환된 데이터
-        """
-        if isinstance(data, dict) and "status" in data:
-            status = data["status"]
-            # Enum 타입인 경우 문자열로 변환
-            if isinstance(status, Enum):
-                # Status Enum에 status_code 속성이 있는지 확인
-                if hasattr(status, "status_code"):
-                    data["status"] = status.status_code
-                # 없으면 Enum value를 문자열로 반환
-                elif hasattr(status, "value"):
-                    data["status"] = str(status.value)
-                else:
-                    data["status"] = str(status)
-        return data
-
 
 def success_response(
     message: str = "요청이 성공했습니다",
@@ -133,7 +104,7 @@ def success_response(
     """
     return BaseResponse(
         success=True,
-        status=status,
+        status=status.custom_code,
         message=message,
         data=data,
     )
@@ -176,7 +147,7 @@ def error_json_response(
         status_code=status.http_code,
         content=BaseResponse(
             success=False,
-            status=status,
+            status=status.custom_code,
             message=message,
             data=data,
         ).model_dump(mode="json"),
