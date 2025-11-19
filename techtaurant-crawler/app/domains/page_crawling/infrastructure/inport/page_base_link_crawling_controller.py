@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 
 from app.common.base_response import BaseResponse, success_response
 from app.common.constants import API_V1
@@ -6,7 +6,7 @@ from app.domains.page_crawling.dto.link_crawling_response import LinkCrawlingRes
 from app.domains.page_crawling.dto.page_base_link_crawling_request import (
     PageBaseLinkCrawlingRequest,
 )
-from app.domains.page_crawling.service.page_base_crawler import PageBaseCrawler
+from app.domains.page_crawling.service.page_base_crawling_service import PageBaseLinkCrawlingService
 
 page_base_link_crawling_router = APIRouter(
     prefix=f"{API_V1}/page-base-link-crawling",
@@ -68,6 +68,9 @@ page_base_link_crawling_router = APIRouter(
 )
 async def crawl_page_base_links(
     command: PageBaseLinkCrawlingRequest,
+    page_base_link_crawling_service: PageBaseLinkCrawlingService = Depends(
+        PageBaseLinkCrawlingService
+    ),
 ) -> BaseResponse[list[LinkCrawlingResponse]]:
     """
     페이지 기반 링크 크롤링 엔드포인트
@@ -81,6 +84,5 @@ async def crawl_page_base_links(
     Raises:
         HTTPException: 크롤링 중 오류 발생 시
     """
-    crawler = PageBaseCrawler(crawling_command=command)
-    result = await crawler.fetch_content()
+    result = await page_base_link_crawling_service.process(command)
     return success_response(data=result)
