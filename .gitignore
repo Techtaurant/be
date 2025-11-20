@@ -31,6 +31,9 @@ ENV/
 # IDE
 .vscode/
 .idea/
+*.iws
+*.iml
+*.ipr
 *.swp
 *.swo
 *~
@@ -38,6 +41,8 @@ ENV/
 # Environment Variables
 .env
 .env.local
+main-server/.env
+main-server/.env.local
 
 # Database
 *.db
@@ -64,3 +69,39 @@ Thumbs.db
 # Project Specific
 CLAUDE.md
 .claude
+
+# Spring Boot / Gradle
+main-server/HELP.md
+main-server/.gradle
+main-server/build/
+!main-server/gradle/wrapper/gradle-wrapper.jar
+!main-server/**/src/main/**/build/
+!main-server/**/src/test/**/build/
+
+# Spring STS
+main-server/.apt_generated
+main-server/.classpath
+main-server/.factorypath
+main-server/.project
+main-server/.settings
+main-server/.springBeans
+main-server/.sts4-cache
+main-server/bin/
+!main-server/**/src/main/**/bin/
+!main-server/**/src/test/**/bin/
+
+# IntelliJ IDEA (Spring Boot specific)
+main-server/out/
+!main-server/**/src/main/**/out/
+!main-server/**/src/test/**/out/
+
+# NetBeans
+main-server/nbproject/private/
+main-server/nbbuild/
+main-server/dist/
+main-server/nbdist/
+main-server/.nb-gradle/
+
+# Kotlin
+main-server/.kotlinGEMINI.md
+.gemini
