@@ -6,7 +6,9 @@ from app.common.utils.browser_page_pool import BrowserPagePool, get_browser_pool
 from app.domains.page_crawling.dto.page_base_link_crawling_request import (
     PageBaseLinkCrawlingRequest,
 )
-from app.domains.page_crawling.service.page_base_crawling_service import PageBaseLinkCrawlingService
+from app.domains.page_crawling.service.page_base_link_crawling_service import (
+    PageBaseLinkCrawlingService,
+)
 
 page_base_link_crawling_router = APIRouter(
     prefix=f"{API_V1}/page-base-link-crawling",
@@ -15,7 +17,7 @@ page_base_link_crawling_router = APIRouter(
 
 
 @page_base_link_crawling_router.post(
-    "/validate",
+    "/validations",
     summary="크롤링 페이지 유효성 검증",
     description="""
     크롤링 페이지 등록 전 해당 설정으로 크롤링이 가능한지 검증합니다.

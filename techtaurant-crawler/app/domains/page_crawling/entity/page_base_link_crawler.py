@@ -9,7 +9,7 @@ from app.domains.page_crawling.dto.page_base_link_crawling_request import (
 )
 
 
-class PageBaseCrawler:
+class PageBaseLinkCrawler:
     def __init__(
         self,
         crawling_command: PageBaseLinkCrawlingRequest,
