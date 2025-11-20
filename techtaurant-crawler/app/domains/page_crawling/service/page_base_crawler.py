@@ -65,7 +65,7 @@ class PageBaseCrawler:
             results = await self.__crawl_blog(self.start_page)
             total_results.extend(results)
 
-            if len(total_results) == 0:
+            if len(results) == 0:
                 break
 
             self.start_page += 1
