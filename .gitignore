@@ -41,6 +41,8 @@ ENV/
 # Environment Variables
 .env
 .env.local
+main-server/.env
+main-server/.env.local
 
 # Database
 *.db
@@ -101,4 +103,5 @@ main-server/nbdist/
 main-server/.nb-gradle/
 
 # Kotlin
-main-server/.kotlin
+main-server/.kotlinGEMINI.md
+.gemini
