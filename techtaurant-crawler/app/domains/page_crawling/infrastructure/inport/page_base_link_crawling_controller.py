@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, status
 
 from app.common.base_response import BaseResponse, success_response
 from app.common.constants import API_V1
+from app.common.utils.browser_page_pool import BrowserPagePool, get_browser_pool
 from app.domains.page_crawling.dto.link_crawling_response import LinkCrawlingResponse
 from app.domains.page_crawling.dto.page_base_link_crawling_request import (
     PageBaseLinkCrawlingRequest,
@@ -68,15 +69,14 @@ page_base_link_crawling_router = APIRouter(
 )
 async def crawl_page_base_links(
     command: PageBaseLinkCrawlingRequest,
-    page_base_link_crawling_service: PageBaseLinkCrawlingService = Depends(
-        PageBaseLinkCrawlingService
-    ),
+    browser_pool: BrowserPagePool = Depends(get_browser_pool),
 ) -> BaseResponse[list[LinkCrawlingResponse]]:
     """
     페이지 기반 링크 크롤링 엔드포인트
 
     Args:
         command: 크롤링 설정 정보 (블로그명, URL, 페이지 번호, 패턴 등)
+        browser_pool: 브라우저 페이지 풀 (의존성 주입)
 
     Returns:
         BaseResponse[list[LinkCrawlingResponse]]: 크롤링된 게시글 링크 목록
@@ -84,5 +84,6 @@ async def crawl_page_base_links(
     Raises:
         HTTPException: 크롤링 중 오류 발생 시
     """
+    page_base_link_crawling_service = PageBaseLinkCrawlingService(browser_pool)
     result = await page_base_link_crawling_service.process(command)
     return success_response(data=result)
