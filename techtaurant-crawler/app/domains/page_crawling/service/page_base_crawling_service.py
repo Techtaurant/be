@@ -10,7 +10,7 @@ class PageBaseLinkCrawlingService:
     def __init__(self, browser_pool: BrowserPagePool):
         self.browser_pool = browser_pool
 
-    async def process(self, command: PageBaseLinkCrawlingRequest) -> list[LinkCrawlingResponse]:
+    async def validate(self, command: PageBaseLinkCrawlingRequest) -> bool:
         crawler = PageBaseCrawler(command, self.browser_pool)
 
-        return await crawler.fetch_content()
+        return await crawler.check_one_page()

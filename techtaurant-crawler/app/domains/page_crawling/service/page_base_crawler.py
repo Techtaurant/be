@@ -65,6 +65,20 @@ class PageBaseCrawler:
 
         return self.__extract_articles(soup)
 
+    async def check_one_page(self) -> bool:
+        """크롤링 가능한 페이지인지 확인
+
+        Returns:
+            True: 크롤링 가능한 페이지
+            False: 크롤링 불가능한 페이지
+        """
+        results = await self.__crawl_blog(self.start_page)
+
+        if len(results) == 0:
+            return False
+
+        return True
+
     async def fetch_content(self) -> list[LinkCrawlingResponse]:
         total_results: list[LinkCrawlingResponse] = []
         """페이지 크롤링 수행"""
