@@ -34,6 +34,17 @@ spring:
     baseline-on-migrate: true
     locations: classpath:db/migration
 
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - email
+              - profile
+
 # Logging
 logging:
   level:
@@ -42,3 +53,22 @@ logging:
 # CORS
 cors:
   allowed-origins: ${CORS_ORIGINS}
+
+# JWT
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiration: 3600000
+  refresh-token-expiration: 604800000
+
+# OAuth2 Redirect
+oauth2:
+  redirect:
+    success-url: ${OAUTH2_SUCCESS_REDIRECT_URL:http://localhost:3000/oauth/callback}
+    failure-url: ${OAUTH2_FAILURE_REDIRECT_URL:http://localhost:3000/oauth/error}
+
+# Cookie
+cookie:
+  secure: ${COOKIE_SECURE:true}
+  http-only: ${COOKIE_HTTP_ONLY:true}
+  same-site: ${COOKIE_SAME_SITE:Lax}
+  path: ${COOKIE_PATH:/}
