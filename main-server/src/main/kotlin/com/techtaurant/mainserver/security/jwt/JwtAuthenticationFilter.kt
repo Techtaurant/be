@@ -45,6 +45,6 @@ class JwtAuthenticationFilter(
         }
 
         // 2. 쿠키에서 토큰 확인
-        return request.cookies?.find { it.name == "accessToken" }?.value
+        return request.cookies?.find { it.name == JwtConstants.ACCESS_TOKEN_COOKIE }?.value
     }
 }

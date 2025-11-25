@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.security.oauth.handler
 
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.security.cookie.CookieHelper
+import com.techtaurant.mainserver.security.jwt.JwtConstants
 import com.techtaurant.mainserver.security.jwt.JwtProperties
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.security.oauth.CustomOAuth2User
@@ -33,8 +34,18 @@ class OAuth2SuccessHandler(
         val accessToken = jwtTokenProvider.createAccessToken(userId)
         val refreshToken = jwtTokenProvider.createRefreshToken(userId)
 
-        cookieHelper.addCookie(response, "accessToken", accessToken, (jwtProperties.accessTokenExpiration / 1000).toInt())
-        cookieHelper.addCookie(response, "refreshToken", refreshToken, (jwtProperties.refreshTokenExpiration / 1000).toInt())
+        cookieHelper.addCookie(
+            response,
+            JwtConstants.ACCESS_TOKEN_COOKIE,
+            accessToken,
+            (jwtProperties.accessTokenExpiration / 1000).toInt()
+        )
+        cookieHelper.addCookie(
+            response,
+            JwtConstants.REFRESH_TOKEN_COOKIE,
+            refreshToken,
+            (jwtProperties.refreshTokenExpiration / 1000).toInt()
+        )
 
         response.sendRedirect(successRedirectUrl)
     }

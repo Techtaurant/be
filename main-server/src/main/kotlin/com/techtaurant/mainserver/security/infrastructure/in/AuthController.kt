@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.security.infrastructure.`in`
 
 import com.techtaurant.mainserver.common.dto.ApiResponse
 import com.techtaurant.mainserver.security.cookie.CookieHelper
+import com.techtaurant.mainserver.security.jwt.JwtConstants
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -28,8 +29,8 @@ class AuthController(
     )
     @PostMapping("/logout")
     fun logout(response: HttpServletResponse): ApiResponse<Unit> {
-        cookieHelper.deleteCookie(response, "accessToken")
-        cookieHelper.deleteCookie(response, "refreshToken")
+        cookieHelper.deleteCookie(response, JwtConstants.ACCESS_TOKEN_COOKIE)
+        cookieHelper.deleteCookie(response, JwtConstants.REFRESH_TOKEN_COOKIE)
         return ApiResponse.ok(Unit)
     }
 }
