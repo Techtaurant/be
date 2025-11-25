@@ -12,7 +12,7 @@ import java.util.Date
 
 @Entity
 @Table(name = "\"user\"")
-data class User(
+class User(
 
     var name: String,
 
