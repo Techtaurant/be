@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/api/users")
 class UserController(
-    private val cookieHelper: CookieHelper,
 ) {
 
     @Operation(summary = "내 정보 조회", description = "현재 로그인한 사용자의 정보를 조회합니다")
