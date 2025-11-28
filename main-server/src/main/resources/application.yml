@@ -1,6 +1,4 @@
 spring:
-  config:
-    import: optional:file:.env[.properties]
   application:
     name: ${APP_NAME}
 
@@ -57,8 +55,8 @@ cors:
 # JWT
 jwt:
   secret: ${JWT_SECRET}
-  access-token-expiration: 3600000
-  refresh-token-expiration: 604800000
+  access-token-expiration: 5000 # 1시간
+  refresh-token-expiration: 604800000 # 1주일
 
 # OAuth2 Redirect
 oauth2:
