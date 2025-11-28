@@ -1,11 +1,15 @@
 package com.techtaurant.mainserver.security.service
 
 import com.techtaurant.mainserver.common.exception.ApiException
-import com.techtaurant.mainserver.security.cookie.CookieHelper
+import com.techtaurant.mainserver.security.helper.CookieHelper
+import com.techtaurant.mainserver.security.helper.JwtExceptionMapper
 import com.techtaurant.mainserver.security.jwt.JwtConstants
 import com.techtaurant.mainserver.security.jwt.JwtProperties
 import com.techtaurant.mainserver.security.jwt.JwtStatus
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
+import io.jsonwebtoken.ExpiredJwtException
+import io.jsonwebtoken.MalformedJwtException
+import io.jsonwebtoken.UnsupportedJwtException
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.stereotype.Service
@@ -23,8 +27,10 @@ class TokenRefreshService(
             ?: throw ApiException(JwtStatus.MISSING_REFRESH_TOKEN)
 
         // refresh token 검증
-        if (!jwtTokenProvider.validateToken(refreshToken)) {
-            throw ApiException(JwtStatus.INVALID_REFRESH_TOKEN)
+        try {
+            !jwtTokenProvider.validateToken(refreshToken)
+        } catch (e: Exception) {
+            throw ApiException(JwtExceptionMapper.mapToJwtStatus(e = e))
         }
 
         // userId 추출

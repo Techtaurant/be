@@ -1,5 +1,6 @@
 package com.techtaurant.mainserver.security.jwt
 
+import com.techtaurant.mainserver.security.helper.JwtExceptionMapper
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.jsonwebtoken.ExpiredJwtException
 import io.jsonwebtoken.MalformedJwtException
@@ -39,16 +40,8 @@ class JwtAuthenticationFilter(
                         SecurityContextHolder.getContext().authentication = authentication
                     }
                 }
-            } catch (e: ExpiredJwtException) {
-                request.setAttribute("jwtStatus", JwtStatus.TOKEN_EXPIRED)
-            } catch (e: MalformedJwtException) {
-                request.setAttribute("jwtStatus", JwtStatus.MALFORMED_TOKEN)
-            } catch (e: UnsupportedJwtException) {
-                request.setAttribute("jwtStatus", JwtStatus.UNSUPPORTED_TOKEN)
-            } catch (e: IllegalArgumentException) {
-                request.setAttribute("jwtStatus", JwtStatus.INVALID_TOKEN)
             } catch (e: Exception) {
-                request.setAttribute("jwtStatus", JwtStatus.UNKNOWN_ERROR)
+                request.setAttribute("jwtStatus", JwtExceptionMapper.mapToJwtStatus(e = e))
             }
         }
 
