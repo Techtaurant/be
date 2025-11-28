@@ -1,4 +1,4 @@
-package com.techtaurant.mainserver.security.cookie
+package com.techtaurant.mainserver.security.config
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 

@@ -1,23 +1,20 @@
 package com.techtaurant.mainserver.security.infrastructure.`in`
 
 import com.techtaurant.mainserver.common.dto.ApiResponse
+import com.techtaurant.mainserver.security.aop.AuthRestController
 import com.techtaurant.mainserver.security.cookie.CookieHelper
-import com.techtaurant.mainserver.security.jwt.JwtConstants
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponses
-import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
 
-@Tag(name = "Auth", description = "인증 API")
-@RestController
+@AuthRestController
 @RequestMapping("/api/auth")
-class AuthController(
+class AuthApiController(
     private val cookieHelper: CookieHelper,
 
-    ) {
+) {
     @Operation(summary = "로그아웃", description = "쿠키에서 토큰을 삭제하여 로그아웃합니다")
     @ApiResponses(
         value = [
@@ -29,8 +26,7 @@ class AuthController(
     )
     @PostMapping("/logout")
     fun logout(response: HttpServletResponse): ApiResponse<Unit> {
-        cookieHelper.deleteCookie(response, JwtConstants.ACCESS_TOKEN_COOKIE)
-        cookieHelper.deleteCookie(response, JwtConstants.REFRESH_TOKEN_COOKIE)
+        cookieHelper.deleteAllAuthCookies(response)
         return ApiResponse.ok(Unit)
     }
 }

@@ -67,7 +67,6 @@ htmlcov/
 Thumbs.db
 
 # Project Specific
-CLAUDE.md
 .claude
 
 # Spring Boot / Gradle
