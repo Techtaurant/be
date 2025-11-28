@@ -31,6 +31,7 @@ class CookieHelper(
 
     private fun createCookie(name: String, value: String, maxAge: Int): Cookie {
         return Cookie(name, value).apply {
+            this.maxAge = maxAge
             path = cookieProperties.path
             isHttpOnly = cookieProperties.httpOnly
             secure = cookieProperties.secure
