@@ -30,15 +30,13 @@ class JwtAuthenticationFilter(
         if (token != null) {
             try {
                 // 토큰 검증
-                if (jwtTokenProvider.validateToken(token)) {
-                    val userId = jwtTokenProvider.getUserIdFromToken(token)
-                    val user = userRepository.findById(userId).orElse(null)
+                val userId = jwtTokenProvider.getUserIdFromToken(token)
+                val user = userRepository.findById(userId).orElse(null)
 
-                    if (user != null) {
-                        val authorities = listOf(SimpleGrantedAuthority(user.role.key))
-                        val authentication = UsernamePasswordAuthenticationToken(user, null, authorities)
-                        SecurityContextHolder.getContext().authentication = authentication
-                    }
+                if (user != null) {
+                    val authorities = listOf(SimpleGrantedAuthority(user.role.key))
+                    val authentication = UsernamePasswordAuthenticationToken(user, null, authorities)
+                    SecurityContextHolder.getContext().authentication = authentication
                 }
             } catch (e: Exception) {
                 request.setAttribute("jwtStatus", JwtExceptionMapper.mapToJwtStatus(e = e))
