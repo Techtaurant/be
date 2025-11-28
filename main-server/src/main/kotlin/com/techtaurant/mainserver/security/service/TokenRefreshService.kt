@@ -28,7 +28,7 @@ class TokenRefreshService(
 
         // refresh token 검증
         try {
-            !jwtTokenProvider.validateToken(refreshToken)
+            jwtTokenProvider.validateToken(refreshToken)
         } catch (e: Exception) {
             throw ApiException(JwtExceptionMapper.mapToJwtStatus(e = e))
         }
