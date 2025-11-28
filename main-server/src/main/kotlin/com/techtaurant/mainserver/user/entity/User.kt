@@ -11,7 +11,7 @@ import jakarta.persistence.Table
 import java.util.Date
 
 @Entity
-@Table(name = "\"user\"")
+@Table(name = "users")
 class User(
 
     var name: String,
