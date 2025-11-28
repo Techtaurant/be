@@ -1,5 +1,7 @@
 package com.techtaurant.mainserver.security.config
 
+import com.techtaurant.mainserver.security.handler.CustomAccessDeniedHandler
+import com.techtaurant.mainserver.security.handler.CustomAuthenticationEntryPoint
 import com.techtaurant.mainserver.security.jwt.JwtAuthenticationFilter
 import com.techtaurant.mainserver.security.oauth.handler.OAuth2FailureHandler
 import com.techtaurant.mainserver.security.oauth.handler.OAuth2SuccessHandler
@@ -22,6 +24,8 @@ class SecurityConfig(
     private val oAuth2SuccessHandler: OAuth2SuccessHandler,
     private val oAuth2FailureHandler: OAuth2FailureHandler,
     private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+    private val customAuthenticationEntryPoint: CustomAuthenticationEntryPoint,
+    private val customAccessDeniedHandler: CustomAccessDeniedHandler,
     private val corsProperties: CorsProperties,
 ) {
 
@@ -33,6 +37,11 @@ class SecurityConfig(
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .formLogin { it.disable() }
             .httpBasic { it.disable() }
+            .exceptionHandling { exception ->
+                exception
+                    .authenticationEntryPoint(customAuthenticationEntryPoint)
+                    .accessDeniedHandler(customAccessDeniedHandler)
+            }
             .authorizeHttpRequests { authorize ->
                 authorize
                     .requestMatchers(
@@ -41,6 +50,9 @@ class SecurityConfig(
                         "/v3/api-docs/**",
                         "/oauth2/**",
                         "/login/**",
+                    ).permitAll()
+                    .requestMatchers(
+                        "/open-api/**"
                     ).permitAll()
                     .anyRequest().authenticated()
             }
