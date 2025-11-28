@@ -49,13 +49,7 @@ class JwtTokenProvider(
             getClaims(token)
             true
         } catch (e: Exception) {
-            when (e) {
-                is ExpiredJwtException,
-                is MalformedJwtException,
-                is UnsupportedJwtException,
-                is IllegalArgumentException -> false
-                else -> throw e
-            }
+            throw e
         }
     }
 

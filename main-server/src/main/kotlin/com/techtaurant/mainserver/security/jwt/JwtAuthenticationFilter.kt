@@ -1,6 +1,9 @@
 package com.techtaurant.mainserver.security.jwt
 
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
+import io.jsonwebtoken.ExpiredJwtException
+import io.jsonwebtoken.MalformedJwtException
+import io.jsonwebtoken.UnsupportedJwtException
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -23,14 +26,29 @@ class JwtAuthenticationFilter(
     ) {
         val token = resolveToken(request)
 
-        if (token != null && jwtTokenProvider.validateToken(token)) {
-            val userId = jwtTokenProvider.getUserIdFromToken(token)
-            val user = userRepository.findById(userId).orElse(null)
+        if (token != null) {
+            try {
+                // 토큰 검증
+                if (jwtTokenProvider.validateToken(token)) {
+                    val userId = jwtTokenProvider.getUserIdFromToken(token)
+                    val user = userRepository.findById(userId).orElse(null)
 
-            if (user != null) {
-                val authorities = listOf(SimpleGrantedAuthority(user.role.key))
-                val authentication = UsernamePasswordAuthenticationToken(user, null, authorities)
-                SecurityContextHolder.getContext().authentication = authentication
+                    if (user != null) {
+                        val authorities = listOf(SimpleGrantedAuthority(user.role.key))
+                        val authentication = UsernamePasswordAuthenticationToken(user, null, authorities)
+                        SecurityContextHolder.getContext().authentication = authentication
+                    }
+                }
+            } catch (e: ExpiredJwtException) {
+                request.setAttribute("jwtStatus", JwtStatus.TOKEN_EXPIRED)
+            } catch (e: MalformedJwtException) {
+                request.setAttribute("jwtStatus", JwtStatus.MALFORMED_TOKEN)
+            } catch (e: UnsupportedJwtException) {
+                request.setAttribute("jwtStatus", JwtStatus.UNSUPPORTED_TOKEN)
+            } catch (e: IllegalArgumentException) {
+                request.setAttribute("jwtStatus", JwtStatus.INVALID_TOKEN)
+            } catch (e: Exception) {
+                request.setAttribute("jwtStatus", JwtStatus.UNKNOWN_ERROR)
             }
         }
 
