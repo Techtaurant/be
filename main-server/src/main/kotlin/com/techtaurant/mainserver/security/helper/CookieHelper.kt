@@ -22,8 +22,8 @@ class CookieHelper(
     }
 
     fun deleteAllAuthCookies(response: HttpServletResponse) {
-        deleteCookie(response, JwtConstants.Companion.REFRESH_TOKEN_COOKIE)
-        deleteCookie(response, JwtConstants.Companion.ACCESS_TOKEN_COOKIE)
+        deleteCookie(response, JwtConstants.REFRESH_TOKEN_COOKIE)
+        deleteCookie(response, JwtConstants.ACCESS_TOKEN_COOKIE)
     }
 
     fun getCookie(request: HttpServletRequest, name: String): String? {
