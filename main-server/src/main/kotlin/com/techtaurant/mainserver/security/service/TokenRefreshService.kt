@@ -26,15 +26,12 @@ class TokenRefreshService(
         val refreshToken = cookieHelper.getCookie(request, JwtConstants.REFRESH_TOKEN_COOKIE)
             ?: throw ApiException(JwtStatus.MISSING_REFRESH_TOKEN)
 
-        // refresh token 검증
-        try {
-            !jwtTokenProvider.validateToken(refreshToken)
+        // refresh token 검증 및 userId 추출 (한 번의 파싱으로 처리)
+        val userId = try {
+            jwtTokenProvider.validateAndGetUserId(refreshToken)
         } catch (e: Exception) {
             throw ApiException(JwtExceptionMapper.mapToJwtStatus(e = e))
         }
-
-        // userId 추출
-        val userId = jwtTokenProvider.getUserIdFromToken(refreshToken)
 
         // 새 토큰 발급
         val newAccessToken = jwtTokenProvider.createAccessToken(userId)
