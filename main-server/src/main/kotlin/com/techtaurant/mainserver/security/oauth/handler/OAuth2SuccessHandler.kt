@@ -1,7 +1,7 @@
 package com.techtaurant.mainserver.security.oauth.handler
 
 import com.techtaurant.mainserver.common.exception.ApiException
-import com.techtaurant.mainserver.security.cookie.CookieHelper
+import com.techtaurant.mainserver.security.helper.CookieHelper
 import com.techtaurant.mainserver.security.jwt.JwtConstants
 import com.techtaurant.mainserver.security.jwt.JwtProperties
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
