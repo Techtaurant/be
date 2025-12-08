@@ -104,3 +104,5 @@ main-server/.nb-gradle/
 # Kotlin
 main-server/.kotlinGEMINI.md
 .gemini
+.agent
+.github/prompts
