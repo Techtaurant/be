@@ -7,6 +7,7 @@ import jakarta.persistence.MappedSuperclass
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedDate
 import org.springframework.data.jpa.domain.support.AuditingEntityListener
+import java.io.Serializable
 import java.util.Date
 import java.util.UUID
 
@@ -25,4 +26,8 @@ open class EntityBase(
     @LastModifiedDate
     @Column(name = "updated_at")
     var updatedAt: Date = Date(),
-)
+) : Serializable {
+    companion object {
+        private const val serialVersionUID = 1L
+    }
+}
