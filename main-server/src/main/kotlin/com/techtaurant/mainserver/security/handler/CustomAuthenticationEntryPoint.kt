@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.security.handler
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.techtaurant.mainserver.common.dto.ApiResponse
+import com.techtaurant.mainserver.security.SecurityConstants
 import com.techtaurant.mainserver.security.jwt.JwtStatus
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -25,7 +26,7 @@ class CustomAuthenticationEntryPoint(
         authException: AuthenticationException,
     ) {
         // Request Attribute에서 JWT 예외 정보 확인
-        val jwtStatus = request.getAttribute("jwtStatus") as? JwtStatus
+        val jwtStatus = request.getAttribute(SecurityConstants.ERROR_ATTRIBUTE) as? JwtStatus
             ?: JwtStatus.AUTHENTICATION_REQUIRED
 
         val errorResponse = ApiResponse.error<Any>(jwtStatus)
