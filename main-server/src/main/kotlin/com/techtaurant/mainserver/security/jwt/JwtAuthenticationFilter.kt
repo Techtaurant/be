@@ -1,10 +1,7 @@
 package com.techtaurant.mainserver.security.jwt
 
+import com.techtaurant.mainserver.security.SecurityConstants
 import com.techtaurant.mainserver.security.helper.JwtExceptionMapper
-import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
-import io.jsonwebtoken.ExpiredJwtException
-import io.jsonwebtoken.MalformedJwtException
-import io.jsonwebtoken.UnsupportedJwtException
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -14,10 +11,15 @@ import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
 
+/**
+ * JWT 기반 인증 필터
+ *
+ * AccessToken에서 userId와 role을 추출하여 Stateless 인증을 수행합니다.
+ * DB 조회나 캐시 없이 JWT만으로 인증/인가를 완료하여 최고의 성능을 제공합니다.
+ */
 @Component
 class JwtAuthenticationFilter(
-    private val jwtTokenProvider: JwtTokenProvider,
-    private val userRepository: UserRepository,
+    private val jwtTokenProvider: JwtTokenProvider
 ) : OncePerRequestFilter() {
 
     override fun doFilterInternal(
@@ -29,17 +31,21 @@ class JwtAuthenticationFilter(
 
         if (token != null) {
             try {
-                // 토큰 검증
-                val userId = jwtTokenProvider.getUserIdFromToken(token)
-                val user = userRepository.findById(userId).orElse(null)
+                // JWT에서 userId + role 추출 (DB 조회 없이 완료)
+                val claims = jwtTokenProvider.validateAndGetClaims(token)
 
-                if (user != null) {
-                    val authorities = listOf(SimpleGrantedAuthority(user.role.key))
-                    val authentication = UsernamePasswordAuthenticationToken(user, null, authorities)
-                    SecurityContextHolder.getContext().authentication = authentication
-                }
+                // 권한 생성
+                val authorities = listOf(SimpleGrantedAuthority(claims.role))
+
+                // SecurityContext에 인증 정보 설정 (principal: userId)
+                val authentication = UsernamePasswordAuthenticationToken(
+                    claims.userId,  // principal: userId만 저장
+                    null,
+                    authorities
+                )
+                SecurityContextHolder.getContext().authentication = authentication
             } catch (e: Exception) {
-                request.setAttribute("jwtStatus", JwtExceptionMapper.mapToJwtStatus(e = e))
+                request.setAttribute(SecurityConstants.ERROR_ATTRIBUTE, JwtExceptionMapper.mapToJwtStatus(e = e))
             }
         }
 
