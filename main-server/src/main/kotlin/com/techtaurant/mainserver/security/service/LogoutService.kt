@@ -1,7 +1,6 @@
 package com.techtaurant.mainserver.security.service
 
 import com.techtaurant.mainserver.security.cache.TokenCacheManager
-import com.techtaurant.mainserver.security.config.CacheType
 import com.techtaurant.mainserver.security.helper.CookieHelper
 import com.techtaurant.mainserver.security.jwt.JwtConstants
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
@@ -38,20 +37,15 @@ class LogoutService(
     /**
      * 캐시에서 토큰을 무효화합니다.
      *
-     * ACCESS_TOKEN 캐시: token을 키로 사용 → token으로 삭제
-     * REFRESH_TOKEN 캐시: userId를 키로 사용 → userId로 삭제
+     * REFRESH_TOKEN만 캐싱하므로 userId로 RefreshToken을 삭제합니다.
+     * ACCESS_TOKEN은 캐싱하지 않으므로 별도 삭제가 불필요합니다.
      *
-     * @param accessToken AccessToken 값 (nullable)
-     * @param refreshToken RefreshToken 값 (nullable)
+     * @param accessToken AccessToken 값 (nullable, userId 추출용)
+     * @param refreshToken RefreshToken 값 (nullable, userId 추출용)
      */
     private fun invalidateTokens(accessToken: String?, refreshToken: String?) {
         // userId 추출 (둘 중 하나라도 있으면 가능)
         val userId = extractUserId(accessToken, refreshToken) ?: return
-
-        // ACCESS_TOKEN 캐시에서 삭제 (token을 키로 사용)
-        if (accessToken != null) {
-            tokenCacheManager.delete(CacheType.ACCESS_TOKEN, accessToken)
-        }
 
         // REFRESH_TOKEN 캐시에서 삭제 (userId를 키로 사용)
         tokenCacheManager.deleteRefreshToken(userId.toString())
