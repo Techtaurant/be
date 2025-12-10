@@ -26,8 +26,4 @@ open class EntityBase(
     @LastModifiedDate
     @Column(name = "updated_at")
     var updatedAt: Date = Date(),
-) : Serializable {
-    companion object {
-        private const val serialVersionUID = 1L
-    }
-}
+)
