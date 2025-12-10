@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.user.infrastructure.`in`
 
 import com.techtaurant.mainserver.common.dto.ApiResponse
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.user.application.UserReadService
 import com.techtaurant.mainserver.user.dto.UserResponse
 import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
@@ -18,7 +19,7 @@ import java.util.UUID
 @RestController
 @RequestMapping("/api/users")
 class UserController(
-    private val userRepository: UserRepository
+    private val userReadService: UserReadService
 ) {
 
     @Operation(summary = "내 정보 조회", description = "현재 로그인한 사용자의 정보를 조회합니다")
@@ -36,10 +37,6 @@ class UserController(
     )
     @GetMapping("/me")
     fun getMe(@AuthenticationPrincipal userId: UUID): ApiResponse<UserResponse> {
-        // SecurityContext에서 userId를 받아 DB에서 User 조회
-        val user = userRepository.findById(userId).orElseThrow {
-            ApiException(UserStatus.ID_NOT_FOUND)
-        }
-        return ApiResponse.ok(UserResponse.from(user))
+        return ApiResponse.ok(userReadService.getMe(userId))
     }
 }
