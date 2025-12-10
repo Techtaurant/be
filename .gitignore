@@ -67,7 +67,6 @@ htmlcov/
 Thumbs.db
 
 # Project Specific
-CLAUDE.md
 .claude
 
 # Spring Boot / Gradle
@@ -105,3 +104,5 @@ main-server/.nb-gradle/
 # Kotlin
 main-server/.kotlinGEMINI.md
 .gemini
+.agent
+.github/prompts

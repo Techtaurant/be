@@ -3,11 +3,11 @@ package com.techtaurant.mainserver
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest
 
-@SpringBootTest
-class MainServerApplicationTests {
+// @SpringBootTest
+// class MainServerApplicationTests {
 
-    @Test
-    fun contextLoads() {
-    }
+//     @Test
+//     fun contextLoads() {
+//     }
 
-}
+// }

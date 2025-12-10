@@ -1,23 +1,25 @@
 package com.techtaurant.mainserver.user.infrastructure.`in`
 
 import com.techtaurant.mainserver.common.dto.ApiResponse
-import com.techtaurant.mainserver.security.cookie.CookieHelper
+import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.user.application.UserReadService
 import com.techtaurant.mainserver.user.dto.UserResponse
-import com.techtaurant.mainserver.user.entity.User
+import com.techtaurant.mainserver.user.enums.UserStatus
+import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
-import jakarta.servlet.http.HttpServletResponse
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import java.util.UUID
 
 @Tag(name = "User", description = "사용자 API")
 @RestController
 @RequestMapping("/api/users")
 class UserController(
+    private val userReadService: UserReadService
 ) {
 
     @Operation(summary = "내 정보 조회", description = "현재 로그인한 사용자의 정보를 조회합니다")
@@ -34,7 +36,7 @@ class UserController(
         ]
     )
     @GetMapping("/me")
-    fun getMe(@AuthenticationPrincipal user: User): ApiResponse<UserResponse> {
-        return ApiResponse.ok(UserResponse.from(user))
+    fun getMe(@AuthenticationPrincipal userId: UUID): ApiResponse<UserResponse> {
+        return ApiResponse.ok(userReadService.getMe(userId))
     }
 }
