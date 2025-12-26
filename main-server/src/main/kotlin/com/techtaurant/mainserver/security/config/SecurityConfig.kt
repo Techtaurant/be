@@ -54,6 +54,7 @@ class SecurityConfig(
                     .requestMatchers(
                         "/open-api/**"
                     ).permitAll()
+                    .requestMatchers("/admin/**").hasRole("ADMIN")
                     .anyRequest().authenticated()
             }
             .oauth2Login { oauth2 ->
