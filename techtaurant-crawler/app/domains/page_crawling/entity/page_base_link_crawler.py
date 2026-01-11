@@ -1,6 +1,7 @@
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
+from fastapi import HTTPException
 
 from app.common.utils.browser_page_pool import BrowserPagePool
 from app.domains.page_crawling.dto.link_crawling_response import LinkCrawlingResponse
@@ -35,9 +36,14 @@ class PageBaseLinkCrawler:
 
             # 제목 추출 (선택자로 찾기 시도)
             title_element = a_tag.select_one(self.title_selector)
-            title = (
-                title_element.get_text(strip=True) if title_element else a_tag.get_text(strip=True)
-            )
+
+            # 제목 요소가 없으면 예외 발생
+            if not title_element:
+                raise HTTPException(
+                    status_code=400, detail="제목 선택자에 해당하는 요소를 찾을 수 없습니다."
+                )
+
+            title = title_element.get_text(strip=True)
 
             # 절대 URL 변환
             absolute_url = urljoin(self.base_url, href)
