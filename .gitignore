@@ -106,3 +106,5 @@ main-server/.kotlinGEMINI.md
 .gemini
 .agent
 .github/prompts
+.claude/
+.gemini/
