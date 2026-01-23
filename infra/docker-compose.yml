@@ -13,6 +13,11 @@ services:
     restart: unless-stopped
     networks:
       - techtaurant-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:8-alpine
@@ -22,6 +27,48 @@ services:
       - "${REDIS_PORT}:6379"
     volumes:
       - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - techtaurant-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  main-server:
+    build:
+      context: ../main-server
+      dockerfile: Dockerfile
+    container_name: techtaurant-main-server
+    environment:
+      APP_NAME: ${APP_NAME}
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USERNAME: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      OAUTH2_SUCCESS_REDIRECT_URL: ${OAUTH2_SUCCESS_REDIRECT_URL:-http://localhost:3000/oauth/callback}
+      OAUTH2_FAILURE_REDIRECT_URL: ${OAUTH2_FAILURE_REDIRECT_URL:-http://localhost:3000/oauth/error}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      COOKIE_HTTP_ONLY: ${COOKIE_HTTP_ONLY:-true}
+      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-Lax}
+      COOKIE_PATH: ${COOKIE_PATH:-/}
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - techtaurant-network
