@@ -68,3 +68,16 @@ cookie:
   http-only: ${COOKIE_HTTP_ONLY:true}
   same-site: ${COOKIE_SAME_SITE:Lax}
   path: ${COOKIE_PATH:/}
+
+# Springdoc OpenAPI
+springdoc:
+  swagger-ui:
+    # Cookie 전송을 위한 withCredentials 활성화
+    request-interceptor: >
+      function(request) {
+        request.credentials = 'include';
+        return request;
+      }
+    # 인증된 API 테스트를 위한 설정
+    persist-authorization: true
+    try-it-out-enabled: true

@@ -1,11 +1,13 @@
 package com.techtaurant.mainserver.security.config
 
+import com.techtaurant.mainserver.security.SecurityConstants
 import com.techtaurant.mainserver.security.handler.CustomAccessDeniedHandler
 import com.techtaurant.mainserver.security.handler.CustomAuthenticationEntryPoint
 import com.techtaurant.mainserver.security.jwt.JwtAuthenticationFilter
 import com.techtaurant.mainserver.security.oauth.handler.OAuth2FailureHandler
 import com.techtaurant.mainserver.security.oauth.handler.OAuth2SuccessHandler
 import com.techtaurant.mainserver.security.oauth.service.CustomOAuth2UserService
+import com.techtaurant.mainserver.user.enums.UserRole
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -52,8 +54,13 @@ class SecurityConfig(
                         "/login/**",
                     ).permitAll()
                     .requestMatchers(
-                        "/open-api/**"
+                        "${SecurityConstants.OPEN_API_PREFIX}/**"
                     ).permitAll()
+                    .requestMatchers(
+                        "${SecurityConstants.API_PREFIX}/**"
+                    ).hasAnyAuthority(
+                        UserRole.ADMIN.key, UserRole.USER.key
+                    )
                     .anyRequest().authenticated()
             }
             .oauth2Login { oauth2 ->

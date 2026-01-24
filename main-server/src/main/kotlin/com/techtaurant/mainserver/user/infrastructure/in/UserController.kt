@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.user.infrastructure.`in`
 
 import com.techtaurant.mainserver.common.dto.ApiResponse
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.security.SecurityConstants
 import com.techtaurant.mainserver.user.application.UserReadService
 import com.techtaurant.mainserver.user.dto.UserResponse
 import com.techtaurant.mainserver.user.enums.UserStatus
@@ -17,7 +18,7 @@ import java.util.UUID
 
 @Tag(name = "User", description = "사용자 API")
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("${SecurityConstants.API_PREFIX}/users")
 class UserController(
     private val userReadService: UserReadService
 ) {
