@@ -1,6 +1,7 @@
 package com.techtaurant.mainserver.security.infrastructure.`in`
 
 import com.techtaurant.mainserver.common.dto.ApiResponse
+import com.techtaurant.mainserver.security.SecurityConstants
 import com.techtaurant.mainserver.security.aop.AuthRestController
 import com.techtaurant.mainserver.security.service.LogoutService
 import io.swagger.v3.oas.annotations.Operation
@@ -11,7 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
 
 @AuthRestController
-@RequestMapping("/api/auth")
+@RequestMapping("${SecurityConstants.API_PREFIX}/auth")
 class AuthApiController(
     private val logoutService: LogoutService
     ) {
