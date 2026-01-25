@@ -21,4 +21,5 @@ jobs:
           port: ${{ secrets.DEV_SSH_PORT }}
           script: |
             cd ~/Documents/techtaurant/techtaurant-be/dev-for-deploy/infra
+            git pull
             docker compose build main-server && docker compose up -d
