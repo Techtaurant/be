@@ -18,7 +18,12 @@ import jakarta.persistence.*
 @Entity
 @Table(
     name = "categories",
-    uniqueConstraints = [UniqueConstraint(columnNames = ["user_id", "path"])]
+    uniqueConstraints = [UniqueConstraint(columnNames = ["user_id", "path"])],
+    indexes = [
+        Index(name = "idx_category_user_depth", columnList = "user_id, depth"),
+        Index(name = "idx_category_user_name", columnList = "user_id, name"),
+        Index(name = "idx_category_user_path_prefix", columnList = "user_id, path")
+    ]
 )
 class Category(
 
