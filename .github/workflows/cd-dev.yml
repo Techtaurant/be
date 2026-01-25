@@ -1,0 +1,24 @@
+name: CD Dev - Deploy to Development Server
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - dev
+
+jobs:
+  deploy:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Development Server
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEV_SSH_HOST }}
+          username: ${{ secrets.DEV_SSH_USER }}
+          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.DEV_SSH_PORT }}
+          script: |
+            cd ~/Documents/techtaurant/techtaurant-be/dev-for-deploy/infra
+            docker compose build main-server && docker compose up -d
