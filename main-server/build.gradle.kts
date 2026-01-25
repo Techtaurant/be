@@ -31,6 +31,7 @@ dependencies {
     // Database
     runtimeOnly("org.postgresql:postgresql")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("com.github.gavlyukovskiy:p6spy-spring-boot-starter:1.9.0")
 
     // Environment Variables
     implementation("me.paulschwarz:spring-dotenv:4.0.0")
@@ -55,6 +56,9 @@ dependencies {
 
     // UUID V7
     implementation("com.github.f4b6a3:uuid-creator:6.0.0")
+
+    // Caffeine Cache
+    implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
 }
 
 kotlin {
