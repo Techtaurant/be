@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param
 import java.util.UUID
 
 interface TagRepository : JpaRepository<Tag, UUID> {
+    fun findByName(name: String): Tag?
     fun findByNameIn(names: List<String>): List<Tag>
 
     @Query(

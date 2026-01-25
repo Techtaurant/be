@@ -1,6 +1,7 @@
 package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.common.lock.DistributedLock
 import com.techtaurant.mainserver.post.dto.CreatePostRequest
 import com.techtaurant.mainserver.post.dto.PostResponse
 import com.techtaurant.mainserver.post.entity.Category
@@ -23,6 +24,7 @@ class PostWriteService(
     private val categoryRepository: CategoryRepository,
     private val tagRepository: TagRepository,
     private val userRepository: UserRepository,
+    private val distributedLock: DistributedLock,
 ) {
 
     companion object {
@@ -31,6 +33,7 @@ class PostWriteService(
 
     /**
      * 게시물을 생성합니다.
+     * 카테고리/태그 생성 시 락과 트랜잭션이 함께 관리되며, 게시물 저장은 별도 트랜잭션에서 수행됩니다.
      *
      * @param userId 작성자 ID
      * @param request 게시물 생성 요청
@@ -40,7 +43,7 @@ class PostWriteService(
     @Transactional
     fun createPost(userId: UUID, request: CreatePostRequest): PostResponse {
         val author = findUserById(userId)
-        val category = resolveCategory(request.categoryPath)
+        val category = resolveCategory(request.categoryPath, author)
         val tags = resolveTags(request.tags)
 
         val post = Post(
@@ -63,38 +66,46 @@ class PostWriteService(
 
     /**
      * 카테고리 경로를 파싱하여 해당 카테고리를 반환합니다.
-     * 존재하지 않는 카테고리는 자동으로 생성됩니다.
+     * 존재하지 않는 카테고리는 자동으로 생성되며, 동시성 제어를 위해 락을 사용합니다.
+     *
+     * @param categoryPath 카테고리 경로 (예: "java/spring")
+     * @param user 카테고리 소유자
+     * @return 카테고리 엔티티 (경로가 없으면 null)
      */
-    private fun resolveCategory(categoryPath: String?): Category? {
+    private fun resolveCategory(categoryPath: String?, user: User): Category? {
         if (categoryPath.isNullOrBlank()) {
             return null
         }
 
-        val segments = categoryPath.split("/").filter { it.isNotBlank() }
+        val pathSegments = categoryPath.split("/").filter { it.isNotBlank() }
 
-        if (segments.isEmpty()) {
+        if (pathSegments.isEmpty()) {
             return null
         }
 
-        if (segments.size > MAX_CATEGORY_DEPTH) {
+        if (pathSegments.size > MAX_CATEGORY_DEPTH) {
             throw ApiException(PostStatus.CATEGORY_DEPTH_EXCEEDED)
         }
 
-        var currentPath = ""
+        var totalPath = ""
         var parentCategory: Category? = null
 
-        for ((index, segment) in segments.withIndex()) {
-            currentPath = if (currentPath.isEmpty()) segment else "$currentPath/$segment"
+        for ((index, curPathSegment) in pathSegments.withIndex()) {
+            totalPath = if (totalPath.isEmpty()) curPathSegment else "$totalPath/$curPathSegment"
 
-            val existingCategory = categoryRepository.findByPath(currentPath)
-            parentCategory = existingCategory ?: categoryRepository.save(
-                Category(
-                    name = segment,
-                    path = currentPath,
-                    depth = index + 1,
-                    parent = parentCategory,
-                )
-            )
+            val lockKey = "category:${user.id}:$totalPath"
+            parentCategory = distributedLock.withLockAndTransaction(lockKey) {
+                categoryRepository.findByUserAndPath(user, totalPath)
+                    ?: categoryRepository.save(
+                        Category(
+                            user = user,
+                            name = curPathSegment,
+                            path = totalPath,
+                            depth = index + 1,
+                            parent = parentCategory,
+                        )
+                    )
+            }
         }
 
         return parentCategory
@@ -102,7 +113,10 @@ class PostWriteService(
 
     /**
      * 태그 이름 목록을 받아 태그 엔티티 목록을 반환합니다.
-     * 존재하지 않는 태그는 자동으로 생성됩니다.
+     * 존재하지 않는 태그는 자동으로 생성되며, 동시성 제어를 위해 락을 사용합니다.
+     *
+     * @param tagNames 태그 이름 목록
+     * @return 태그 엔티티 목록
      */
     private fun resolveTags(tagNames: List<String>?): List<Tag> {
         if (tagNames.isNullOrEmpty()) {
@@ -119,7 +133,13 @@ class PostWriteService(
         val existingTagNames = existingTags.map { it.name }.toSet()
         val newTagNames = normalizedNames.filter { it !in existingTagNames }
 
-        val newTags = newTagNames.map { tagRepository.save(Tag(name = it)) }
+        val newTags = newTagNames.map { tagName ->
+            val lockKey = "tag:$tagName"
+            distributedLock.withLockAndTransaction(lockKey) {
+                tagRepository.findByName(tagName)
+                    ?: tagRepository.save(Tag(name = tagName))
+            }
+        }
 
         return existingTags + newTags
     }
