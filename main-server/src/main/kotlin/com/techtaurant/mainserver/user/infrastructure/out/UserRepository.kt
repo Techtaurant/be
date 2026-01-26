@@ -7,4 +7,5 @@ import java.util.UUID
 
 interface UserRepository : JpaRepository<User, UUID> {
     fun findByIdentifierAndProvider(identifier: String, provider: OAuthProvider): User?
+    fun findByNameContainingIgnoreCaseOrderByNameAsc(name: String): List<User>
 }

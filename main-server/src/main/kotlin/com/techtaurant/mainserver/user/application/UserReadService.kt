@@ -20,4 +20,9 @@ class UserReadService(
         return UserResponse.from(user)
     }
 
+    fun searchByName(name: String): List<UserResponse> {
+        val users = userRepository.findByNameContainingIgnoreCaseOrderByNameAsc(name)
+        return users.map { UserResponse.from(it) }
+    }
+
 }
