@@ -89,3 +89,7 @@ springdoc:
     # 인증된 API 테스트를 위한 설정
     persist-authorization: true
     try-it-out-enabled: true
+
+# Swagger
+swagger:
+  base-url: ${SWAGGER_BASE_URL:http://localhost:8080}

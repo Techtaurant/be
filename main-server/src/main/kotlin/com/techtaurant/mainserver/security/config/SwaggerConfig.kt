@@ -7,7 +7,9 @@ import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.info.Info
 import io.swagger.v3.oas.models.security.SecurityRequirement
 import io.swagger.v3.oas.models.security.SecurityScheme
+import io.swagger.v3.oas.models.servers.Server
 import org.springdoc.core.customizers.OpenApiCustomizer
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
@@ -16,9 +18,13 @@ import org.springframework.context.annotation.Configuration
  *
  * Cookie 기반 인증을 사용하여 /api/ 엔드포인트 테스트 가능
  * OAuth 로그인 후 브라우저에 설정된 accessToken cookie를 통해 인증됨
+ * baseUrl은 환경 변수 SWAGGER_BASE_URL에서 로드되며, 기본값은 http://localhost:8080
  */
 @Configuration
-class SwaggerConfig {
+class SwaggerConfig(
+    @Value("\${swagger.base-url}")
+    private val swaggerBaseUrl: String
+) {
 
     companion object {
         private const val COOKIE_AUTH_SCHEME = "cookieAuth"
@@ -28,6 +34,7 @@ class SwaggerConfig {
     fun openAPI(): OpenAPI {
         return OpenAPI()
             .info(apiInfo())
+            .servers(listOf(Server().url(swaggerBaseUrl).description("API Server")))
             .components(securityComponents())
             .addSecurityItem(SecurityRequirement().addList(COOKIE_AUTH_SCHEME))
     }
