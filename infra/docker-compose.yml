@@ -62,6 +62,7 @@ services:
       COOKIE_HTTP_ONLY: ${COOKIE_HTTP_ONLY:-true}
       COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-Lax}
       COOKIE_PATH: ${COOKIE_PATH:-/}
+      SWAGGER_BASE_URL: ${SWAGGER_BASE_URL:-http://localhost:8080}
     ports:
       - "${SERVER_PORT:-8080}:8080"
     depends_on:
