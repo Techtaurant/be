@@ -1,3 +1,6 @@
+server:
+  forward-headers-strategy: native
+
 spring:
   application:
     name: ${APP_NAME}
@@ -71,10 +74,11 @@ oauth2:
     failure-url: ${OAUTH2_FAILURE_REDIRECT_URL:http://localhost:3000/oauth/error}
 
 # Cookie
+# 주의: SameSite=None은 반드시 Secure=true와 함께 사용해야 함 (Chrome 80+)
 cookie:
   secure: ${COOKIE_SECURE:true}
   http-only: ${COOKIE_HTTP_ONLY:true}
-  same-site: ${COOKIE_SAME_SITE:Lax}
+  same-site: ${COOKIE_SAME_SITE:None}
   path: ${COOKIE_PATH:/}
 
 # Springdoc OpenAPI

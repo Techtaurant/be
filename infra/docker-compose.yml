@@ -60,7 +60,7 @@ services:
       OAUTH2_FAILURE_REDIRECT_URL: ${OAUTH2_FAILURE_REDIRECT_URL:-http://localhost:3000/oauth/error}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       COOKIE_HTTP_ONLY: ${COOKIE_HTTP_ONLY:-true}
-      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-Lax}
+      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-None}
       COOKIE_PATH: ${COOKIE_PATH:-/}
       SWAGGER_BASE_URL: ${SWAGGER_BASE_URL:-http://localhost:8080}
     ports:
