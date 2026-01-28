@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.security.handler.CustomAuthenticationEntryPoin
 import com.techtaurant.mainserver.security.jwt.JwtAuthenticationFilter
 import com.techtaurant.mainserver.security.oauth.handler.OAuth2FailureHandler
 import com.techtaurant.mainserver.security.oauth.handler.OAuth2SuccessHandler
+import com.techtaurant.mainserver.security.oauth.repository.HttpCookieOAuth2AuthorizationRequestRepository
 import com.techtaurant.mainserver.security.oauth.service.CustomOAuth2UserService
 import com.techtaurant.mainserver.user.enums.UserRole
 import org.springframework.context.annotation.Bean
@@ -29,6 +30,7 @@ class SecurityConfig(
     private val customAuthenticationEntryPoint: CustomAuthenticationEntryPoint,
     private val customAccessDeniedHandler: CustomAccessDeniedHandler,
     private val corsProperties: CorsProperties,
+    private val cookieOAuth2AuthorizationRequestRepository: HttpCookieOAuth2AuthorizationRequestRepository,
 ) {
 
     @Bean
@@ -65,6 +67,9 @@ class SecurityConfig(
             }
             .oauth2Login { oauth2 ->
                 oauth2
+                    .authorizationEndpoint { endpoint ->
+                        endpoint.authorizationRequestRepository(cookieOAuth2AuthorizationRequestRepository)
+                    }
                     .userInfoEndpoint { it.userService(customOAuth2UserService) }
                     .successHandler(oAuth2SuccessHandler)
                     .failureHandler(oAuth2FailureHandler)

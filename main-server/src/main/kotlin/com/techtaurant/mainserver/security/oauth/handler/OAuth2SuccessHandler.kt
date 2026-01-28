@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.security.helper.CookieHelper
 import com.techtaurant.mainserver.security.jwt.JwtConstants
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.security.oauth.CustomOAuth2User
+import com.techtaurant.mainserver.security.oauth.repository.HttpCookieOAuth2AuthorizationRequestRepository
 import com.techtaurant.mainserver.user.enums.UserStatus
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -20,6 +21,7 @@ class OAuth2SuccessHandler(
     private val jwtTokenProvider: JwtTokenProvider,
     private val cookieHelper: CookieHelper,
     private val tokenCacheManager: TokenCacheManager,
+    private val cookieOAuth2AuthorizationRequestRepository: HttpCookieOAuth2AuthorizationRequestRepository,
     @param:Value("\${oauth2.redirect.success-url}") private val successRedirectUrl: String,
 ) : AuthenticationSuccessHandler {
 
@@ -52,6 +54,9 @@ class OAuth2SuccessHandler(
             refreshToken,
             (JwtConstants.REFRESH_TOKEN_EXPIRED_TIME / 1000).toInt()
         )
+
+        // OAuth2 인증 완료 후 authorization request 쿠키 정리
+        cookieOAuth2AuthorizationRequestRepository.removeAuthorizationRequestCookies(response)
 
         response.sendRedirect(successRedirectUrl)
     }
