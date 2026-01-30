@@ -4,6 +4,7 @@ plugins {
     id("org.springframework.boot") version "3.5.7"
     id("io.spring.dependency-management") version "1.1.7"
     kotlin("plugin.jpa") version "1.9.25"
+    jacoco
 }
 
 group = "com.techtaurant"
@@ -73,6 +74,71 @@ allOpen {
     annotation("jakarta.persistence.Embeddable")
 }
 
+// JaCoCo Configuration
+jacoco {
+    toolVersion = "0.8.11"
+}
+
+// Configure test task
 tasks.withType<Test> {
     useJUnitPlatform()
+    finalizedBy("jacocoTestReport")
+}
+
+// Configure JaCoCo Test Report Task
+tasks.named<JacocoReport>("jacocoTestReport") {
+    dependsOn(tasks.withType<Test>())
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+
+    classDirectories.setFrom(
+        files(
+            classDirectories.files.map { file ->
+                fileTree(file) {
+                    exclude(
+                        "**/config/**",
+                        "**/entity/**",
+                        "**/dto/**",
+                        "**/Application.class",
+                        "**/ApplicationKt.class"
+                    )
+                }
+            }
+        )
+    )
+
+    finalizedBy("jacocoTestCoverageVerification")
+}
+
+// Configure JaCoCo Coverage Verification Task
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    dependsOn("jacocoTestReport")
+
+    violationRules {
+        rule {
+            element = "CLASS"
+
+            limit {
+                counter = "METHOD"
+                value = "COVEREDRATIO"
+                minimum = "0.70".toBigDecimal()
+            }
+
+            limit {
+                counter = "BRANCH"
+                value = "COVEREDRATIO"
+                minimum = "0.60".toBigDecimal()
+            }
+
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.70".toBigDecimal()
+            }
+        }
+    }
 }
