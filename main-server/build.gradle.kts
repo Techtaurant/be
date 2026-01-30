@@ -36,11 +36,24 @@ dependencies {
     // Environment Variables
     implementation("me.paulschwarz:spring-dotenv:4.0.0")
 
+    // Testing
     testImplementation("io.mockk:mockk:1.13.10")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testImplementation("org.springframework.security:spring-security-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    // E2E Testing
+    testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation("org.testcontainers:testcontainers:1.19.7")
+    testImplementation("org.testcontainers:postgresql:1.19.7")
+    testImplementation("org.testcontainers:testcontainers-bom:1.19.7")
+
+    // REST Assured for API Testing
+    testImplementation("io.rest-assured:rest-assured:5.4.0")
+
+    // Test Database
+    testRuntimeOnly("org.postgresql:postgresql")
 
     // Flyway
     implementation("org.flywaydb:flyway-core")
