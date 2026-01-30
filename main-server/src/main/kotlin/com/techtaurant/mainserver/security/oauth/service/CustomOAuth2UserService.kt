@@ -20,16 +20,24 @@ class CustomOAuth2UserService(
 ) : DefaultOAuth2UserService() {
 
     override fun loadUser(userRequest: OAuth2UserRequest): OAuth2User {
-        val oAuth2User = super.loadUser(userRequest)
-        val registrationId = userRequest.clientRegistration.registrationId
+        try {
+            val oAuth2User = super.loadUser(userRequest)
+            val registrationId = userRequest.clientRegistration.registrationId
 
-        val oAuth2UserInfo = getOAuth2UserInfo(registrationId, oAuth2User.attributes)
-        val provider = getOAuthProvider(registrationId)
+            val oAuth2UserInfo = getOAuth2UserInfo(registrationId, oAuth2User.attributes)
+            val provider = getOAuthProvider(registrationId)
 
-        val user = userRepository.findByIdentifierAndProvider(oAuth2UserInfo.getId(), provider)
-            ?: createUser(oAuth2UserInfo, provider)
+            val user = userRepository.findByIdentifierAndProvider(oAuth2UserInfo.getId(), provider)
+                ?: createUser(oAuth2UserInfo, provider)
 
-        return CustomOAuth2User(user, oAuth2User.attributes)
+            return CustomOAuth2User(user, oAuth2User.attributes)
+        } catch (e: Exception) {
+            println("OAuth2 loadUser failed - ClientRegistration: ${userRequest.clientRegistration.registrationId}")
+            println("Exception: ${e.message}")
+            println("Exception type: ${e.javaClass.simpleName}")
+            e.printStackTrace()
+            throw e
+        }
     }
 
     private fun getOAuth2UserInfo(registrationId: String, attributes: Map<String, Any>): OAuth2UserInfo {
