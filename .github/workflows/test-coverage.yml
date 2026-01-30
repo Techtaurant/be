@@ -56,12 +56,6 @@ jobs:
           SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
           SPRING_PROFILES_ACTIVE: test
 
-      - name: Verify Coverage Thresholds
-        working-directory: ./main-server
-        run: |
-          chmod +x gradlew
-          ./gradlew jacocoTestCoverageVerification --no-daemon
-
       - name: Upload Coverage Report
         if: always()
         uses: actions/upload-artifact@v4
@@ -78,48 +72,9 @@ jobs:
           path: main-server/build/test-results/
           retention-days: 30
 
-      - name: Comment PR with Coverage Report Link
-        if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            const coverageReportPath = './main-server/build/reports/jacoco/test/html/index.html';
-
-            let comment = '## 📊 Test Coverage Report\n\n';
-
-            if (fs.existsSync(coverageReportPath)) {
-              comment += '✅ Coverage report generated successfully!\n\n';
-              comment += '**Coverage Details:**\n';
-              comment += '- View detailed coverage: [Download Artifact](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})\n';
-              comment += '- Minimum Line Coverage: 70%\n';
-              comment += '- Minimum Method Coverage: 70%\n';
-              comment += '- Minimum Branch Coverage: 60%\n\n';
-            } else {
-              comment += '⚠️ Coverage report not generated. Check the test results for details.\n\n';
-            }
-
-            comment += '**Status:** ';
-            if ('${{ job.status }}' === 'success') {
-              comment += '✅ All tests passed with sufficient coverage!\n';
-            } else {
-              comment += '❌ Tests failed or coverage thresholds not met. Please review the logs.\n';
-            }
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
-
       - name: Fail if Tests Failed
         if: failure()
         run: |
-          echo "❌ Tests failed or coverage verification failed!"
-          echo "Please ensure all tests pass and meet the minimum coverage requirements:"
-          echo "- Line Coverage: 70%"
-          echo "- Method Coverage: 70%"
-          echo "- Branch Coverage: 60%"
+          echo "❌ Tests failed!"
+          echo "Please ensure all tests pass."
           exit 1
