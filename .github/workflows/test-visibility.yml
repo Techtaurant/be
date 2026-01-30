@@ -47,8 +47,10 @@ jobs:
       - name: Run Tests & Generate Coverage Report
         working-directory: ./main-server
         run: |
+          echo "테스트 실행 중... 상세 로그는 artifact에서 확인하세요."
           chmod +x gradlew
-          ./gradlew test jacocoTestReport -x jacocoTestCoverageVerification --no-daemon
+          ./gradlew test jacocoTestReport -x jacocoTestCoverageVerification --stacktrace > test-output.log 2>&1 || (echo "❌ 테스트 실패! test-output.log를 확인하세요." && cat test-output.log && exit 1)
+          echo "✅ 테스트 성공!"
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/techtaurant_test
           SPRING_DATASOURCE_USERNAME: testuser
@@ -56,25 +58,32 @@ jobs:
           SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
           SPRING_PROFILES_ACTIVE: test
 
-      - name: Upload Coverage Report
+      - name: 테스트 로그 및 리포트 업로드
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: jacoco-report
-          path: main-server/build/reports/jacoco/test/html/
+          name: test-logs-and-reports
+          path: |
+            main-server/test-output.log
+            main-server/build/reports/jacoco/test/
+            main-server/build/test-results/
           retention-days: 30
 
-      - name: Upload Test Results
+      - name: 테스트 커버리지를 PR에 코멘트로 등록
         if: always()
-        uses: actions/upload-artifact@v4
+        id: jacoco
+        uses: madrapps/jacoco-report@v1.2
         with:
-          name: test-results
-          path: main-server/build/test-results/
-          retention-days: 30
+          title: 📝 테스트 커버리지 리포트입니다
+          paths: ${{ github.workspace }}/main-server/build/reports/jacoco/test/jacocoTestReport.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 50
+          min-coverage-changed-files: 50
 
-      - name: Fail if Tests Failed
+      - name: 테스트 실패 시 PostgreSQL 로그 확인
         if: failure()
         run: |
-          echo "❌ Tests failed!"
-          echo "Please ensure all tests pass."
-          exit 1
+          echo "=== PostgreSQL Connection Test ==="
+          PGPASSWORD=testpass psql -h localhost -U testuser -d techtaurant_test -c "SELECT 1;" || echo "PostgreSQL connection failed"
+          echo "=== Test Results ==="
+          find main-server/build/reports/tests -name "*.html" -type f | head -5
