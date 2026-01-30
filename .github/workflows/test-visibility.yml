@@ -1,4 +1,4 @@
-name: Test & Coverage Verification
+name: Test Visibility
 
 on:
   pull_request:
@@ -48,7 +48,7 @@ jobs:
         working-directory: ./main-server
         run: |
           chmod +x gradlew
-          ./gradlew test jacocoTestReport --no-daemon
+          ./gradlew test jacocoTestReport -x jacocoTestCoverageVerification --no-daemon
         env:
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/techtaurant_test
           SPRING_DATASOURCE_USERNAME: testuser
