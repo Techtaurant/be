@@ -12,6 +12,7 @@ enum class PostStatus(
     CATEGORY_DEPTH_EXCEEDED(HttpStatus.BAD_REQUEST.value(), 3002, "카테고리 깊이는 최대 5단계까지 가능합니다"),
     TITLE_TOO_LONG(HttpStatus.BAD_REQUEST.value(), 3003, "제목은 최대 200자까지 가능합니다"),
     INVALID_CATEGORY_PATH(HttpStatus.BAD_REQUEST.value(), 3004, "유효하지 않은 카테고리 경로입니다"),
+    INVALID_SORT_TYPE(HttpStatus.BAD_REQUEST.value(), 3005, "유효하지 않은 정렬 타입입니다"),
     ;
 
     override fun getHttpStatusCode(): Int {

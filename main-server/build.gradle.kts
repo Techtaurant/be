@@ -1,6 +1,7 @@
 plugins {
     kotlin("jvm") version "1.9.25"
     kotlin("plugin.spring") version "1.9.25"
+    kotlin("kapt") version "1.9.25"
     id("org.springframework.boot") version "3.5.7"
     id("io.spring.dependency-management") version "1.1.7"
     kotlin("plugin.jpa") version "1.9.25"
@@ -70,6 +71,9 @@ dependencies {
 
     // UUID V7
     implementation("com.github.f4b6a3:uuid-creator:6.0.0")
+
+    // JPA Metamodel (타입 안전 Criteria Query)
+    kapt("org.hibernate.orm:hibernate-jpamodelgen")
 
     // Caffeine Cache
     implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")

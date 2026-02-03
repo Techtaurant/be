@@ -135,3 +135,25 @@ Authorization: Bearer {accessToken}
 
 **위치**: `security/oauth/status/OAuthStatus.kt`
 
+---
+
+## 테스트 실행
+
+### 전체 테스트 (jacoco 커버리지 측정 포함)
+
+```bash
+./gradlew test
+```
+
+jacoco 보고서는 `build/reports/jacoco/test/html/index.html`에서 확인할 수 있습니다.
+
+### 빠른 테스트 (jacoco 제외)
+
+jacoco 커버리지 측정을 건너뛰고 테스트만 실행하려면:
+
+```bash
+./gradlew test -x jacocoTestReport
+```
+
+이 방법은 커버리지 생성 과정을 생략하여 테스트 실행 시간을 단축합니다.
+
