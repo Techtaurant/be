@@ -13,4 +13,12 @@ interface CommentRepository : JpaRepository<Comment, UUID> {
      * @return 댓글 목록 (생성 시간 오름차순)
      */
     fun findByPostIdOrderByCreatedAtAsc(postId: UUID): List<Comment>
+
+    /**
+     * 특정 게시물의 총 댓글 수를 조회합니다.
+     *
+     * @param postId 게시물 ID
+     * @return 댓글 수 (대댓글 포함)
+     */
+    fun countByPostId(postId: UUID): Long
 }
