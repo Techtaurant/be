@@ -18,6 +18,16 @@ interface PostLikeLogRepository : JpaRepository<PostLikeLog, UUID> {
     fun countByPostIdAndIsLikedTrue(postId: UUID): Long
 
     /**
+     * 특정 게시글에 대한 특정 사용자의 좋아요 로그를 조회합니다.
+     * 기존 로그가 있는지 확인하여 UPDATE 또는 INSERT를 결정하는 데 사용됩니다.
+     *
+     * @param postId 게시글 ID
+     * @param userId 사용자 ID
+     * @return 좋아요 로그 (없으면 null)
+     */
+    fun findByPostIdAndUserId(postId: UUID, userId: UUID): PostLikeLog?
+
+    /**
      * 특정 시점 이후 이벤트가 발생한 게시글 ID 목록을 조회합니다.
      * statsUpdatedAt 이후 좋아요/취소 이벤트가 발생한 게시글만 반환하여 효율적인 통계 갱신을 지원합니다.
      *

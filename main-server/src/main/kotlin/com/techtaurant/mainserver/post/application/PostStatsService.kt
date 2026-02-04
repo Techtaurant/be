@@ -54,26 +54,4 @@ class PostStatsService(
             postRepository.save(post)
         }
     }
-
-    /**
-     * 특정 게시물의 어제 일별 통계를 조회합니다.
-     *
-     * @param postId 게시물 ID
-     * @return 어제의 통계 또는 null
-     */
-    fun getDailyStatsForYesterday(postId: UUID): PostDailyStats? {
-        val yesterday = LocalDate.now().minusDays(1)
-        return postDailyStatsRepository.findByPostIdAndStatDate(postId, yesterday)
-    }
-
-    /**
-     * 특정 게시물의 지정된 날짜 통계를 조회합니다.
-     *
-     * @param postId 게시물 ID
-     * @param statDate 통계 날짜
-     * @return 해당 날짜의 통계 또는 null
-     */
-    fun getDailyStats(postId: UUID, statDate: LocalDate): PostDailyStats? {
-        return postDailyStatsRepository.findByPostIdAndStatDate(postId, statDate)
-    }
 }
