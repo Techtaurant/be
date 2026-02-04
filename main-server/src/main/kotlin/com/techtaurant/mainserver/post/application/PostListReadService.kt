@@ -3,11 +3,18 @@ package com.techtaurant.mainserver.post.application
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.dto.PostListItemResponse
+import com.techtaurant.mainserver.post.dto.PostListTagResponse
+import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
+import com.techtaurant.mainserver.post.infrastructure.out.PostViewLogRepository
+import com.techtaurant.mainserver.user.entity.User
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.UUID
 
 /**
  * 게시물 목록 조회 서비스
@@ -16,6 +23,9 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional(readOnly = true)
 class PostListReadService(
     private val postRepository: PostRepository,
+    private val postViewLogRepository: PostViewLogRepository,
+    @param:Value("\${app.default-post-thumbnail-url}")
+    private val defaultThumbnailUrl: String,
 ) {
 
     /**
@@ -60,11 +70,67 @@ class PostListReadService(
             null
         }
 
+        val currentUserId = getCurrentUserId()
+        val readPostIds = if (currentUserId != null && content.isNotEmpty()) {
+            postViewLogRepository.findDistinctPostIdsByUserIdAndPostIdIn(
+                userId = currentUserId,
+                postIds = content.mapNotNull { it.id }
+            ).toSet()
+        } else {
+            emptySet()
+        }
+
         return CursorPageResponse(
-            content = content.map { PostListItemResponse.from(it) },
+            content = content.map { post ->
+                convertToResponse(post, readPostIds.contains(post.id))
+            },
             nextCursor = nextCursor,
             hasNext = hasNext,
             size = content.size,
+        )
+    }
+
+    /**
+     * SecurityContext에서 현재 로그인한 사용자의 ID를 추출합니다.
+     * 인증되지 않은 사용자(비회원)인 경우 null을 반환합니다.
+     *
+     * @return 현재 사용자 ID (비회원이면 null)
+     */
+    private fun getCurrentUserId(): UUID? {
+        val authentication = SecurityContextHolder.getContext().authentication
+        return (authentication?.principal as? User)?.id
+    }
+
+    /**
+     * Post 엔티티를 PostListItemResponse DTO로 변환합니다.
+     * 썸네일 URL과 읽음 여부를 계산하여 포함합니다.
+     *
+     * @param post 게시물 엔티티
+     * @param isRead 현재 사용자가 읽은 게시물인지 여부
+     * @return 응답 DTO
+     */
+    private fun convertToResponse(post: Post, isRead: Boolean): PostListItemResponse {
+        val thumbnailUrl = post.pictures
+            .filter { it.isThumbnail }
+            .minByOrNull { it.displayOrder }
+            ?.pictureUrl
+            ?: post.pictures
+                .minByOrNull { it.displayOrder }
+                ?.pictureUrl
+            ?: defaultThumbnailUrl
+
+        return PostListItemResponse(
+            id = post.id!!,
+            title = post.title,
+            authorName = post.author.name,
+            authorProfileImageUrl = post.author.profileImageUrl,
+            thumbnailUrl = thumbnailUrl,
+            isRead = isRead,
+            tags = post.tags.map { PostListTagResponse.from(it) },
+            viewCount = post.viewCount,
+            likeCount = post.likeCount,
+            commentCount = post.commentCount,
+            createdAt = post.createdAt,
         )
     }
 }

@@ -32,7 +32,6 @@ import java.util.UUID
 @Validated
 class PostController(
     private val postWriteService: PostWriteService,
-    private val postListReadService: PostListReadService,
 ) {
 
     @PostMapping
@@ -71,13 +70,13 @@ class PostReadController(
 
     @Operation(
         summary = "게시물 목록 조회",
-        description = "커서 기반 페이지네이션으로 게시물 목록을 조회합니다. 기간 필터와 정렬 조건을 적용할 수 있습니다."
+        description = "커서 기반 페이지네이션으로 게시물 목록을 조회합니다. 기간 필터와 정렬 조건을 적용할 수 있습니다. 로그인 시 읽음 여부를 포함하며, 비회원도 조회 가능합니다."
     )
     @ApiResponses(
         value = [
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "200",
-                description = "조회 성공"
+                description = "조회 성공 (작성자 프로필 이미지, 게시물 썸네일, 읽음 여부 포함)"
             ),
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "400",

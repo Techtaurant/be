@@ -54,6 +54,7 @@ class SecurityConfig(
                         "/v3/api-docs/**",
                         "/oauth2/**",
                         "/login/**",
+                        "/static/images/**"
                     ).permitAll()
                     .requestMatchers(
                         "${SecurityConstants.OPEN_API_PREFIX}/**"

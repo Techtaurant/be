@@ -11,6 +11,9 @@ import java.util.UUID
  * @property id 게시물 ID
  * @property title 게시물 제목
  * @property authorName 작성자 이름
+ * @property authorProfileImageUrl 작성자 프로필 이미지 URL
+ * @property thumbnailUrl 게시물 썸네일 이미지 URL
+ * @property isRead 로그인한 사용자가 읽은 게시물인지 여부 (비회원은 항상 false)
  * @property tags 태그 목록
  * @property viewCount 조회수
  * @property likeCount 좋아요수
@@ -28,6 +31,15 @@ data class PostListItemResponse(
     @field:Schema(description = "작성자 이름")
     val authorName: String,
 
+    @field:Schema(description = "작성자 프로필 이미지 URL")
+    val authorProfileImageUrl: String,
+
+    @field:Schema(description = "게시물 썸네일 이미지 URL")
+    val thumbnailUrl: String,
+
+    @field:Schema(description = "로그인한 사용자가 읽은 게시물인지 여부")
+    val isRead: Boolean,
+
     @field:Schema(description = "태그 목록")
     val tags: List<PostListTagResponse>,
 
@@ -44,10 +56,21 @@ data class PostListItemResponse(
     val createdAt: Date,
 ) {
     companion object {
+        /**
+         * @deprecated PostListReadService.convertToResponse()를 사용하세요.
+         * 이 메서드는 썸네일과 읽음 여부를 처리하지 않습니다.
+         */
+        @Deprecated(
+            message = "Use PostListReadService.convertToResponse() instead",
+            level = DeprecationLevel.WARNING
+        )
         fun from(post: Post): PostListItemResponse = PostListItemResponse(
             id = post.id!!,
             title = post.title,
             authorName = post.author.name,
+            authorProfileImageUrl = post.author.profileImageUrl,
+            thumbnailUrl = "",
+            isRead = false,
             tags = post.tags.map { PostListTagResponse.from(it) },
             viewCount = post.viewCount,
             likeCount = post.likeCount,
