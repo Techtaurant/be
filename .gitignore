@@ -66,9 +66,6 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Project Specific
-.claude
-
 # Spring Boot / Gradle
 main-server/HELP.md
 main-server/.gradle
