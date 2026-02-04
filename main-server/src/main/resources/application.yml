@@ -97,3 +97,7 @@ springdoc:
 # Swagger
 swagger:
   base-url: ${SWAGGER_BASE_URL:http://localhost:8080}
+
+# App
+app:
+  default-post-thumbnail-url: /static/images/post-thumbnail.png

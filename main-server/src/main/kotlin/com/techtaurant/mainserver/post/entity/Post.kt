@@ -14,6 +14,7 @@ import java.util.Date
  * @property author 작성자 (User와 N:1 관계)
  * @property category 카테고리 (Category와 N:1 관계)
  * @property tags 태그 목록 (ManyToMany)
+ * @property pictures 게시물에 첨부된 사진 목록
  * @property viewCount 조회수 (캐시된 누적값, 배치로 동기화)
  * @property likeCount 좋아요수 (캐시된 누적값, 배치로 동기화)
  * @property commentCount 댓글수 (캐시된 누적값, 배치로 동기화)
@@ -44,6 +45,9 @@ class Post(
         inverseJoinColumns = [JoinColumn(name = "tag_id")]
     )
     var tags: MutableSet<Tag> = mutableSetOf(),
+
+    @OneToMany(mappedBy = "post", fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
+    var pictures: MutableSet<PostPicture> = mutableSetOf(),
 
     @Column(name = "view_count", nullable = false)
     var viewCount: Long = 0,
