@@ -2,11 +2,11 @@ package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.post.entity.PostLikeLog
-import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
-import com.techtaurant.mainserver.user.enums.UserStatus
+import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
+import com.techtaurant.mainserver.user.enums.UserStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -21,6 +21,7 @@ class PostLikeLogService(
     private val postRepository: PostRepository,
     private val userRepository: UserRepository,
 ) {
+
     /**
      * 게시글 좋아요/싫어요 로그를 생성하거나 수정합니다.
      * 동일한 사용자의 기존 로그가 있으면 isLiked 값만 업데이트하고, 없으면 새로 생성합니다.
@@ -36,15 +37,13 @@ class PostLikeLogService(
         userId: UUID,
         isLiked: Boolean,
     ) {
-        val post =
-            postRepository.findById(postId).orElseThrow {
-                ApiException(PostStatus.POST_NOT_FOUND)
-            }
+        val post = postRepository.findById(postId).orElseThrow {
+            ApiException(PostStatus.POST_NOT_FOUND)
+        }
 
-        val user =
-            userRepository.findById(userId).orElseThrow {
-                ApiException(UserStatus.ID_NOT_FOUND)
-            }
+        val user = userRepository.findById(userId).orElseThrow {
+            ApiException(UserStatus.ID_NOT_FOUND)
+        }
 
         val existingLog = postLikeLogRepository.findByPostIdAndUserId(postId, userId)
 
@@ -52,12 +51,11 @@ class PostLikeLogService(
             existingLog.isLiked = isLiked
             postLikeLogRepository.save(existingLog)
         } else {
-            val newLog =
-                PostLikeLog(
-                    post = post,
-                    user = user,
-                    isLiked = isLiked,
-                )
+            val newLog = PostLikeLog(
+                post = post,
+                user = user,
+                isLiked = isLiked,
+            )
             postLikeLogRepository.save(newLog)
         }
     }

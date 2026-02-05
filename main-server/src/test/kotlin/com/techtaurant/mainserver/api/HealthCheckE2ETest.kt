@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test
 
 @DisplayName("Test Setup Verification")
 class HealthCheckE2ETest {
+
     @Test
     @DisplayName("E2E 테스트 환경이 정상 설정되었다")
     fun `e2e testing environment is properly configured`() {

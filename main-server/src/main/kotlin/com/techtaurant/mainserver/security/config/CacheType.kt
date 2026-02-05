@@ -11,5 +11,5 @@ enum class CacheType(
     val cacheName: String,
     val expiredAfterWrite: Long,
 ) {
-    REFRESH_TOKEN(JwtConstants.REFRESH_TOKEN_COOKIE, JwtConstants.REFRESH_TOKEN_EXPIRED_TIME),
+    REFRESH_TOKEN(JwtConstants.REFRESH_TOKEN_COOKIE, JwtConstants.REFRESH_TOKEN_EXPIRED_TIME)
 }

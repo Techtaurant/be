@@ -61,17 +61,13 @@ data class PostCursor(
          * @param post 게시물 엔티티
          * @param sortType 정렬 타입
          */
-        fun from(
-            post: com.techtaurant.mainserver.post.entity.Post,
-            sortType: PostSortType,
-        ): PostCursor {
-            val sortValue =
-                when (sortType) {
-                    PostSortType.LATEST -> 0L
-                    PostSortType.VIEW -> post.viewCount
-                    PostSortType.LIKE -> post.likeCount
-                    PostSortType.COMMENT -> post.commentCount
-                }
+        fun from(post: com.techtaurant.mainserver.post.entity.Post, sortType: PostSortType): PostCursor {
+            val sortValue = when (sortType) {
+                PostSortType.LATEST -> 0L
+                PostSortType.VIEW -> post.viewCount
+                PostSortType.LIKE -> post.likeCount
+                PostSortType.COMMENT -> post.commentCount
+            }
             return PostCursor(sortValue, post.createdAt, post.id!!, sortType)
         }
     }

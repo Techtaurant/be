@@ -23,8 +23,9 @@ import org.springframework.context.annotation.Configuration
 @Configuration
 class SwaggerConfig(
     @Value("\${swagger.base-url}")
-    private val swaggerBaseUrl: String,
+    private val swaggerBaseUrl: String
 ) {
+
     companion object {
         private const val COOKIE_AUTH_SCHEME = "cookieAuth"
     }
@@ -80,7 +81,7 @@ class SwaggerConfig(
                     .type(SecurityScheme.Type.APIKEY)
                     .`in`(SecurityScheme.In.COOKIE)
                     .name(JwtConstants.ACCESS_TOKEN_COOKIE)
-                    .description("OAuth 로그인 후 자동으로 설정되는 accessToken cookie"),
+                    .description("OAuth 로그인 후 자동으로 설정되는 accessToken cookie")
             )
     }
 }

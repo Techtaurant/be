@@ -16,18 +16,24 @@ import java.time.LocalDate
 @Entity
 @Table(
     name = "post_daily_stats",
-    uniqueConstraints = [UniqueConstraint(columnNames = ["post_id", "stat_date"])],
+    uniqueConstraints = [UniqueConstraint(columnNames = ["post_id", "stat_date"])]
 )
 class PostDailyStats(
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = false)
     var post: Post,
+
     @Column(name = "stat_date", nullable = false)
     var statDate: LocalDate,
+
     @Column(name = "view_count", nullable = false)
     var viewCount: Long = 0,
+
     @Column(name = "like_count", nullable = false)
     var likeCount: Long = 0,
+
     @Column(name = "comment_count", nullable = false)
     var commentCount: Long = 0,
+
 ) : EntityBase()

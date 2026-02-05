@@ -9,14 +9,14 @@ import java.util.UUID
 
 @Service
 class UserReadService(
-    private val userRepository: UserRepository,
+    private val userRepository: UserRepository
 ) {
-    fun getMe(userId: UUID): UserResponse {
+
+    fun getMe(userId : UUID): UserResponse {
         // SecurityContext에서 userId를 받아 DB에서 User 조회
-        val user =
-            userRepository.findById(userId).orElseThrow {
-                ApiException(UserStatus.ID_NOT_FOUND)
-            }
+        val user = userRepository.findById(userId).orElseThrow {
+            ApiException(UserStatus.ID_NOT_FOUND)
+        }
         return UserResponse.from(user)
     }
 
@@ -24,4 +24,5 @@ class UserReadService(
         val users = userRepository.findByNameContainingIgnoreCaseOrderByNameAsc(name)
         return users.map { UserResponse.from(it) }
     }
+
 }

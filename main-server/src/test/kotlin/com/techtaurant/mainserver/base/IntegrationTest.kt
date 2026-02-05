@@ -13,6 +13,7 @@ import java.time.Duration
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 abstract class IntegrationTest {
+
     @LocalServerPort
     protected var port: Int = 0
 
@@ -30,18 +31,16 @@ abstract class IntegrationTest {
     }
 
     companion object {
-        private val postgresContainer =
-            PostgreSQLContainer("postgres:15-alpine")
-                .withDatabaseName("techtaurant_test")
-                .withUsername("test_user")
-                .withPassword("test_password")
-                .withExposedPorts(5432)
-                .waitingFor(Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(60)))
+        private val postgresContainer = PostgreSQLContainer("postgres:15-alpine")
+            .withDatabaseName("techtaurant_test")
+            .withUsername("test_user")
+            .withPassword("test_password")
+            .withExposedPorts(5432)
+            .waitingFor(Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(60)))
 
-        private val redisContainer =
-            GenericContainer("redis:7-alpine")
-                .withExposedPorts(6379)
-                .waitingFor(Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(60)))
+        private val redisContainer = GenericContainer("redis:7-alpine")
+            .withExposedPorts(6379)
+            .waitingFor(Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(60)))
 
         init {
             postgresContainer.start()

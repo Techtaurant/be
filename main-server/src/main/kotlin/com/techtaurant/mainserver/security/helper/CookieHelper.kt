@@ -13,36 +13,26 @@ import java.time.Duration
 class CookieHelper(
     private val cookieProperties: CookieProperties,
 ) {
-    fun addCookie(
-        response: HttpServletResponse,
-        name: String,
-        value: String,
-        maxAge: Int,
-    ) {
-        val cookie =
-            ResponseCookie.from(name, value)
-                .maxAge(Duration.ofSeconds(maxAge.toLong()))
-                .path(cookieProperties.path)
-                .httpOnly(cookieProperties.httpOnly)
-                .secure(cookieProperties.secure)
-                .sameSite(cookieProperties.sameSite)
-                .build()
+    fun addCookie(response: HttpServletResponse, name: String, value: String, maxAge: Int) {
+        val cookie = ResponseCookie.from(name, value)
+            .maxAge(Duration.ofSeconds(maxAge.toLong()))
+            .path(cookieProperties.path)
+            .httpOnly(cookieProperties.httpOnly)
+            .secure(cookieProperties.secure)
+            .sameSite(cookieProperties.sameSite)
+            .build()
 
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString())
     }
 
-    fun deleteCookie(
-        response: HttpServletResponse,
-        name: String,
-    ) {
-        val cookie =
-            ResponseCookie.from(name, "")
-                .maxAge(Duration.ZERO)
-                .path(cookieProperties.path)
-                .httpOnly(cookieProperties.httpOnly)
-                .secure(cookieProperties.secure)
-                .sameSite(cookieProperties.sameSite)
-                .build()
+    fun deleteCookie(response: HttpServletResponse, name: String) {
+        val cookie = ResponseCookie.from(name, "")
+            .maxAge(Duration.ZERO)
+            .path(cookieProperties.path)
+            .httpOnly(cookieProperties.httpOnly)
+            .secure(cookieProperties.secure)
+            .sameSite(cookieProperties.sameSite)
+            .build()
 
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString())
     }
@@ -52,10 +42,7 @@ class CookieHelper(
         deleteCookie(response, JwtConstants.ACCESS_TOKEN_COOKIE)
     }
 
-    fun getCookie(
-        request: HttpServletRequest,
-        name: String,
-    ): String? {
+    fun getCookie(request: HttpServletRequest, name: String): String? {
         return request.cookies?.firstOrNull { it.name == name }?.value
     }
 }

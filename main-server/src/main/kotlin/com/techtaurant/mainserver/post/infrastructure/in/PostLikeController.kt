@@ -23,23 +23,24 @@ import java.util.UUID
 class PostLikeController(
     private val postLikeLogService: PostLikeLogService,
 ) {
+
     @PostMapping("/{postId}/like")
     @Operation(summary = "게시글 좋아요/싫어요", description = "게시글에 대한 좋아요 또는 싫어요를 기록합니다. 인증된 사용자만 호출 가능합니다.")
     @ApiResponses(
         value = [
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "200",
-                description = "좋아요/싫어요 기록 성공",
+                description = "좋아요/싫어요 기록 성공"
             ),
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "401",
-                description = "인증되지 않은 사용자",
+                description = "인증되지 않은 사용자"
             ),
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "404",
-                description = "게시글 또는 사용자를 찾을 수 없음",
+                description = "게시글 또는 사용자를 찾을 수 없음"
             ),
-        ],
+        ]
     )
     fun recordLike(
         @AuthenticationPrincipal userId: UUID,

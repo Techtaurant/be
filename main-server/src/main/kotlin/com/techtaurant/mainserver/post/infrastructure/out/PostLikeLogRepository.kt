@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param
 import java.util.*
 
 interface PostLikeLogRepository : JpaRepository<PostLikeLog, UUID> {
+
     /**
      * 특정 게시글의 현재 좋아요 수를 조회합니다.
      * isLiked가 TRUE인 레코드만 카운트합니다.
@@ -24,10 +25,7 @@ interface PostLikeLogRepository : JpaRepository<PostLikeLog, UUID> {
      * @param userId 사용자 ID
      * @return 좋아요 로그 (없으면 null)
      */
-    fun findByPostIdAndUserId(
-        postId: UUID,
-        userId: UUID,
-    ): PostLikeLog?
+    fun findByPostIdAndUserId(postId: UUID, userId: UUID): PostLikeLog?
 
     /**
      * 특정 시점 이후 이벤트가 발생한 게시글 ID 목록을 조회합니다.
@@ -41,9 +39,7 @@ interface PostLikeLogRepository : JpaRepository<PostLikeLog, UUID> {
         SELECT DISTINCT pll.post.id
         FROM PostLikeLog pll
         WHERE pll.updatedAt > :since
-        """,
+        """
     )
-    fun findDistinctPostIdsByUpdatedAtAfter(
-        @Param("since") since: Date,
-    ): List<UUID>
+    fun findDistinctPostIdsByUpdatedAtAfter(@Param("since") since: Date): List<UUID>
 }

@@ -24,6 +24,7 @@ class OAuth2SuccessHandler(
     private val cookieOAuth2AuthorizationRequestRepository: HttpCookieOAuth2AuthorizationRequestRepository,
     @param:Value("\${oauth2.redirect.success-url}") private val successRedirectUrl: String,
 ) : AuthenticationSuccessHandler {
+
     @Transactional
     override fun onAuthenticationSuccess(
         request: HttpServletRequest,
@@ -45,13 +46,13 @@ class OAuth2SuccessHandler(
             response,
             JwtConstants.ACCESS_TOKEN_COOKIE,
             accessToken,
-            (JwtConstants.ACCESS_TOKEN_EXPIRED_TIME / 1000).toInt(),
+            (JwtConstants.ACCESS_TOKEN_EXPIRED_TIME / 1000).toInt()
         )
         cookieHelper.addCookie(
             response,
             JwtConstants.REFRESH_TOKEN_COOKIE,
             refreshToken,
-            (JwtConstants.REFRESH_TOKEN_EXPIRED_TIME / 1000).toInt(),
+            (JwtConstants.REFRESH_TOKEN_EXPIRED_TIME / 1000).toInt()
         )
 
         // OAuth2 인증 완료 후 authorization request 쿠키 정리

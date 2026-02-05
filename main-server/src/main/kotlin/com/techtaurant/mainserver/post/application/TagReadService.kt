@@ -16,31 +16,25 @@ class TagReadService(
         private const val CURSOR_DELIMITER = "_"
     }
 
-    fun getTagsWithPostCount(
-        name: String?,
-        cursor: String?,
-        size: Int,
-    ): CursorPageResponse<TagResponse> {
+    fun getTagsWithPostCount(name: String?, cursor: String?, size: Int): CursorPageResponse<TagResponse> {
         val limit = size + 1
 
-        val searchedTags =
-            if (cursor == null) {
-                tagRepository.findAllWithPostCount(name, limit)
-            } else {
-                val (lastPostCount, lastTagId) = parseCursor(cursor)
-                tagRepository.findAllWithPostCountAfterCursor(name, lastPostCount, lastTagId, limit)
-            }
+        val searchedTags = if (cursor == null) {
+            tagRepository.findAllWithPostCount(name, limit)
+        } else {
+            val (lastPostCount, lastTagId) = parseCursor(cursor)
+            tagRepository.findAllWithPostCountAfterCursor(name, lastPostCount, lastTagId, limit)
+        }
 
         val hasNext = searchedTags.size > size
         val searchedTagResponses = searchedTags.take(size).map { it.toResponse() }
 
-        val nextCursor =
-            if (hasNext && searchedTagResponses.isNotEmpty()) {
-                val lastItem = searchedTagResponses.last()
-                "${lastItem.postCount}$CURSOR_DELIMITER${lastItem.id}"
-            } else {
-                null
-            }
+        val nextCursor = if (hasNext && searchedTagResponses.isNotEmpty()) {
+            val lastItem = searchedTagResponses.last()
+            "${lastItem.postCount}$CURSOR_DELIMITER${lastItem.id}"
+        } else {
+            null
+        }
 
         return CursorPageResponse(
             content = searchedTagResponses,
@@ -62,10 +56,9 @@ class TagReadService(
         return Pair(parts[0].toLong(), java.util.UUID.fromString(parts[1]))
     }
 
-    private fun TagWithPostCountProjection.toResponse() =
-        TagResponse(
-            id = getId(),
-            name = getName(),
-            postCount = getPostCount(),
-        )
+    private fun TagWithPostCountProjection.toResponse() = TagResponse(
+        id = getId(),
+        name = getName(),
+        postCount = getPostCount(),
+    )
 }

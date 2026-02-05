@@ -3,6 +3,7 @@ package com.techtaurant.mainserver.security.oauth.info
 class GoogleOAuth2UserInfo(
     private val attributes: Map<String, Any>,
 ) : OAuth2UserInfo {
+
     override fun getId(): String = attributes["sub"] as String
 
     override fun getEmail(): String = attributes["email"] as String

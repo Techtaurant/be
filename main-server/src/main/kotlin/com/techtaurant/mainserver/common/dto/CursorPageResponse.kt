@@ -15,10 +15,13 @@ import io.swagger.v3.oas.annotations.media.Schema
 data class CursorPageResponse<T>(
     @field:Schema(description = "페이지 데이터 목록")
     val content: List<T>,
+
     @field:Schema(description = "다음 페이지 커서 (마지막 페이지면 null)", nullable = true)
     val nextCursor: String?,
+
     @field:Schema(description = "다음 페이지 존재 여부")
     val hasNext: Boolean,
+
     @field:Schema(description = "현재 페이지 데이터 개수")
     val size: Int,
 )

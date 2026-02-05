@@ -21,7 +21,7 @@ enum class JwtStatus(
     AUTHENTICATION_REQUIRED(401, 3008, "인증이 필요합니다"),
     ACCESS_DENIED(403, 3009, "접근 권한이 없습니다"),
 
-    UNKNOWN_ERROR(500, 3099, "알 수 없는 JWT 오류가 발생했습니다"),
+    UNKNOWN_ERROR(500, 3099, "알 수 없는 JWT 오류가 발생했습니다")
     ;
 
     override fun getHttpStatusCode(): Int = httpStatusCode

@@ -13,6 +13,7 @@ import javax.sql.DataSource
  */
 @Configuration
 class ShedLockConfig {
+
     /**
      * JDBC 기반 Lock Provider를 생성합니다.
      * shedlock 테이블을 사용하여 분산 락을 관리합니다.
@@ -26,7 +27,7 @@ class ShedLockConfig {
             JdbcTemplateLockProvider.Configuration.builder()
                 .withJdbcTemplate(JdbcTemplate(dataSource))
                 .usingDbTime() // 데이터베이스 시간을 기준으로 락 시간 계산
-                .build(),
+                .build()
         )
     }
 }

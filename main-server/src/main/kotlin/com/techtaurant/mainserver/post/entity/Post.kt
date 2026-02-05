@@ -23,31 +23,42 @@ import java.util.Date
 @Entity
 @Table(name = "posts")
 class Post(
+
     @Column(nullable = false, length = 200)
     var title: String,
+
     @Column(nullable = false, columnDefinition = "TEXT")
     var content: String,
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "author_id", nullable = false)
     var author: User,
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     var category: Category? = null,
+
     @ManyToMany(fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
     @JoinTable(
         name = "post_tags",
         joinColumns = [JoinColumn(name = "post_id")],
-        inverseJoinColumns = [JoinColumn(name = "tag_id")],
+        inverseJoinColumns = [JoinColumn(name = "tag_id")]
     )
     var tags: MutableSet<Tag> = mutableSetOf(),
+
     @OneToMany(mappedBy = "post", fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
     var pictures: MutableSet<PostPicture> = mutableSetOf(),
+
     @Column(name = "view_count", nullable = false)
     var viewCount: Long = 0,
+
     @Column(name = "like_count", nullable = false)
     var likeCount: Long = 0,
+
     @Column(name = "comment_count", nullable = false)
     var commentCount: Long = 0,
+
     @Column(name = "stats_updated_at")
     var statsUpdatedAt: Date? = null,
+
 ) : EntityBase()

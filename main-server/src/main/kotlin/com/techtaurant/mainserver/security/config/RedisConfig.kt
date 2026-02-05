@@ -22,8 +22,9 @@ import java.time.Duration
 class RedisConfig(
     @Value("\${spring.data.redis.host}") private val host: String,
     @Value("\${spring.data.redis.port}") private val port: Int,
-    @Value("\${spring.data.redis.password}") private val password: String,
+    @Value("\${spring.data.redis.password}") private val password: String
 ) {
+
     @Bean
     fun redisConnectionFactory(): RedisConnectionFactory {
         val redisStandaloneConfiguration = RedisStandaloneConfiguration(host, port)
@@ -45,14 +46,12 @@ class RedisConfig(
         val objectMapper = objectMapper()
         val redisSerializer = GenericJackson2JsonRedisSerializer(objectMapper)
 
-        val cacheConfigurations =
-            CacheType.values().associate { cacheType ->
-                cacheType.cacheName to
-                    RedisCacheConfiguration.defaultCacheConfig()
-                        .entryTtl(Duration.ofSeconds(cacheType.expiredAfterWrite))
-                        .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(StringRedisSerializer()))
-                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(redisSerializer))
-            }
+        val cacheConfigurations = CacheType.values().associate { cacheType ->
+            cacheType.cacheName to RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofSeconds(cacheType.expiredAfterWrite))
+                .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(StringRedisSerializer()))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(redisSerializer))
+        }
 
         return RedisCacheManager.builder(redisConnectionFactory)
             .withInitialCacheConfigurations(cacheConfigurations)
@@ -61,10 +60,9 @@ class RedisConfig(
 
     private fun objectMapper(): ObjectMapper {
         val objectMapper = jacksonObjectMapper()
-        val ptv =
-            BasicPolymorphicTypeValidator.builder()
-                .allowIfBaseType(Any::class.java)
-                .build()
+        val ptv = BasicPolymorphicTypeValidator.builder()
+            .allowIfBaseType(Any::class.java)
+            .build()
         objectMapper.activateDefaultTyping(ptv, ObjectMapper.DefaultTyping.NON_FINAL)
         return objectMapper
     }

@@ -12,8 +12,9 @@ import org.springframework.stereotype.Component
  */
 @Component
 class TokenCacheManager(
-    private val cacheManager: CacheManager,
+    private val cacheManager: CacheManager
 ) {
+
     /**
      * 캐시에 값을 저장합니다.
      *
@@ -21,11 +22,7 @@ class TokenCacheManager(
      * @param key 캐시 키
      * @param value 저장할 값
      */
-    fun <T> save(
-        cacheType: CacheType,
-        key: String,
-        value: T,
-    ) {
+    fun <T> save(cacheType: CacheType, key: String, value: T) {
         val cache = cacheManager.getCache(cacheType.cacheName)
         cache?.put(key, value)
     }
@@ -38,11 +35,7 @@ class TokenCacheManager(
      * @param type 반환 타입 클래스
      * @return 캐시된 값 (없으면 null)
      */
-    fun <T> get(
-        cacheType: CacheType,
-        key: String,
-        type: Class<T>,
-    ): T? {
+    fun <T> get(cacheType: CacheType, key: String, type: Class<T>): T? {
         val cache = cacheManager.getCache(cacheType.cacheName)
         return cache?.get(key, type)
     }
@@ -53,10 +46,7 @@ class TokenCacheManager(
      * @param cacheType 캐시 타입
      * @param key 캐시 키
      */
-    fun delete(
-        cacheType: CacheType,
-        key: String,
-    ) {
+    fun delete(cacheType: CacheType, key: String) {
         val cache = cacheManager.getCache(cacheType.cacheName)
         cache?.evict(key)
     }
@@ -78,10 +68,7 @@ class TokenCacheManager(
      * @param userId 사용자 ID
      * @param token RefreshToken 값
      */
-    fun saveRefreshToken(
-        userId: String,
-        token: String,
-    ) {
+    fun saveRefreshToken(userId: String, token: String) {
         save(CacheType.REFRESH_TOKEN, userId, token)
     }
 

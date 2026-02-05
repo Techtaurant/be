@@ -16,24 +16,22 @@ import org.springframework.web.bind.annotation.RequestMapping
 class AuthOpenApiController(
     private val tokenRefreshService: TokenRefreshService,
 ) {
+
     @Operation(summary = "토큰 갱신", description = "Refresh Token을 사용하여 새로운 Access Token과 Refresh Token을 발급받습니다")
     @ApiResponses(
         value = [
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "200",
-                description = "토큰 갱신 성공",
+                description = "토큰 갱신 성공"
             ),
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "401",
-                description = "Refresh Token이 없거나 유효하지 않음",
+                description = "Refresh Token이 없거나 유효하지 않음"
             ),
-        ],
+        ]
     )
     @PostMapping("/refresh")
-    fun refresh(
-        request: HttpServletRequest,
-        response: HttpServletResponse,
-    ): ApiResponse<Nothing> {
+    fun refresh(request: HttpServletRequest, response: HttpServletResponse): ApiResponse<Nothing> {
         tokenRefreshService.execute(request = request, response = response)
         return ApiResponse.ok()
     }

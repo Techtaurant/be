@@ -8,10 +8,7 @@ import org.springframework.data.repository.query.Param
 import java.util.UUID
 
 interface UserRepository : JpaRepository<User, UUID> {
-    fun findByIdentifierAndProvider(
-        identifier: String,
-        provider: OAuthProvider,
-    ): User?
+    fun findByIdentifierAndProvider(identifier: String, provider: OAuthProvider): User?
 
     @Query(
         """
@@ -25,9 +22,7 @@ interface UserRepository : JpaRepository<User, UUID> {
            similarity(u.name, :name) DESC,
            u.name ASC
         """,
-        nativeQuery = true,
+        nativeQuery = true
     )
-    fun findByNameContainingIgnoreCaseOrderByNameAsc(
-        @Param("name") name: String,
-    ): List<User>
+    fun findByNameContainingIgnoreCaseOrderByNameAsc(@Param("name") name: String): List<User>
 }

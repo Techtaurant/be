@@ -9,10 +9,10 @@ enum class PostPeriod(val days: Int?) {
     WEEK(7),
     MONTH(30),
     YEAR(365),
-    ALL(null),
-    ;
+    ALL(null);
 
     companion object {
-        fun fromString(value: String?): PostPeriod = entries.find { it.name.equals(value, ignoreCase = true) } ?: ALL
+        fun fromString(value: String?): PostPeriod =
+            entries.find { it.name.equals(value, ignoreCase = true) } ?: ALL
     }
 }

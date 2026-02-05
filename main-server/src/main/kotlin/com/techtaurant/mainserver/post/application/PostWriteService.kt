@@ -26,6 +26,7 @@ class PostWriteService(
     private val userRepository: UserRepository,
     private val distributedLock: DistributedLock,
 ) {
+
     companion object {
         private const val MAX_CATEGORY_DEPTH = 5
     }
@@ -40,22 +41,18 @@ class PostWriteService(
      * @throws ApiException 카테고리 depth 초과 시 CATEGORY_DEPTH_EXCEEDED
      */
     @Transactional
-    fun createPost(
-        userId: UUID,
-        request: CreatePostRequest,
-    ): PostResponse {
+    fun createPost(userId: UUID, request: CreatePostRequest): PostResponse {
         val author = findUserById(userId)
         val category = resolveCategory(request.categoryPath, author)
         val tags = resolveTags(request.tags)
 
-        val post =
-            Post(
-                title = request.title,
-                content = request.content,
-                author = author,
-                category = category,
-                tags = tags.toMutableSet(),
-            )
+        val post = Post(
+            title = request.title,
+            content = request.content,
+            author = author,
+            category = category,
+            tags = tags.toMutableSet(),
+        )
 
         val savedPost = postRepository.save(post)
         return PostResponse.from(savedPost)
@@ -75,10 +72,7 @@ class PostWriteService(
      * @param user 카테고리 소유자
      * @return 카테고리 엔티티 (경로가 없으면 null)
      */
-    private fun resolveCategory(
-        categoryPath: String?,
-        user: User,
-    ): Category? {
+    private fun resolveCategory(categoryPath: String?, user: User): Category? {
         if (categoryPath.isNullOrBlank()) {
             return null
         }
@@ -100,19 +94,18 @@ class PostWriteService(
             totalPath = if (totalPath.isEmpty()) curPathSegment else "$totalPath/$curPathSegment"
 
             val lockKey = "category:${user.id}:$totalPath"
-            parentCategory =
-                distributedLock.withLockAndTransaction(lockKey) {
-                    categoryRepository.findByUserAndPath(user, totalPath)
-                        ?: categoryRepository.save(
-                            Category(
-                                user = user,
-                                name = curPathSegment,
-                                path = totalPath,
-                                depth = index + 1,
-                                parent = parentCategory,
-                            ),
+            parentCategory = distributedLock.withLockAndTransaction(lockKey) {
+                categoryRepository.findByUserAndPath(user, totalPath)
+                    ?: categoryRepository.save(
+                        Category(
+                            user = user,
+                            name = curPathSegment,
+                            path = totalPath,
+                            depth = index + 1,
+                            parent = parentCategory,
                         )
-                }
+                    )
+            }
         }
 
         return parentCategory
@@ -140,14 +133,13 @@ class PostWriteService(
         val existingTagNames = existingTags.map { it.name }.toSet()
         val newTagNames = normalizedNames.filter { it !in existingTagNames }
 
-        val newTags =
-            newTagNames.map { tagName ->
-                val lockKey = "tag:$tagName"
-                distributedLock.withLockAndTransaction(lockKey) {
-                    tagRepository.findByName(tagName)
-                        ?: tagRepository.save(Tag(name = tagName))
-                }
+        val newTags = newTagNames.map { tagName ->
+            val lockKey = "tag:$tagName"
+            distributedLock.withLockAndTransaction(lockKey) {
+                tagRepository.findByName(tagName)
+                    ?: tagRepository.save(Tag(name = tagName))
             }
+        }
 
         return existingTags + newTags
     }

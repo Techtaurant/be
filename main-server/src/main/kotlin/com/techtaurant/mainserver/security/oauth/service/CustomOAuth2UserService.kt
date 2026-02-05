@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service
 class CustomOAuth2UserService(
     private val userRepository: UserRepository,
 ) : DefaultOAuth2UserService() {
+
     override fun loadUser(userRequest: OAuth2UserRequest): OAuth2User {
         try {
             val oAuth2User = super.loadUser(userRequest)
@@ -26,9 +27,8 @@ class CustomOAuth2UserService(
             val oAuth2UserInfo = getOAuth2UserInfo(registrationId, oAuth2User.attributes)
             val provider = getOAuthProvider(registrationId)
 
-            val user =
-                userRepository.findByIdentifierAndProvider(oAuth2UserInfo.getId(), provider)
-                    ?: createUser(oAuth2UserInfo, provider)
+            val user = userRepository.findByIdentifierAndProvider(oAuth2UserInfo.getId(), provider)
+                ?: createUser(oAuth2UserInfo, provider)
 
             return CustomOAuth2User(user, oAuth2User.attributes)
         } catch (e: Exception) {
@@ -40,10 +40,7 @@ class CustomOAuth2UserService(
         }
     }
 
-    private fun getOAuth2UserInfo(
-        registrationId: String,
-        attributes: Map<String, Any>,
-    ): OAuth2UserInfo {
+    private fun getOAuth2UserInfo(registrationId: String, attributes: Map<String, Any>): OAuth2UserInfo {
         return when (registrationId) {
             "google" -> GoogleOAuth2UserInfo(attributes)
             else -> throw ApiException(OAuthStatus.OAUTH_PROVIDER_NOT_SUPPORTED)
@@ -57,19 +54,15 @@ class CustomOAuth2UserService(
         }
     }
 
-    private fun createUser(
-        userInfo: OAuth2UserInfo,
-        provider: OAuthProvider,
-    ): User {
-        val user =
-            User(
-                name = userInfo.getName(),
-                email = userInfo.getEmail(),
-                provider = provider,
-                identifier = userInfo.getId(),
-                role = UserRole.USER,
-                profileImageUrl = userInfo.getProfileImageUrl(),
-            )
+    private fun createUser(userInfo: OAuth2UserInfo, provider: OAuthProvider): User {
+        val user = User(
+            name = userInfo.getName(),
+            email = userInfo.getEmail(),
+            provider = provider,
+            identifier = userInfo.getId(),
+            role = UserRole.USER,
+            profileImageUrl = userInfo.getProfileImageUrl(),
+        )
         return userRepository.save(user)
     }
 }

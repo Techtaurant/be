@@ -19,6 +19,7 @@ import kotlin.random.Random
 class CaffeineLock(
     private val transactionTemplate: TransactionTemplate,
 ) : DistributedLock {
+
     companion object {
         private const val DEFAULT_TTL_MILLIS = 30000L
         private const val TRANSACTION_TIMEOUT_BUFFER_SECONDS = 3
@@ -27,11 +28,10 @@ class CaffeineLock(
         private const val MAX_JITTER_MILLIS = 100L
     }
 
-    private val lockCache: Cache<String, Boolean> =
-        Caffeine.newBuilder()
-            .expireAfterWrite(Duration.ofMillis(DEFAULT_TTL_MILLIS))
-            .maximumSize(10000)
-            .build()
+    private val lockCache: Cache<String, Boolean> = Caffeine.newBuilder()
+        .expireAfterWrite(Duration.ofMillis(DEFAULT_TTL_MILLIS))
+        .maximumSize(10000)
+        .build()
 
     /**
      * 락을 획득하고 트랜잭션 내에서 작업을 수행한 후 자동 해제합니다.
@@ -44,11 +44,7 @@ class CaffeineLock(
      * @return 작업 결과
      * @throws ApiException 락 획득 또는 해제 실패 시
      */
-    override fun <T> withLockAndTransaction(
-        key: String,
-        ttlMillis: Long,
-        action: () -> T,
-    ): T {
+    override fun <T> withLockAndTransaction(key: String, ttlMillis: Long, action: () -> T): T {
         acquireLockWithRetry(key)
 
         try {
@@ -101,7 +97,7 @@ class CaffeineLock(
     private fun releaseLock(key: String) {
         lockCache.asMap().remove(key) ?: throw ApiException(
             LockStatus.LOCK_RELEASE_FAILED,
-            "Lock already expired or not found for key: $key",
+            "Lock already expired or not found for key: $key"
         )
     }
 }

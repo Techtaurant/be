@@ -17,23 +17,26 @@ import java.util.UUID
 data class CategoryResponse(
     @Schema(description = "카테고리 ID")
     val id: UUID,
+
     @Schema(description = "카테고리 이름", example = "spring")
     val name: String,
+
     @Schema(description = "전체 경로", example = "java/spring/deepdive")
     val path: String,
+
     @Schema(description = "depth (1~5)", example = "2")
     val depth: Int,
+
     @Schema(description = "부모 카테고리 ID (최상위인 경우 null)")
     val parentId: UUID?,
 ) {
     companion object {
-        fun from(category: Category) =
-            CategoryResponse(
-                id = category.id!!,
-                name = category.name,
-                path = category.path,
-                depth = category.depth,
-                parentId = category.parent?.id,
-            )
+        fun from(category: Category) = CategoryResponse(
+            id = category.id!!,
+            name = category.name,
+            path = category.path,
+            depth = category.depth,
+            parentId = category.parent?.id,
+        )
     }
 }

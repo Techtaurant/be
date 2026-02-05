@@ -19,15 +19,15 @@ import org.springframework.stereotype.Component
 class CustomAuthenticationEntryPoint(
     private val objectMapper: ObjectMapper,
 ) : AuthenticationEntryPoint {
+
     override fun commence(
         request: HttpServletRequest,
         response: HttpServletResponse,
         authException: AuthenticationException,
     ) {
         // Request Attribute에서 JWT 예외 정보 확인
-        val jwtStatus =
-            request.getAttribute(SecurityConstants.ERROR_ATTRIBUTE) as? JwtStatus
-                ?: JwtStatus.AUTHENTICATION_REQUIRED
+        val jwtStatus = request.getAttribute(SecurityConstants.ERROR_ATTRIBUTE) as? JwtStatus
+            ?: JwtStatus.AUTHENTICATION_REQUIRED
 
         val errorResponse = ApiResponse.error<Any>(jwtStatus)
 

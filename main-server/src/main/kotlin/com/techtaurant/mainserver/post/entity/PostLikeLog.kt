@@ -19,16 +19,20 @@ import jakarta.persistence.*
     uniqueConstraints = [UniqueConstraint(columnNames = ["post_id", "user_id"])],
     indexes = [
         Index(name = "idx_post_like_log_post_created", columnList = "post_id,created_at"),
-        Index(name = "idx_post_like_log_created", columnList = "created_at"),
-    ],
+        Index(name = "idx_post_like_log_created", columnList = "created_at")
+    ]
 )
 class PostLikeLog(
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = false)
     var post: Post,
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     var user: User,
+
     @Column(name = "is_liked", nullable = false)
     var isLiked: Boolean = true,
+
 ) : EntityBase()

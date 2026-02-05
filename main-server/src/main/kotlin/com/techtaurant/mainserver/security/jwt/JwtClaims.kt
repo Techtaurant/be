@@ -10,5 +10,5 @@ import java.util.UUID
  */
 data class JwtClaims(
     val userId: UUID,
-    val role: String,
+    val role: String
 )
