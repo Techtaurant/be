@@ -19,9 +19,8 @@ import org.springframework.web.filter.OncePerRequestFilter
  */
 @Component
 class JwtAuthenticationFilter(
-    private val jwtTokenProvider: JwtTokenProvider
+    private val jwtTokenProvider: JwtTokenProvider,
 ) : OncePerRequestFilter() {
-
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -38,11 +37,12 @@ class JwtAuthenticationFilter(
                 val authorities = listOf(SimpleGrantedAuthority(claims.role))
 
                 // SecurityContext에 인증 정보 설정 (principal: userId)
-                val authentication = UsernamePasswordAuthenticationToken(
-                    claims.userId,  // principal: userId만 저장
-                    null,
-                    authorities
-                )
+                val authentication =
+                    UsernamePasswordAuthenticationToken(
+                        claims.userId, // principal: userId만 저장
+                        null,
+                        authorities,
+                    )
                 SecurityContextHolder.getContext().authentication = authentication
             } catch (e: Exception) {
                 request.setAttribute(SecurityConstants.ERROR_ATTRIBUTE, JwtExceptionMapper.mapToJwtStatus(e = e))

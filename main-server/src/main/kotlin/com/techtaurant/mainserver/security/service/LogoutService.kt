@@ -19,10 +19,12 @@ import java.util.UUID
 class LogoutService(
     private val cookieHelper: CookieHelper,
     private val jwtTokenProvider: JwtTokenProvider,
-    private val tokenCacheManager: TokenCacheManager
+    private val tokenCacheManager: TokenCacheManager,
 ) {
-
-    fun logout(request: HttpServletRequest, response: HttpServletResponse) {
+    fun logout(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+    ) {
         // 쿠키에서 토큰 추출
         val accessToken = request.cookies?.find { it.name == JwtConstants.ACCESS_TOKEN_COOKIE }?.value
         val refreshToken = request.cookies?.find { it.name == JwtConstants.REFRESH_TOKEN_COOKIE }?.value
@@ -43,7 +45,10 @@ class LogoutService(
      * @param accessToken AccessToken 값 (nullable, userId 추출용)
      * @param refreshToken RefreshToken 값 (nullable, userId 추출용)
      */
-    private fun invalidateTokens(accessToken: String?, refreshToken: String?) {
+    private fun invalidateTokens(
+        accessToken: String?,
+        refreshToken: String?,
+    ) {
         // userId 추출 (둘 중 하나라도 있으면 가능)
         val userId = extractUserId(accessToken, refreshToken) ?: return
 
@@ -59,7 +64,10 @@ class LogoutService(
      *
      * @return userId 또는 null
      */
-    private fun extractUserId(accessToken: String?, refreshToken: String?): UUID? {
+    private fun extractUserId(
+        accessToken: String?,
+        refreshToken: String?,
+    ): UUID? {
         return try {
             // accessToken 우선 시도
             if (accessToken != null) {

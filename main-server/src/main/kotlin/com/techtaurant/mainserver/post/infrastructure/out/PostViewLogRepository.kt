@@ -7,7 +7,6 @@ import org.springframework.data.repository.query.Param
 import java.util.*
 
 interface PostViewLogRepository : JpaRepository<PostViewLog, UUID> {
-
     /**
      * 특정 게시글의 총 조회수를 조회합니다.
      *
@@ -28,9 +27,11 @@ interface PostViewLogRepository : JpaRepository<PostViewLog, UUID> {
         SELECT DISTINCT pvl.post.id
         FROM PostViewLog pvl
         WHERE pvl.createdAt > :since
-        """
+        """,
     )
-    fun findDistinctPostIdsByCreatedAtAfter(@Param("since") since: Date): List<UUID>
+    fun findDistinctPostIdsByCreatedAtAfter(
+        @Param("since") since: Date,
+    ): List<UUID>
 
     /**
      * 특정 사용자가 조회한 게시글 ID 목록을 조회합니다.
@@ -46,10 +47,10 @@ interface PostViewLogRepository : JpaRepository<PostViewLog, UUID> {
         FROM PostViewLog pvl
         WHERE pvl.user.id = :userId
         AND pvl.post.id IN :postIds
-        """
+        """,
     )
     fun findDistinctPostIdsByUserIdAndPostIdIn(
         @Param("userId") userId: UUID,
-        @Param("postIds") postIds: List<UUID>
+        @Param("postIds") postIds: List<UUID>,
     ): List<UUID>
 }

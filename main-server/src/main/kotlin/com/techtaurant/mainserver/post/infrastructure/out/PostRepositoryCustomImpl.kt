@@ -4,12 +4,12 @@ import com.techtaurant.mainserver.common.base.EntityBase_
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.entity.Post
-import com.techtaurant.mainserver.post.entity.PostPicture
-import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.entity.PostPeriod
+import com.techtaurant.mainserver.post.entity.PostPicture
 import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.entity.Post_
 import com.techtaurant.mainserver.post.entity.Tag
+import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.user.entity.User
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
@@ -28,7 +28,6 @@ import java.util.Calendar
  */
 @Repository
 class PostRepositoryCustomImpl : PostRepositoryCustom {
-
     @PersistenceContext
     private lateinit var entityManager: EntityManager
 
@@ -80,9 +79,10 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         predicates: MutableList<Predicate>,
     ) {
         period.days?.let { days ->
-            val cutoffDate = Calendar.getInstance().apply {
-                add(Calendar.DAY_OF_YEAR, -days)
-            }.time
+            val cutoffDate =
+                Calendar.getInstance().apply {
+                    add(Calendar.DAY_OF_YEAR, -days)
+                }.time
             predicates.add(cb.greaterThanOrEqualTo(root.get(EntityBase_.createdAt), cutoffDate))
         }
     }
@@ -101,10 +101,11 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
     ) {
         cursor ?: return
 
-        val cursorPredicate = when (sortType) {
-            PostSortType.LATEST -> buildLatestCursorCondition(cb, root, cursor)
-            else -> buildCountCursorCondition(cb, root, cursor, sortType)
-        }
+        val cursorPredicate =
+            when (sortType) {
+                PostSortType.LATEST -> buildLatestCursorCondition(cb, root, cursor)
+                else -> buildCountCursorCondition(cb, root, cursor, sortType)
+            }
         predicates.add(cursorPredicate)
     }
 
@@ -120,10 +121,11 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         cursor: PostCursor,
     ): Predicate {
         val createdAtLess = cb.lessThan(root.get(EntityBase_.createdAt), cursor.createdAt)
-        val createdAtEqualAndIdLess = cb.and(
-            cb.equal(root.get(EntityBase_.createdAt), cursor.createdAt),
-            cb.lessThan(root.get(EntityBase_.id), cursor.id)
-        )
+        val createdAtEqualAndIdLess =
+            cb.and(
+                cb.equal(root.get(EntityBase_.createdAt), cursor.createdAt),
+                cb.lessThan(root.get(EntityBase_.id), cursor.id),
+            )
         return cb.or(createdAtLess, createdAtEqualAndIdLess)
     }
 
@@ -139,23 +141,26 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         cursor: PostCursor,
         sortType: PostSortType,
     ): Predicate {
-        val sortAttribute = when (sortType) {
-            PostSortType.VIEW -> Post_.viewCount
-            PostSortType.LIKE -> Post_.likeCount
-            PostSortType.COMMENT -> Post_.commentCount
-            else -> throw ApiException(PostStatus.INVALID_SORT_TYPE)
-        }
+        val sortAttribute =
+            when (sortType) {
+                PostSortType.VIEW -> Post_.viewCount
+                PostSortType.LIKE -> Post_.likeCount
+                PostSortType.COMMENT -> Post_.commentCount
+                else -> throw ApiException(PostStatus.INVALID_SORT_TYPE)
+            }
 
         val countLess = cb.lessThan(root.get(sortAttribute), cursor.sortValue)
-        val countEqualCreatedAtLess = cb.and(
-            cb.equal(root.get(sortAttribute), cursor.sortValue),
-            cb.lessThan(root.get(EntityBase_.createdAt), cursor.createdAt)
-        )
-        val countEqualCreatedAtEqualIdLess = cb.and(
-            cb.equal(root.get(sortAttribute), cursor.sortValue),
-            cb.equal(root.get(EntityBase_.createdAt), cursor.createdAt),
-            cb.lessThan(root.get(EntityBase_.id), cursor.id)
-        )
+        val countEqualCreatedAtLess =
+            cb.and(
+                cb.equal(root.get(sortAttribute), cursor.sortValue),
+                cb.lessThan(root.get(EntityBase_.createdAt), cursor.createdAt),
+            )
+        val countEqualCreatedAtEqualIdLess =
+            cb.and(
+                cb.equal(root.get(sortAttribute), cursor.sortValue),
+                cb.equal(root.get(EntityBase_.createdAt), cursor.createdAt),
+                cb.lessThan(root.get(EntityBase_.id), cursor.id),
+            )
         return cb.or(countLess, countEqualCreatedAtLess, countEqualCreatedAtEqualIdLess)
     }
 
@@ -170,27 +175,32 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         root: Root<Post>,
         sortType: PostSortType,
     ) {
-        val orders = when (sortType) {
-            PostSortType.LATEST -> listOf(
-                cb.desc(root.get(EntityBase_.createdAt)),
-                cb.desc(root.get(EntityBase_.id))
-            )
-            PostSortType.VIEW -> listOf(
-                cb.desc(root.get(Post_.viewCount)),
-                cb.desc(root.get(EntityBase_.createdAt)),
-                cb.desc(root.get(EntityBase_.id))
-            )
-            PostSortType.LIKE -> listOf(
-                cb.desc(root.get(Post_.likeCount)),
-                cb.desc(root.get(EntityBase_.createdAt)),
-                cb.desc(root.get(EntityBase_.id))
-            )
-            PostSortType.COMMENT -> listOf(
-                cb.desc(root.get(Post_.commentCount)),
-                cb.desc(root.get(EntityBase_.createdAt)),
-                cb.desc(root.get(EntityBase_.id))
-            )
-        }
+        val orders =
+            when (sortType) {
+                PostSortType.LATEST ->
+                    listOf(
+                        cb.desc(root.get(EntityBase_.createdAt)),
+                        cb.desc(root.get(EntityBase_.id)),
+                    )
+                PostSortType.VIEW ->
+                    listOf(
+                        cb.desc(root.get(Post_.viewCount)),
+                        cb.desc(root.get(EntityBase_.createdAt)),
+                        cb.desc(root.get(EntityBase_.id)),
+                    )
+                PostSortType.LIKE ->
+                    listOf(
+                        cb.desc(root.get(Post_.likeCount)),
+                        cb.desc(root.get(EntityBase_.createdAt)),
+                        cb.desc(root.get(EntityBase_.id)),
+                    )
+                PostSortType.COMMENT ->
+                    listOf(
+                        cb.desc(root.get(Post_.commentCount)),
+                        cb.desc(root.get(EntityBase_.createdAt)),
+                        cb.desc(root.get(EntityBase_.id)),
+                    )
+            }
         cq.orderBy(orders)
     }
 }

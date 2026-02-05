@@ -14,19 +14,22 @@ import org.springframework.web.bind.annotation.RequestMapping
 @AuthRestController
 @RequestMapping("${SecurityConstants.API_PREFIX}/auth")
 class AuthApiController(
-    private val logoutService: LogoutService
-    ) {
+    private val logoutService: LogoutService,
+) {
     @Operation(summary = "로그아웃", description = "쿠키에서 토큰을 삭제하여 로그아웃합니다")
     @ApiResponses(
         value = [
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "200",
-                description = "로그아웃 성공"
+                description = "로그아웃 성공",
             ),
-        ]
+        ],
     )
     @PostMapping("/logout")
-    fun logout(request: HttpServletRequest, response: HttpServletResponse): ApiResponse<Unit> {
+    fun logout(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+    ): ApiResponse<Unit> {
         logoutService.logout(request, response)
         return ApiResponse.ok(Unit)
     }

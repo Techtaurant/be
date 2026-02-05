@@ -6,7 +6,6 @@ import io.restassured.specification.RequestSpecification
 import org.springframework.http.MediaType
 
 object TestHelper {
-
     private val objectMapper = ObjectMapper()
 
     fun RequestSpecification.setJsonContentType(): RequestSpecification {
@@ -17,7 +16,10 @@ object TestHelper {
         return this.body(objectMapper.writeValueAsString(body))
     }
 
-    fun RequestSpecification.withCookie(name: String, value: String): RequestSpecification {
+    fun RequestSpecification.withCookie(
+        name: String,
+        value: String,
+    ): RequestSpecification {
         return this.cookie(name, value)
     }
 
@@ -45,14 +47,20 @@ object TestHelper {
         return this.jsonPath().getList<Any>(path)
     }
 
-    fun assertResponseStatus(response: Response, expectedStatus: Int) {
+    fun assertResponseStatus(
+        response: Response,
+        expectedStatus: Int,
+    ) {
         assert(response.statusCode == expectedStatus) {
             "Expected status $expectedStatus but got ${response.statusCode}. " +
-                    "Response body: ${response.body.asString()}"
+                "Response body: ${response.body.asString()}"
         }
     }
 
-    fun assertResponseContains(response: Response, expectedContent: String) {
+    fun assertResponseContains(
+        response: Response,
+        expectedContent: String,
+    ) {
         assert(response.body.asString().contains(expectedContent)) {
             "Response body does not contain expected content: $expectedContent"
         }

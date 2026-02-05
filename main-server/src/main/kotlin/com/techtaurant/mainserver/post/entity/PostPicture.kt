@@ -18,18 +18,13 @@ import jakarta.persistence.*
 @Entity
 @Table(name = "post_pictures")
 class PostPicture(
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = false)
     var post: Post,
-
     @Column(name = "picture_url", nullable = false, length = 500)
     var pictureUrl: String,
-
     @Column(name = "is_thumbnail", nullable = false)
     var isThumbnail: Boolean = false,
-
     @Column(name = "display_order", nullable = false)
     var displayOrder: Int = 0,
-
 ) : EntityBase()

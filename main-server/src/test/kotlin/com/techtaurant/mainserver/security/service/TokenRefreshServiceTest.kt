@@ -24,7 +24,6 @@ import java.util.Optional
 import java.util.UUID
 
 class TokenRefreshServiceTest {
-
     private lateinit var tokenRefreshService: TokenRefreshService
     private val cookieHelper: CookieHelper = mockk()
     private val jwtTokenProvider: JwtTokenProvider = mockk()
@@ -33,12 +32,13 @@ class TokenRefreshServiceTest {
 
     @BeforeEach
     fun setUp() {
-        tokenRefreshService = TokenRefreshService(
-            cookieHelper,
-            jwtTokenProvider,
-            tokenCacheManager,
-            userRepository
-        )
+        tokenRefreshService =
+            TokenRefreshService(
+                cookieHelper,
+                jwtTokenProvider,
+                tokenCacheManager,
+                userRepository,
+            )
     }
 
     @Test
@@ -51,9 +51,10 @@ class TokenRefreshServiceTest {
         val newRefreshToken = "new-refresh-token"
         val request = mockk<HttpServletRequest>()
         val response = mockk<HttpServletResponse>(relaxed = true)
-        val user = mockk<User> {
-            every { role } returns UserRole.USER
-        }
+        val user =
+            mockk<User> {
+                every { role } returns UserRole.USER
+            }
 
         every { cookieHelper.getCookie(request, JwtConstants.REFRESH_TOKEN_COOKIE) } returns refreshTokenValue
         every { cookieHelper.addCookie(any(), any(), any(), any()) } returns Unit
@@ -68,8 +69,22 @@ class TokenRefreshServiceTest {
         tokenRefreshService.execute(request, response)
 
         // then
-        verify { cookieHelper.addCookie(response, JwtConstants.ACCESS_TOKEN_COOKIE, newAccessToken, (JwtConstants.ACCESS_TOKEN_EXPIRED_TIME / 1000).toInt()) }
-        verify { cookieHelper.addCookie(response, JwtConstants.REFRESH_TOKEN_COOKIE, newRefreshToken, (JwtConstants.REFRESH_TOKEN_EXPIRED_TIME / 1000).toInt()) }
+        verify {
+            cookieHelper.addCookie(
+                response,
+                JwtConstants.ACCESS_TOKEN_COOKIE,
+                newAccessToken,
+                (JwtConstants.ACCESS_TOKEN_EXPIRED_TIME / 1000).toInt(),
+            )
+        }
+        verify {
+            cookieHelper.addCookie(
+                response,
+                JwtConstants.REFRESH_TOKEN_COOKIE,
+                newRefreshToken,
+                (JwtConstants.REFRESH_TOKEN_EXPIRED_TIME / 1000).toInt(),
+            )
+        }
         verify { tokenCacheManager.saveRefreshToken(userId.toString(), newRefreshToken) }
     }
 
@@ -87,9 +102,10 @@ class TokenRefreshServiceTest {
         every { tokenCacheManager.getRefreshToken(userId.toString()) } returns null
 
         // when & then
-        val exception = assertThrows<ApiException> {
-            tokenRefreshService.execute(request, response)
-        }
+        val exception =
+            assertThrows<ApiException> {
+                tokenRefreshService.execute(request, response)
+            }
         assertEquals(JwtStatus.INVALID_REFRESH_TOKEN, exception.status)
     }
 
@@ -105,9 +121,10 @@ class TokenRefreshServiceTest {
         every { jwtTokenProvider.validateAndGetUserId(refreshTokenValue) } throws ExpiredJwtException(null, null, "expired")
 
         // when & then
-        val exception = assertThrows<ApiException> {
-            tokenRefreshService.execute(request, response)
-        }
+        val exception =
+            assertThrows<ApiException> {
+                tokenRefreshService.execute(request, response)
+            }
         assertEquals(JwtStatus.TOKEN_EXPIRED, exception.status)
     }
 
@@ -117,7 +134,7 @@ class TokenRefreshServiceTest {
         // given
         val userId = UUID.randomUUID()
         val clientToken = "client-token"
-        val cachedToken = "cached-token"  // 다른 토큰
+        val cachedToken = "cached-token" // 다른 토큰
         val request = mockk<HttpServletRequest>()
         val response = mockk<HttpServletResponse>()
 
@@ -126,9 +143,10 @@ class TokenRefreshServiceTest {
         every { tokenCacheManager.getRefreshToken(userId.toString()) } returns cachedToken
 
         // when & then
-        val exception = assertThrows<ApiException> {
-            tokenRefreshService.execute(request, response)
-        }
+        val exception =
+            assertThrows<ApiException> {
+                tokenRefreshService.execute(request, response)
+            }
         assertEquals(JwtStatus.INVALID_REFRESH_TOKEN, exception.status)
     }
 
@@ -147,9 +165,10 @@ class TokenRefreshServiceTest {
         every { userRepository.findById(userId) } returns Optional.empty()
 
         // when & then
-        val exception = assertThrows<ApiException> {
-            tokenRefreshService.execute(request, response)
-        }
+        val exception =
+            assertThrows<ApiException> {
+                tokenRefreshService.execute(request, response)
+            }
         assertEquals(JwtStatus.INVALID_REFRESH_TOKEN, exception.status)
     }
 }

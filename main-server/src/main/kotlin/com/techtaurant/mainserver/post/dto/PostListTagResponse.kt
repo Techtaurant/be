@@ -14,14 +14,14 @@ import java.util.UUID
 data class PostListTagResponse(
     @field:Schema(description = "태그 ID")
     val id: UUID,
-
     @field:Schema(description = "태그 이름")
     val name: String,
 ) {
     companion object {
-        fun from(tag: Tag): PostListTagResponse = PostListTagResponse(
-            id = tag.id!!,
-            name = tag.name,
-        )
+        fun from(tag: Tag): PostListTagResponse =
+            PostListTagResponse(
+                id = tag.id!!,
+                name = tag.name,
+            )
     }
 }
