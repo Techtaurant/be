@@ -1,10 +1,8 @@
 package com.techtaurant.mainserver.post.infrastructure.out
 
 import com.techtaurant.mainserver.post.entity.Post
-import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
-import java.util.Date
 import java.util.UUID
 
 interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
@@ -15,13 +13,15 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
      * @param postId 게시물 ID
      * @return 게시물 엔티티 (없으면 null)
      */
-    @Query("""
+    @Query(
+        """
         SELECT p FROM Post p
         JOIN FETCH p.author
         LEFT JOIN FETCH p.tags
         LEFT JOIN FETCH p.pictures
         LEFT JOIN FETCH p.category
         WHERE p.id = :postId
-    """)
+    """,
+    )
     fun findPostDetailById(postId: UUID): Post?
 }

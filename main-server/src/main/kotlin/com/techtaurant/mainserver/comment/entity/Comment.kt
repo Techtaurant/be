@@ -19,26 +19,19 @@ import jakarta.persistence.*
 @Entity
 @Table(name = "comments")
 class Comment(
-
     @Column(nullable = false, columnDefinition = "TEXT")
     var content: String,
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = false)
     var post: Post,
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "author_id", nullable = false)
     var author: User,
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     var parent: Comment? = null,
-
     @Column(nullable = false)
     var depth: Int = 0,
-
     @OneToMany(mappedBy = "parent", cascade = [CascadeType.ALL], orphanRemoval = true)
     var children: MutableList<Comment> = mutableListOf(),
-
 ) : EntityBase()

@@ -6,7 +6,6 @@ import jakarta.servlet.http.HttpServletRequest
  * HTTP 요청 관련 유틸리티
  */
 object HttpRequestUtils {
-
     /**
      * 클라이언트의 IP 주소를 추출합니다.
      * 프록시를 거친 경우 X-Forwarded-For 헤더에서 원본 IP를 추출하고,

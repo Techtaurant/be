@@ -8,26 +8,19 @@ import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Table
-import java.util.Date
 
 @Entity
 @Table(name = "users")
 class User(
-
     var name: String,
-
     var email: String,
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30, columnDefinition = "varchar(255)")
     var provider: OAuthProvider,
-
     var identifier: String,
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30, columnDefinition = "varchar(255)")
     var role: UserRole,
-
     @Column(name = "profile_image_url")
     var profileImageUrl: String,
 ) : EntityBase()

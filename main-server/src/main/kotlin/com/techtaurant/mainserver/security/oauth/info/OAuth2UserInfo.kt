@@ -5,7 +5,10 @@ package com.techtaurant.mainserver.security.oauth.info
  */
 interface OAuth2UserInfo {
     fun getId(): String
+
     fun getEmail(): String
+
     fun getName(): String
+
     fun getProfileImageUrl(): String
 }

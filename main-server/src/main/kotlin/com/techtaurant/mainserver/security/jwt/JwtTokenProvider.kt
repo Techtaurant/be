@@ -29,13 +29,16 @@ class JwtTokenProvider(
      * @param role 사용자 권한
      * @return 생성된 AccessToken
      */
-    fun createAccessToken(userId: UUID, role: UserRole): String {
+    fun createAccessToken(
+        userId: UUID,
+        role: UserRole,
+    ): String {
         val now = Date()
         val expiryDate = Date(now.time + JwtConstants.ACCESS_TOKEN_EXPIRED_TIME)
 
         return Jwts.builder()
             .subject(userId.toString())
-            .claim("role", role.key)  // 권한 정보 포함
+            .claim("role", role.key) // 권한 정보 포함
             .issuedAt(now)
             .expiration(expiryDate)
             .signWith(secretKey)
@@ -55,7 +58,10 @@ class JwtTokenProvider(
         return createToken(userId, JwtConstants.REFRESH_TOKEN_EXPIRED_TIME)
     }
 
-    private fun createToken(userId: UUID, expiration: Long): String {
+    private fun createToken(
+        userId: UUID,
+        expiration: Long,
+    ): String {
         val now = Date()
         val expiryDate = Date(now.time + expiration)
 
@@ -100,7 +106,7 @@ class JwtTokenProvider(
         val claims = getClaims(token)
         return JwtClaims(
             userId = UUID.fromString(claims.subject),
-            role = claims["role"] as String
+            role = claims["role"] as String,
         )
     }
 

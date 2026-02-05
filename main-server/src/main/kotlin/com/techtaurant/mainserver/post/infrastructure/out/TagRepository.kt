@@ -8,6 +8,7 @@ import java.util.UUID
 
 interface TagRepository : JpaRepository<Tag, UUID> {
     fun findByName(name: String): Tag?
+
     fun findByNameIn(names: List<String>): List<Tag>
 
     @Query(
@@ -21,7 +22,7 @@ interface TagRepository : JpaRepository<Tag, UUID> {
             ORDER BY postCount DESC, t.id ASC
             LIMIT :limit
         """,
-        nativeQuery = true
+        nativeQuery = true,
     )
     fun findAllWithPostCount(
         @Param("name") name: String?,
@@ -51,7 +52,7 @@ interface TagRepository : JpaRepository<Tag, UUID> {
             ORDER BY postCount DESC, t.id ASC
             LIMIT :limit
         """,
-        nativeQuery = true
+        nativeQuery = true,
     )
     fun findAllWithPostCountAfterCursor(
         @Param("name") name: String?,

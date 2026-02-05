@@ -16,7 +16,6 @@ class OAuth2FailureHandler(
     private val cookieOAuth2AuthorizationRequestRepository: HttpCookieOAuth2AuthorizationRequestRepository,
     @param:Value("\${oauth2.redirect.failure-url}") private val failureRedirectUrl: String,
 ) : AuthenticationFailureHandler {
-
     private val logger = LoggerFactory.getLogger(OAuth2FailureHandler::class.java)
 
     override fun onAuthenticationFailure(
@@ -24,25 +23,27 @@ class OAuth2FailureHandler(
         response: HttpServletResponse,
         exception: AuthenticationException,
     ) {
-        val clientIp = request.getHeader("X-Forwarded-For")?.split(",")?.firstOrNull()?.trim()
-            ?: request.remoteAddr
+        val clientIp =
+            request.getHeader("X-Forwarded-For")?.split(",")?.firstOrNull()?.trim()
+                ?: request.remoteAddr
         val oauthProvider = extractOAuthProvider(request.requestURI)
 
         logger.error(
             "OAuth2 authentication failed: provider={}, error={}, clientIp={}",
             oauthProvider,
             exception.message,
-            clientIp
+            clientIp,
         )
 
         val status = OAuthStatus.OAUTH_AUTHENTICATION_FAILED
 
-        val redirectUrl = UriComponentsBuilder.fromUriString(failureRedirectUrl)
-            .queryParam("error", status.getCustomStatusCode())
-            .queryParam("message", status.getDescription())
-            .build()
-            .encode()
-            .toUriString()
+        val redirectUrl =
+            UriComponentsBuilder.fromUriString(failureRedirectUrl)
+                .queryParam("error", status.getCustomStatusCode())
+                .queryParam("message", status.getDescription())
+                .build()
+                .encode()
+                .toUriString()
 
         // OAuth2 인증 실패 후 authorization request 쿠키 정리
         cookieOAuth2AuthorizationRequestRepository.removeAuthorizationRequestCookies(response)

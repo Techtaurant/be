@@ -15,7 +15,6 @@ import java.util.UUID
 class CommentReadService(
     private val commentRepository: CommentRepository,
 ) {
-
     /**
      * 게시물의 모든 댓글을 조회합니다.
      * 댓글과 대댓글이 생성 시간 오름차순으로 정렬되어 반환됩니다.

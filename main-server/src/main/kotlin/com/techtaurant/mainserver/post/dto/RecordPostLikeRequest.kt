@@ -11,12 +11,11 @@ import jakarta.validation.constraints.NotNull
  */
 @Schema(description = "게시글 좋아요/싫어요 기록 요청")
 data class RecordPostLikeRequest(
-
     @field:NotNull(message = "좋아요 여부는 필수입니다")
     @field:Schema(
         description = "좋아요 여부 (true: 좋아요, false: 싫어요)",
         example = "true",
-        required = true
+        required = true,
     )
     val isLiked: Boolean,
 )

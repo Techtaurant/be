@@ -9,13 +9,11 @@ class CustomOAuth2User(
     private val user: User,
     private val attributes: Map<String, Any>,
 ) : OAuth2User {
-
     override fun getName(): String = user.name
 
     override fun getAttributes(): Map<String, Any> = attributes
 
-    override fun getAuthorities(): Collection<GrantedAuthority> =
-        listOf(SimpleGrantedAuthority(user.role.key))
+    override fun getAuthorities(): Collection<GrantedAuthority> = listOf(SimpleGrantedAuthority(user.role.key))
 
     fun getUser(): User = user
 }

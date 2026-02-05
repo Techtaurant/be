@@ -1,8 +1,6 @@
 package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
-import com.techtaurant.mainserver.post.entity.Post
-import com.techtaurant.mainserver.post.infrastructure.out.PostDailyStatsRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostViewLogRepository
@@ -26,7 +24,6 @@ class PostStatsScheduler(
     private val postLikeLogRepository: PostLikeLogRepository,
     private val commentRepository: CommentRepository,
 ) {
-
     private val logger = LoggerFactory.getLogger(javaClass)
 
     /**
@@ -38,7 +35,7 @@ class PostStatsScheduler(
     @SchedulerLock(
         name = "aggregateDailyStats",
         lockAtMostFor = "30m",
-        lockAtLeastFor = "5m"
+        lockAtLeastFor = "5m",
     )
     @Transactional
     fun aggregateDailyStats() {
@@ -63,7 +60,7 @@ class PostStatsScheduler(
     @SchedulerLock(
         name = "updateRealtimeStats",
         lockAtMostFor = "2m",
-        lockAtLeastFor = "55s"
+        lockAtLeastFor = "55s",
     )
     @Transactional
     fun updateRealtimeStats() {
@@ -132,11 +129,15 @@ class PostStatsScheduler(
      * @param postId 업데이트할 게시물 ID
      * @param now 통계 갱신 시점
      */
-    private fun updatePostStats(postId: UUID, now: Date) {
-        val post = postRepository.findById(postId).orElse(null) ?: run {
-            logger.warn("게시물을 찾을 수 없습니다: postId=$postId")
-            return
-        }
+    private fun updatePostStats(
+        postId: UUID,
+        now: Date,
+    ) {
+        val post =
+            postRepository.findById(postId).orElse(null) ?: run {
+                logger.warn("게시물을 찾을 수 없습니다: postId=$postId")
+                return
+            }
 
         // view log에서 최신 viewCount 조회
         val latestViewCount = postViewLogRepository.countByPostId(postId)
@@ -170,7 +171,7 @@ class PostStatsScheduler(
                 postId,
                 latestViewCount,
                 latestLikeCount,
-                latestCommentCount
+                latestCommentCount,
             )
         }
     }

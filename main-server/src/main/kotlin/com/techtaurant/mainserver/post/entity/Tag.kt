@@ -11,11 +11,9 @@ import jakarta.persistence.*
 @Entity
 @Table(
     name = "tags",
-    uniqueConstraints = [UniqueConstraint(columnNames = ["name"])]
+    uniqueConstraints = [UniqueConstraint(columnNames = ["name"])],
 )
 class Tag(
-
     @Column(nullable = false, length = 50, unique = true)
     var name: String,
-
 ) : EntityBase()

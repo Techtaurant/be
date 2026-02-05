@@ -21,7 +21,6 @@ import java.util.Base64
 class HttpCookieOAuth2AuthorizationRequestRepository(
     private val cookieHelper: CookieHelper,
 ) : AuthorizationRequestRepository<OAuth2AuthorizationRequest> {
-
     private val logger = LoggerFactory.getLogger(HttpCookieOAuth2AuthorizationRequestRepository::class.java)
 
     companion object {
@@ -49,7 +48,7 @@ class HttpCookieOAuth2AuthorizationRequestRepository(
             response,
             OAUTH2_AUTHORIZATION_REQUEST_COOKIE,
             serialize(authorizationRequest),
-            COOKIE_EXPIRE_SECONDS
+            COOKIE_EXPIRE_SECONDS,
         )
 
         val redirectUriAfterLogin = request.getParameter(REDIRECT_URI_COOKIE)
@@ -58,7 +57,7 @@ class HttpCookieOAuth2AuthorizationRequestRepository(
                 response,
                 REDIRECT_URI_COOKIE,
                 redirectUriAfterLogin,
-                COOKIE_EXPIRE_SECONDS
+                COOKIE_EXPIRE_SECONDS,
             )
         }
     }

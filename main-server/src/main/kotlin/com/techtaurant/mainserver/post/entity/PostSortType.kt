@@ -9,10 +9,10 @@ enum class PostSortType(val field: String) {
     LATEST("createdAt"),
     VIEW("viewCount"),
     LIKE("likeCount"),
-    COMMENT("commentCount");
+    COMMENT("commentCount"),
+    ;
 
     companion object {
-        fun fromString(value: String?): PostSortType =
-            entries.find { it.name.equals(value, ignoreCase = true) } ?: LATEST
+        fun fromString(value: String?): PostSortType = entries.find { it.name.equals(value, ignoreCase = true) } ?: LATEST
     }
 }

@@ -27,7 +27,7 @@ class UuidV7Generator : BeforeExecutionGenerator {
         session: SharedSessionContractImplementor,
         owner: Any?,
         currentValue: Any?,
-        eventType: EventType
+        eventType: EventType,
     ): UUID {
         return UuidCreator.getTimeOrderedEpoch()
     }

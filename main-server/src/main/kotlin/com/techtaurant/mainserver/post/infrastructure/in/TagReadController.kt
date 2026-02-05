@@ -20,18 +20,17 @@ import org.springframework.web.bind.annotation.RestController
 class TagReadController(
     private val tagReadService: TagReadService,
 ) {
-
     @Operation(
         summary = "태그 목록 조회",
-        description = "게시물 개수 기준 내림차순으로 정렬된 태그 목록을 조회합니다. 검색어(name)가 있으면 부분 일치 검색을 수행합니다."
+        description = "게시물 개수 기준 내림차순으로 정렬된 태그 목록을 조회합니다. 검색어(name)가 있으면 부분 일치 검색을 수행합니다.",
     )
     @ApiResponses(
         value = [
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "200",
-                description = "조회 성공"
+                description = "조회 성공",
             ),
-        ]
+        ],
     )
     @GetMapping
     fun getTags(

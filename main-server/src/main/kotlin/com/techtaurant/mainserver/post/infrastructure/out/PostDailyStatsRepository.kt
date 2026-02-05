@@ -8,7 +8,6 @@ import java.time.LocalDate
 import java.util.*
 
 interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
-
     /**
      * 특정 게시물의 어제 통계 조회
      *
@@ -16,7 +15,10 @@ interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
      * @param statDate 통계 날짜
      * @return 해당 날짜의 통계 또는 null
      */
-    fun findByPostIdAndStatDate(postId: UUID, statDate: LocalDate): PostDailyStats?
+    fun findByPostIdAndStatDate(
+        postId: UUID,
+        statDate: LocalDate,
+    ): PostDailyStats?
 
     /**
      * 최신 업데이트된 게시물의 통계 조회 (페이징용)
@@ -32,10 +34,10 @@ interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
         ORDER BY ds.updatedAt DESC
         LIMIT :limit
         """,
-        nativeQuery = false
+        nativeQuery = false,
     )
     fun findRecentStatsByDate(
         @Param("startDate") startDate: LocalDate,
-        @Param("limit") limit: Int
+        @Param("limit") limit: Int,
     ): List<PostDailyStats>
 }

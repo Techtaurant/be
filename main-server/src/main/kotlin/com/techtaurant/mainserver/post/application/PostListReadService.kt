@@ -27,7 +27,6 @@ class PostListReadService(
     @param:Value("\${app.default-post-thumbnail-url}")
     private val defaultThumbnailUrl: String,
 ) {
-
     /**
      * 게시물 목록을 커서 기반 페이지네이션으로 조회
      *
@@ -54,36 +53,40 @@ class PostListReadService(
             )
         }
 
-        val posts = postRepository.findPostsWithConditions(
-            cursor = postCursor,
-            size = size + 1,
-            period = period,
-            sortType = sortType,
-        )
+        val posts =
+            postRepository.findPostsWithConditions(
+                cursor = postCursor,
+                size = size + 1,
+                period = period,
+                sortType = sortType,
+            )
 
         val hasNext = posts.size > size
         val content = posts.take(size)
 
-        val nextCursor = if (hasNext && content.isNotEmpty()) {
-            PostCursor.from(content.last(), sortType).encode()
-        } else {
-            null
-        }
+        val nextCursor =
+            if (hasNext && content.isNotEmpty()) {
+                PostCursor.from(content.last(), sortType).encode()
+            } else {
+                null
+            }
 
         val currentUserId = getCurrentUserId()
-        val readPostIds = if (currentUserId != null && content.isNotEmpty()) {
-            postViewLogRepository.findDistinctPostIdsByUserIdAndPostIdIn(
-                userId = currentUserId,
-                postIds = content.mapNotNull { it.id }
-            ).toSet()
-        } else {
-            emptySet()
-        }
+        val readPostIds =
+            if (currentUserId != null && content.isNotEmpty()) {
+                postViewLogRepository.findDistinctPostIdsByUserIdAndPostIdIn(
+                    userId = currentUserId,
+                    postIds = content.mapNotNull { it.id },
+                ).toSet()
+            } else {
+                emptySet()
+            }
 
         return CursorPageResponse(
-            content = content.map { post ->
-                convertToResponse(post, readPostIds.contains(post.id))
-            },
+            content =
+                content.map { post ->
+                    convertToResponse(post, readPostIds.contains(post.id))
+                },
             nextCursor = nextCursor,
             hasNext = hasNext,
             size = content.size,
@@ -109,15 +112,19 @@ class PostListReadService(
      * @param isRead 현재 사용자가 읽은 게시물인지 여부
      * @return 응답 DTO
      */
-    private fun convertToResponse(post: Post, isRead: Boolean): PostListItemResponse {
-        val thumbnailUrl = post.pictures
-            .filter { it.isThumbnail }
-            .minByOrNull { it.displayOrder }
-            ?.pictureUrl
-            ?: post.pictures
+    private fun convertToResponse(
+        post: Post,
+        isRead: Boolean,
+    ): PostListItemResponse {
+        val thumbnailUrl =
+            post.pictures
+                .filter { it.isThumbnail }
                 .minByOrNull { it.displayOrder }
                 ?.pictureUrl
-            ?: defaultThumbnailUrl
+                ?: post.pictures
+                    .minByOrNull { it.displayOrder }
+                    ?.pictureUrl
+                ?: defaultThumbnailUrl
 
         return PostListItemResponse(
             id = post.id!!,

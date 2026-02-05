@@ -24,34 +24,24 @@ import java.util.UUID
 data class PostListItemResponse(
     @field:Schema(description = "게시물 ID")
     val id: UUID,
-
     @field:Schema(description = "게시물 제목")
     val title: String,
-
     @field:Schema(description = "작성자 이름")
     val authorName: String,
-
     @field:Schema(description = "작성자 프로필 이미지 URL")
     val authorProfileImageUrl: String,
-
     @field:Schema(description = "게시물 썸네일 이미지 URL")
     val thumbnailUrl: String,
-
     @field:Schema(description = "로그인한 사용자가 읽은 게시물인지 여부")
     val isRead: Boolean,
-
     @field:Schema(description = "태그 목록")
     val tags: List<PostListTagResponse>,
-
     @field:Schema(description = "조회수")
     val viewCount: Long,
-
     @field:Schema(description = "좋아요수")
     val likeCount: Long,
-
     @field:Schema(description = "댓글수")
     val commentCount: Long,
-
     @field:Schema(description = "작성일")
     val createdAt: Date,
 ) {
@@ -62,20 +52,21 @@ data class PostListItemResponse(
          */
         @Deprecated(
             message = "Use PostListReadService.convertToResponse() instead",
-            level = DeprecationLevel.WARNING
+            level = DeprecationLevel.WARNING,
         )
-        fun from(post: Post): PostListItemResponse = PostListItemResponse(
-            id = post.id!!,
-            title = post.title,
-            authorName = post.author.name,
-            authorProfileImageUrl = post.author.profileImageUrl,
-            thumbnailUrl = "",
-            isRead = false,
-            tags = post.tags.map { PostListTagResponse.from(it) },
-            viewCount = post.viewCount,
-            likeCount = post.likeCount,
-            commentCount = post.commentCount,
-            createdAt = post.createdAt,
-        )
+        fun from(post: Post): PostListItemResponse =
+            PostListItemResponse(
+                id = post.id!!,
+                title = post.title,
+                authorName = post.author.name,
+                authorProfileImageUrl = post.author.profileImageUrl,
+                thumbnailUrl = "",
+                isRead = false,
+                tags = post.tags.map { PostListTagResponse.from(it) },
+                viewCount = post.viewCount,
+                likeCount = post.likeCount,
+                commentCount = post.commentCount,
+                createdAt = post.createdAt,
+            )
     }
 }

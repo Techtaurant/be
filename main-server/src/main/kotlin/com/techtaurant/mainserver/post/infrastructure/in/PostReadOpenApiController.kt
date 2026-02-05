@@ -33,38 +33,35 @@ class PostReadOpenApiController(
     private val postListReadService: PostListReadService,
     private val postDetailReadService: PostDetailReadService,
 ) {
-
     @Operation(
         summary = "게시물 목록 조회",
-        description = "커서 기반 페이지네이션으로 게시물 목록을 조회합니다. 기간 필터와 정렬 조건을 적용할 수 있습니다. 로그인 시 읽음 여부를 포함하며, 비회원도 조회 가능합니다."
+        description = "커서 기반 페이지네이션으로 게시물 목록을 조회합니다. 기간 필터와 정렬 조건을 적용할 수 있습니다. 로그인 시 읽음 여부를 포함하며, 비회원도 조회 가능합니다.",
     )
     @ApiResponses(
         value = [
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "200",
-                description = "조회 성공 (작성자 프로필 이미지, 게시물 썸네일, 읽음 여부 포함)"
+                description = "조회 성공 (작성자 프로필 이미지, 게시물 썸네일, 읽음 여부 포함)",
             ),
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "400",
-                description = "잘못된 요청 (size 범위 초과 등)"
+                description = "잘못된 요청 (size 범위 초과 등)",
             ),
-        ]
+        ],
     )
     @GetMapping
     fun getPosts(
         @Parameter(description = "이전 응답의 nextCursor (첫 페이지는 생략)")
         @RequestParam(required = false)
         cursor: String?,
-
         @Parameter(description = "페이지 크기 (1-100, 기본값 20)")
         @RequestParam(defaultValue = "20")
-        @Min(1) @Max(100)
+        @Min(1)
+        @Max(100)
         size: Int,
-
         @Parameter(description = "기간 필터 (WEEK: 7일, MONTH: 30일, YEAR: 365일, ALL: 전체)")
         @RequestParam(defaultValue = "ALL")
         period: PostPeriod,
-
         @Parameter(description = "정렬 기준 (LATEST: 최신순, VIEW: 조회순, LIKE: 추천순, COMMENT: 댓글순)")
         @RequestParam(defaultValue = "LATEST")
         sort: PostSortType,
@@ -74,19 +71,19 @@ class PostReadOpenApiController(
 
     @Operation(
         summary = "게시물 상세 조회",
-        description = "게시물 상세 정보를 조회합니다. 조회 시 자동으로 조회 로그가 기록됩니다. 비회원도 조회 가능합니다."
+        description = "게시물 상세 정보를 조회합니다. 조회 시 자동으로 조회 로그가 기록됩니다. 비회원도 조회 가능합니다.",
     )
     @ApiResponses(
         value = [
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "200",
-                description = "조회 성공"
+                description = "조회 성공",
             ),
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "404",
-                description = "게시물을 찾을 수 없음"
+                description = "게시물을 찾을 수 없음",
             ),
-        ]
+        ],
     )
     @GetMapping("/{postId}")
     fun getPostDetail(
@@ -104,7 +101,7 @@ class PostReadOpenApiController(
                 userId = userId,
                 ipAddress = ipAddress,
                 userAgent = userAgent,
-            )
+            ),
         )
     }
 }

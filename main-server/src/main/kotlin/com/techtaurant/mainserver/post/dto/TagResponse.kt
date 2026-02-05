@@ -14,18 +14,20 @@ import java.util.UUID
 data class TagResponse(
     @field:Schema(description = "태그 ID")
     val id: UUID,
-
     @field:Schema(description = "태그 이름")
     val name: String,
-
     @field:Schema(description = "태그에 속한 게시물 수")
     val postCount: Long,
 ) {
     companion object {
-        fun from(tag: Tag, postCount: Long): TagResponse = TagResponse(
-            id = tag.id!!,
-            name = tag.name,
-            postCount = postCount,
-        )
+        fun from(
+            tag: Tag,
+            postCount: Long,
+        ): TagResponse =
+            TagResponse(
+                id = tag.id!!,
+                name = tag.name,
+                postCount = postCount,
+            )
     }
 }
