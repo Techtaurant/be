@@ -32,7 +32,6 @@ class SecurityConfig(
     private val corsProperties: CorsProperties,
     private val cookieOAuth2AuthorizationRequestRepository: HttpCookieOAuth2AuthorizationRequestRepository,
 ) {
-
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         return http
@@ -54,15 +53,16 @@ class SecurityConfig(
                         "/v3/api-docs/**",
                         "/oauth2/**",
                         "/login/**",
-                        "/static/images/**"
+                        "/static/images/**",
                     ).permitAll()
                     .requestMatchers(
-                        "${SecurityConstants.OPEN_API_PREFIX}/**"
+                        "${SecurityConstants.OPEN_API_PREFIX}/**",
                     ).permitAll()
                     .requestMatchers(
-                        "${SecurityConstants.API_PREFIX}/**"
+                        "${SecurityConstants.API_PREFIX}/**",
                     ).hasAnyAuthority(
-                        UserRole.ADMIN.key, UserRole.USER.key
+                        UserRole.ADMIN.key,
+                        UserRole.USER.key,
                     )
                     .anyRequest().authenticated()
             }
@@ -81,16 +81,18 @@ class SecurityConfig(
 
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
-        val configuration = CorsConfiguration().apply {
-            allowedOrigins = corsProperties.allowedOrigins
-                .split(",")
-                .map { it.trim() }
-                .filter { it.isNotEmpty() }
-            allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
-            allowedHeaders = listOf("*")
-            allowCredentials = true
-            maxAge = 3600L
-        }
+        val configuration =
+            CorsConfiguration().apply {
+                allowedOrigins =
+                    corsProperties.allowedOrigins
+                        .split(",")
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
+                allowedHeaders = listOf("*")
+                allowCredentials = true
+                maxAge = 3600L
+            }
 
         return UrlBasedCorsConfigurationSource().apply {
             registerCorsConfiguration("/**", configuration)

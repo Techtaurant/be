@@ -23,24 +23,23 @@ import java.util.UUID
 class PostController(
     private val postWriteService: PostWriteService,
 ) {
-
     @PostMapping
     @Operation(summary = "게시물 작성", description = "새 게시물을 작성합니다")
     @ApiResponses(
         value = [
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "200",
-                description = "작성 성공"
+                description = "작성 성공",
             ),
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "400",
-                description = "잘못된 요청 (제목 길이 초과, 카테고리 depth 초과 등)"
+                description = "잘못된 요청 (제목 길이 초과, 카테고리 depth 초과 등)",
             ),
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "401",
-                description = "인증되지 않은 사용자"
+                description = "인증되지 않은 사용자",
             ),
-        ]
+        ],
     )
     fun createPost(
         @AuthenticationPrincipal userId: UUID,
@@ -49,4 +48,3 @@ class PostController(
         return ApiResponse.ok(postWriteService.createPost(userId, request))
     }
 }
-

@@ -8,13 +8,18 @@ import org.springframework.data.repository.query.Param
 import java.util.UUID
 
 interface CategoryRepository : JpaRepository<Category, UUID> {
-    fun findByUserAndPath(user: User, path: String): Category?
+    fun findByUserAndPath(
+        user: User,
+        path: String,
+    ): Category?
 
     /**
      * 유저의 전체 카테고리 조회
      */
     @Query("SELECT c FROM Category c WHERE c.user.id = :userId ORDER BY c.depth ASC, c.name ASC")
-    fun findByUserId(@Param("userId") userId: UUID): List<Category>
+    fun findByUserId(
+        @Param("userId") userId: UUID,
+    ): List<Category>
 
     /**
      * 유저의 특정 path prefix로 시작하는 카테고리 조회
@@ -27,7 +32,10 @@ interface CategoryRepository : JpaRepository<Category, UUID> {
               AND c.path LIKE :pathPrefix || '%'
             ORDER BY c.depth ASC, c.name ASC
         """,
-        nativeQuery = true
+        nativeQuery = true,
     )
-    fun findByUserIdAndPathPrefix(@Param("userId") userId: UUID, @Param("pathPrefix") pathPrefix: String): List<Category>
+    fun findByUserIdAndPathPrefix(
+        @Param("userId") userId: UUID,
+        @Param("pathPrefix") pathPrefix: String,
+    ): List<Category>
 }

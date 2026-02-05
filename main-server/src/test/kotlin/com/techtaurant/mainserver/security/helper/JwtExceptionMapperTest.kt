@@ -9,7 +9,6 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 class JwtExceptionMapperTest {
-
     @Test
     @DisplayName("ExpiredJwtException은 TOKEN_EXPIRED로 매핑")
     fun `map ExpiredJwtException to TOKEN_EXPIRED`() {

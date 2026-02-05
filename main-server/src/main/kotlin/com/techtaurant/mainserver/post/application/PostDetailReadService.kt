@@ -20,7 +20,6 @@ class PostDetailReadService(
     private val postViewLogService: PostViewLogService,
     private val postLikeLogRepository: PostLikeLogRepository,
 ) {
-
     /**
      * 게시물 상세 정보를 조회합니다.
      * 조회 시 자동으로 조회 로그를 기록합니다.
@@ -39,8 +38,9 @@ class PostDetailReadService(
         ipAddress: String?,
         userAgent: String?,
     ): PostDetailResponse {
-        val post = postRepository.findPostDetailById(postId)
-            ?: throw ApiException(PostStatus.POST_NOT_FOUND)
+        val post =
+            postRepository.findPostDetailById(postId)
+                ?: throw ApiException(PostStatus.POST_NOT_FOUND)
 
         postViewLogService.recordView(
             postId = postId,
@@ -49,9 +49,10 @@ class PostDetailReadService(
             userAgent = userAgent,
         )
 
-        val isLiked = userId?.let {
-            postLikeLogRepository.findByPostIdAndUserId(postId, it)?.isLiked ?: false
-        } ?: false
+        val isLiked =
+            userId?.let {
+                postLikeLogRepository.findByPostIdAndUserId(postId, it)?.isLiked ?: false
+            } ?: false
 
         return PostDetailResponse.from(post, isLiked)
     }

@@ -9,7 +9,6 @@ import com.techtaurant.mainserver.post.entity.PostSortType
  * 게시물 동적 쿼리를 위한 커스텀 Repository
  */
 interface PostRepositoryCustom {
-
     /**
      * 동적 조건으로 게시물 목록 조회
      *

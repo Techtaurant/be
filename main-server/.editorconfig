@@ -1,0 +1,17 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{kt,kts}]
+# Disable rules that cannot be auto-fixed or conflict with existing code
+ktlint_standard_no-wildcard-imports = disabled
+ktlint_standard_package-name = disabled
+ktlint_standard_no-consecutive-comments = disabled
+ktlint_standard_filename = disabled
+ktlint_standard_no-empty-file = disabled

@@ -18,23 +18,18 @@ import jakarta.persistence.*
     name = "post_view_log",
     indexes = [
         Index(name = "idx_post_view_log_post_created", columnList = "post_id,created_at"),
-        Index(name = "idx_post_view_log_created", columnList = "created_at")
-    ]
+        Index(name = "idx_post_view_log_created", columnList = "created_at"),
+    ],
 )
 class PostViewLog(
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = false)
     var post: Post,
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     var user: User? = null,
-
     @Column(name = "ip_address", length = 45)
     var ipAddress: String? = null,
-
     @Column(name = "user_agent", columnDefinition = "TEXT")
     var userAgent: String? = null,
-
 ) : EntityBase()

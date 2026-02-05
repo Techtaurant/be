@@ -2,9 +2,9 @@ package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.post.entity.PostViewLog
+import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostViewLogRepository
-import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -20,7 +20,6 @@ class PostViewLogService(
     private val postRepository: PostRepository,
     private val userRepository: UserRepository,
 ) {
-
     /**
      * 게시글 조회 로그를 생성합니다.
      * 비회원 조회도 지원하며, userId가 null인 경우 비회원으로 간주합니다.
@@ -38,20 +37,23 @@ class PostViewLogService(
         ipAddress: String?,
         userAgent: String?,
     ) {
-        val post = postRepository.findById(postId).orElseThrow {
-            ApiException(PostStatus.POST_NOT_FOUND)
-        }
+        val post =
+            postRepository.findById(postId).orElseThrow {
+                ApiException(PostStatus.POST_NOT_FOUND)
+            }
 
-        val user = userId?.let {
-            userRepository.findById(it).orElse(null)
-        }
+        val user =
+            userId?.let {
+                userRepository.findById(it).orElse(null)
+            }
 
-        val viewLog = PostViewLog(
-            post = post,
-            user = user,
-            ipAddress = ipAddress,
-            userAgent = userAgent,
-        )
+        val viewLog =
+            PostViewLog(
+                post = post,
+                user = user,
+                ipAddress = ipAddress,
+                userAgent = userAgent,
+            )
 
         postViewLogRepository.save(viewLog)
     }

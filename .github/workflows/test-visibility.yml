@@ -44,6 +44,12 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Spotless Check
+        working-directory: ./main-server
+        run: |
+          chmod +x gradlew
+          ./gradlew spotlessCheck
+
       - name: Run Tests & Generate Coverage Report
         working-directory: ./main-server
         run: |

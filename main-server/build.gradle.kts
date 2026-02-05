@@ -5,6 +5,7 @@ plugins {
     id("org.springframework.boot") version "3.5.7"
     id("io.spring.dependency-management") version "1.1.7"
     kotlin("plugin.jpa") version "1.9.25"
+    id("com.diffplug.spotless") version "6.25.0"
     jacoco
 }
 
@@ -125,11 +126,11 @@ tasks.named<JacocoReport>("jacocoTestReport") {
                         "**/entity/**",
                         "**/dto/**",
                         "**/Application.class",
-                        "**/ApplicationKt.class"
+                        "**/ApplicationKt.class",
                     )
                 }
-            }
-        )
+            },
+        ),
     )
 
     finalizedBy("jacocoTestCoverageVerification")
@@ -161,5 +162,19 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
                 minimum = "0.70".toBigDecimal()
             }
         }
+    }
+}
+
+// Spotless Configuration
+spotless {
+    kotlin {
+        target("src/**/*.kt")
+        ktlint("1.2.1")
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+    kotlinGradle {
+        target("*.gradle.kts")
+        ktlint("1.2.1")
     }
 }
