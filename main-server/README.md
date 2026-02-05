@@ -157,3 +157,21 @@ jacoco 커버리지 측정을 건너뛰고 테스트만 실행하려면:
 
 이 방법은 커버리지 생성 과정을 생략하여 테스트 실행 시간을 단축합니다.
 
+---
+
+## Code Formatting (Spotless)
+
+### 포맷 검사
+
+```bash
+./gradlew spotlessCheck
+```
+
+### 자동 포맷 적용
+
+```bash
+./gradlew spotlessApply
+```
+
+CI에서 spotless 위반 시 PR merge가 차단됩니다.
+커밋 전에 `spotlessApply`를 실행하세요.
