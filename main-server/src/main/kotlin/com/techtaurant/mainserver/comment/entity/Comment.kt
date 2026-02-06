@@ -14,6 +14,8 @@ import jakarta.persistence.*
  * @property author 댓글 작성자
  * @property parent 부모 댓글 (대댓글인 경우만 값이 있음)
  * @property depth 댓글 깊이 (0: 일반 댓글, 1: 대댓글)
+ * @property likeCount 좋아요 수
+ * @property replyCount 대댓글 수 (depth=0인 댓글에만 의미 있음)
  * @property children 자식 댓글 (대댓글들)
  */
 @Entity
@@ -32,6 +34,10 @@ class Comment(
     var parent: Comment? = null,
     @Column(nullable = false)
     var depth: Int = 0,
+    @Column(nullable = false)
+    var likeCount: Long = 0,
+    @Column(nullable = false)
+    var replyCount: Long = 0,
     @OneToMany(mappedBy = "parent", cascade = [CascadeType.ALL], orphanRemoval = true)
     var children: MutableList<Comment> = mutableListOf(),
 ) : EntityBase()

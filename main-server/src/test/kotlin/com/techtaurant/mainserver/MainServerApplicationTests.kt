@@ -1,10 +1,11 @@
 package com.techtaurant.mainserver
 
-// @SpringBootTest
-// class MainServerApplicationTests {
+import org.springframework.boot.test.context.SpringBootTest
+import kotlin.test.Test
 
-//     @Test
-//     fun contextLoads() {
-//     }
-
-// }
+@SpringBootTest
+class MainServerApplicationTests {
+    @Test
+    fun contextLoads() {
+    }
+}
