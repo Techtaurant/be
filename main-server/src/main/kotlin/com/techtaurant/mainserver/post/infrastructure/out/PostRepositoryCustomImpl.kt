@@ -10,6 +10,7 @@ import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.entity.Post_
 import com.techtaurant.mainserver.post.entity.Tag
 import com.techtaurant.mainserver.post.enums.PostStatus
+import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.user.entity.User
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
@@ -52,6 +53,7 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
 
         val predicates = mutableListOf<Predicate>()
 
+        predicates.add(cb.equal(root.get(Post_.status), PostStatusEnum.PUBLISHED))
         addPeriodCondition(cb, root, period, predicates)
         addCursorCondition(cb, root, cursor, sortType, predicates)
 

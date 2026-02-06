@@ -1,6 +1,7 @@
 package com.techtaurant.mainserver.post.entity
 
 import com.techtaurant.mainserver.common.base.EntityBase
+import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.user.entity.User
 import jakarta.persistence.*
 import java.util.Date
@@ -19,6 +20,7 @@ import java.util.Date
  * @property likeCount 좋아요수 (캐시된 누적값, 배치로 동기화)
  * @property commentCount 댓글수 (캐시된 누적값, 배치로 동기화)
  * @property statsUpdatedAt 통계 동기화 시점 (null이면 미동기화)
+ * @property status 게시물 상태 (DRAFT: 임시저장, PUBLISHED: 발행, PRIVATE: 비공개)
  */
 @Entity
 @Table(name = "posts")
@@ -50,4 +52,7 @@ class Post(
     var commentCount: Long = 0,
     @Column(name = "stats_updated_at")
     var statsUpdatedAt: Date? = null,
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    var status: PostStatusEnum = PostStatusEnum.PUBLISHED,
 ) : EntityBase()

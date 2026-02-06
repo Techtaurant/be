@@ -1,6 +1,7 @@
 package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
+import com.techtaurant.mainserver.post.dto.DraftListItemResponse
 import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.dto.PostListItemResponse
 import com.techtaurant.mainserver.post.dto.PostListTagResponse
@@ -91,6 +92,61 @@ class PostListReadService(
             hasNext = hasNext,
             size = content.size,
         )
+    }
+
+    /**
+     * 현재 사용자의 DRAFT 게시물 목록을 커서 기반으로 조회합니다.
+     * 최근 수정일 기준 내림차순으로 정렬됩니다.
+     *
+     * @param userId 사용자 ID
+     * @param cursor 커서 문자열 (형식: "updatedAt_id", 없으면 첫 페이지)
+     * @param size 페이지 크기
+     * @return DRAFT 게시물 목록 커서 페이지
+     */
+    @Transactional(readOnly = true)
+    fun getMyDrafts(
+        userId: UUID,
+        cursor: String?,
+        size: Int,
+    ): CursorPageResponse<DraftListItemResponse> {
+        val posts =
+            if (cursor == null) {
+                postRepository.findDraftsByAuthorFirstPage(userId, size + 1)
+            } else {
+                val (cursorUpdatedAt, cursorId) = parseDraftCursor(cursor)
+                postRepository.findDraftsByAuthorWithCursor(userId, cursorUpdatedAt, cursorId, size + 1)
+            }
+
+        val hasNext = posts.size > size
+        val content = posts.take(size).map { DraftListItemResponse.from(it) }
+        val nextCursor =
+            if (hasNext) {
+                val lastPost = posts[size - 1]
+                encodeDraftCursor(lastPost.updatedAt, lastPost.id!!)
+            } else {
+                null
+            }
+
+        return CursorPageResponse(
+            content = content,
+            nextCursor = nextCursor,
+            hasNext = hasNext,
+            size = content.size,
+        )
+    }
+
+    private fun parseDraftCursor(cursor: String): Pair<java.util.Date, UUID> {
+        val parts = cursor.split("_")
+        val updatedAtMillis = parts[0].toLong()
+        val id = UUID.fromString(parts[1])
+        return Pair(java.util.Date(updatedAtMillis), id)
+    }
+
+    private fun encodeDraftCursor(
+        updatedAt: java.util.Date,
+        id: UUID,
+    ): String {
+        return "${updatedAt.time}_$id"
     }
 
     /**
