@@ -157,7 +157,7 @@ class CommentControllerIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("댓글 작성 실패 - 댓글 내용이 비어있으면 400 Bad Request를 반환한다")
+    @DisplayName("댓글 작성 실패 - 댓글 내용이 비어있으면 400 Bad Request와 Validation 에러 상세를 반환한다")
     fun createComment_withBlankContent_shouldReturnBadRequest() {
         // Given - 빈 내용의 댓글 작성 요청
         val request =
@@ -168,7 +168,7 @@ class CommentControllerIntegrationTest : IntegrationTest() {
             )
 
         // When - 댓글 작성 API 호출
-        // Then - 400 Bad Request 응답 확인
+        // Then - 400 Bad Request 응답과 Validation 에러 필드 확인
         given()
             .contentType(ContentType.JSON)
             .body(request)
@@ -177,10 +177,13 @@ class CommentControllerIntegrationTest : IntegrationTest() {
             .post("/api/comments")
             .then()
             .statusCode(HttpStatus.BAD_REQUEST.value())
+            .body("status", equalTo(400))
+            .body("message", equalTo("Wrong Request"))
+            .body("data.errors.content", notNullValue())
     }
 
     @Test
-    @DisplayName("댓글 작성 실패 - 존재하지 않는 게시물에 댓글을 작성하면 404 Not Found를 반환한다")
+    @DisplayName("댓글 작성 실패 - 존재하지 않는 게시물에 댓글을 작성하면 404 Not Found와 에러 메시지를 반환한다")
     fun createComment_withNonExistentPost_shouldReturnNotFound() {
         // Given - 존재하지 않는 게시물 ID로 댓글 작성 요청
         val nonExistentPostId = UUID.randomUUID()
@@ -192,7 +195,7 @@ class CommentControllerIntegrationTest : IntegrationTest() {
             )
 
         // When - 댓글 작성 API 호출
-        // Then - 404 Not Found 응답 확인
+        // Then - 404 Not Found 응답과 ApiException 에러 형식 확인
         given()
             .contentType(ContentType.JSON)
             .body(request)
@@ -201,10 +204,12 @@ class CommentControllerIntegrationTest : IntegrationTest() {
             .post("/api/comments")
             .then()
             .statusCode(HttpStatus.NOT_FOUND.value())
+            .body("data", equalTo(null))
+            .body("message", notNullValue())
     }
 
     @Test
-    @DisplayName("댓글 작성 실패 - 존재하지 않는 부모 댓글에 대댓글을 작성하면 404 Not Found를 반환한다")
+    @DisplayName("댓글 작성 실패 - 존재하지 않는 부모 댓글에 대댓글을 작성하면 404 Not Found와 에러 메시지를 반환한다")
     fun createComment_withNonExistentParentComment_shouldReturnNotFound() {
         // Given - 존재하지 않는 부모 댓글 ID로 대댓글 작성 요청
         val nonExistentParentId = UUID.randomUUID()
@@ -216,7 +221,7 @@ class CommentControllerIntegrationTest : IntegrationTest() {
             )
 
         // When - 대댓글 작성 API 호출
-        // Then - 404 Not Found 응답 확인
+        // Then - 404 Not Found 응답과 ApiException 에러 형식 확인
         given()
             .contentType(ContentType.JSON)
             .body(request)
@@ -225,6 +230,8 @@ class CommentControllerIntegrationTest : IntegrationTest() {
             .post("/api/comments")
             .then()
             .statusCode(HttpStatus.NOT_FOUND.value())
+            .body("data", equalTo(null))
+            .body("message", notNullValue())
     }
 
     @Test
@@ -305,7 +312,7 @@ class CommentControllerIntegrationTest : IntegrationTest() {
             )
 
         // When - 대댓글의 답글 작성 API 호출
-        // Then - 400 Bad Request 응답 확인
+        // Then - 400 Bad Request 응답과 ApiException 에러 형식 확인
         given()
             .contentType(ContentType.JSON)
             .body(replyToReplyRequest)
@@ -314,10 +321,12 @@ class CommentControllerIntegrationTest : IntegrationTest() {
             .post("/api/comments")
             .then()
             .statusCode(HttpStatus.BAD_REQUEST.value())
+            .body("data", equalTo(null))
+            .body("message", notNullValue())
     }
 
     @Test
-    @DisplayName("댓글 작성 실패 - 부모 댓글이 다른 게시물에 속한 경우 400 Bad Request를 반환한다")
+    @DisplayName("댓글 작성 실패 - 부모 댓글이 다른 게시물에 속한 경우 400 Bad Request와 에러 메시지를 반환한다")
     fun createComment_withParentCommentFromDifferentPost_shouldReturnBadRequest() {
         // Given - 다른 게시물 생성
         val anotherPost =
@@ -361,7 +370,7 @@ class CommentControllerIntegrationTest : IntegrationTest() {
             )
 
         // When - 대댓글 작성 API 호출
-        // Then - 400 Bad Request 응답 확인
+        // Then - 400 Bad Request 응답과 ApiException 에러 형식 확인
         given()
             .contentType(ContentType.JSON)
             .body(invalidReplyRequest)
@@ -370,5 +379,7 @@ class CommentControllerIntegrationTest : IntegrationTest() {
             .post("/api/comments")
             .then()
             .statusCode(HttpStatus.BAD_REQUEST.value())
+            .body("data", equalTo(null))
+            .body("message", notNullValue())
     }
 }

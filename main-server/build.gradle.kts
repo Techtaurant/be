@@ -107,22 +107,6 @@ tasks.withType<Test> {
     finalizedBy("jacocoTestReport")
 }
 
-// JaCoCo exclusion patterns - shared between report and verification
-val jacocoExcludes =
-    listOf(
-        "**/config/**",
-        "**/entity/**",
-        "**/dto/**",
-        "**/enums/**",
-        "**/infrastructure/**",
-        "**/security/**",
-        "**/application/**",
-        "**/common/**",
-        "**/Application.class",
-        "**/ApplicationKt.class",
-        "**/MainServerApplicationKt.class",
-    )
-
 // Configure JaCoCo Test Report Task
 tasks.named<JacocoReport>("jacocoTestReport") {
     dependsOn(tasks.withType<Test>())
@@ -137,7 +121,13 @@ tasks.named<JacocoReport>("jacocoTestReport") {
         files(
             classDirectories.files.map { file ->
                 fileTree(file) {
-                    exclude(jacocoExcludes)
+                    exclude(
+                        "**/config/**",
+                        "**/entity/**",
+                        "**/dto/**",
+                        "**/Application.class",
+                        "**/ApplicationKt.class",
+                    )
                 }
             },
         ),
@@ -149,16 +139,6 @@ tasks.named<JacocoReport>("jacocoTestReport") {
 // Configure JaCoCo Coverage Verification Task
 tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
     dependsOn("jacocoTestReport")
-
-    classDirectories.setFrom(
-        files(
-            classDirectories.files.map { file ->
-                fileTree(file) {
-                    exclude(jacocoExcludes)
-                }
-            },
-        ),
-    )
 
     violationRules {
         rule {
