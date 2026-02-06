@@ -48,9 +48,7 @@ class GlobalExceptionHandler {
      * @Validated @PathVariable/@RequestParam 검증 실패 시 발생하는 예외를 처리한다.
      */
     @ExceptionHandler(ConstraintViolationException::class)
-    fun handleConstraintViolationException(
-        exception: ConstraintViolationException,
-    ): ResponseEntity<ApiResponse<ValidationErrorResponse>> {
+    fun handleConstraintViolationException(exception: ConstraintViolationException): ResponseEntity<ApiResponse<ValidationErrorResponse>> {
         val errors =
             exception.constraintViolations.associate { violation ->
                 violation.propertyPath.toString() to (violation.message ?: "Invalid value")
@@ -68,9 +66,7 @@ class GlobalExceptionHandler {
      * 비즈니스 로직에서 발생하는 ApiException을 처리한다.
      */
     @ExceptionHandler(ApiException::class)
-    fun handleApiException(
-        exception: ApiException,
-    ): ResponseEntity<ApiResponse<Any?>> {
+    fun handleApiException(exception: ApiException): ResponseEntity<ApiResponse<Any?>> {
         log.info("ApiException: status={}, detail={}", exception.status, exception.detail)
 
         return ResponseEntity
