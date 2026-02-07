@@ -101,9 +101,16 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
     /**
      * 게시물의 조회수를 원자적으로 1 증가시킵니다.
      *
+     * flushAutomatically: 쿼리 실행 '전' 쓰기 지연 저장소의 변경사항을 DB에 반영(동기화).
+     * clearAutomatically: 쿼리 실행 '후' 1차 캐시를 비워, 이후 조회 시 DB의 최신 값을 보장.
+     *
+     * clearAutomatically = false 이유:
+     * 트랜잭션 내 다른 엔티티의 영속성(Lazy Loading 등)을 유지해야 하거나,
+     * 업데이트 후 재조회가 불필요하여 불필요한 캐시 초기화/재조회 비용을 아끼기 위함.
+     *
      * @param postId 조회수를 증가시킬 게시물 ID
      */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
     @Query("UPDATE Post p SET p.viewCount = p.viewCount + 1 WHERE p.id = :postId")
     fun incrementViewCount(
         @Param("postId") postId: UUID,
@@ -112,9 +119,16 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
     /**
      * 게시물의 좋아요수를 원자적으로 1 증가시킵니다.
      *
+     * flushAutomatically: 쿼리 실행 '전' 쓰기 지연 저장소의 변경사항을 DB에 반영(동기화).
+     * clearAutomatically: 쿼리 실행 '후' 1차 캐시를 비워, 이후 조회 시 DB의 최신 값을 보장.
+     *
+     * clearAutomatically = false 이유:
+     * 트랜잭션 내 다른 엔티티의 영속성(Lazy Loading 등)을 유지해야 하거나,
+     * 업데이트 후 재조회가 불필요하여 불필요한 캐시 초기화/재조회 비용을 아끼기 위함.
+     *
      * @param postId 좋아요수를 증가시킬 게시물 ID
      */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
     @Query("UPDATE Post p SET p.likeCount = p.likeCount + 1 WHERE p.id = :postId")
     fun incrementLikeCount(
         @Param("postId") postId: UUID,
@@ -122,12 +136,18 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
 
     /**
      * 게시물의 좋아요수를 원자적으로 1 감소시킵니다.
-     * 음수 방지를 위해 0 미만으로 내려가지 않습니다.
+     *
+     * flushAutomatically: 쿼리 실행 '전' 쓰기 지연 저장소의 변경사항을 DB에 반영(동기화).
+     * clearAutomatically: 쿼리 실행 '후' 1차 캐시를 비워, 이후 조회 시 DB의 최신 값을 보장.
+     *
+     * clearAutomatically = false 이유:
+     * 트랜잭션 내 다른 엔티티의 영속성(Lazy Loading 등)을 유지해야 하거나,
+     * 업데이트 후 재조회가 불필요하여 불필요한 캐시 초기화/재조회 비용을 아끼기 위함.
      *
      * @param postId 좋아요수를 감소시킬 게시물 ID
      */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("UPDATE Post p SET p.likeCount = CASE WHEN p.likeCount > 0 THEN p.likeCount - 1 ELSE 0 END WHERE p.id = :postId")
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
+    @Query("UPDATE Post p SET p.likeCount = p.likeCount - 1 WHERE p.id = :postId")
     fun decrementLikeCount(
         @Param("postId") postId: UUID,
     )
@@ -135,9 +155,17 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
     /**
      * 게시물의 댓글수를 원자적으로 1 증가시킵니다.
      *
+     * flushAutomatically: 쿼리 실행 '전' 쓰기 지연 저장소의 변경사항을 DB에 반영(동기화).
+     * clearAutomatically: 쿼리 실행 '후' 1차 캐시를 비워, 이후 조회 시 DB의 최신 값을 보장.
+     *
+     * clearAutomatically = false 이유:
+     * 트랜잭션 내 다른 엔티티의 영속성(Lazy Loading 등)을 유지해야 하거나,
+     * 업데이트 후 재조회가 불필요하여 불필요한 캐시 초기화/재조회 비용을 아끼기 위함.
+     *
+     *
      * @param postId 댓글수를 증가시킬 게시물 ID
      */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
     @Query("UPDATE Post p SET p.commentCount = p.commentCount + 1 WHERE p.id = :postId")
     fun incrementCommentCount(
         @Param("postId") postId: UUID,

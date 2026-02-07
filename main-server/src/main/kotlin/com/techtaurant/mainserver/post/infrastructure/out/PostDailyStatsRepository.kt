@@ -17,9 +17,13 @@ interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
      * @param statDate 통계 날짜
      * @return 업데이트된 행 수 (0이면 해당 날짜 레코드 미존재)
      */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
     @Query(
-        "UPDATE post_daily_stats SET view_count = view_count + 1, updated_at = NOW() WHERE post_id = :postId AND stat_date = :statDate",
+        """
+        UPDATE post_daily_stats
+        SET view_count = view_count + 1, updated_at = NOW()
+        WHERE post_id = :postId AND stat_date = :statDate
+        """,
         nativeQuery = true,
     )
     fun incrementViewCount(
@@ -34,9 +38,13 @@ interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
      * @param statDate 통계 날짜
      * @return 업데이트된 행 수 (0이면 해당 날짜 레코드 미존재)
      */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
     @Query(
-        "UPDATE post_daily_stats SET like_count = like_count + 1, updated_at = NOW() WHERE post_id = :postId AND stat_date = :statDate",
+        """
+        UPDATE post_daily_stats
+        SET like_count = like_count + 1, updated_at = NOW()
+        WHERE post_id = :postId AND stat_date = :statDate
+        """,
         nativeQuery = true,
     )
     fun incrementLikeCount(
@@ -52,9 +60,13 @@ interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
      * @param statDate 통계 날짜
      * @return 업데이트된 행 수 (0이면 해당 날짜 레코드 미존재)
      */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
     @Query(
-        "UPDATE post_daily_stats SET like_count = GREATEST(like_count - 1, 0), updated_at = NOW() WHERE post_id = :postId AND stat_date = :statDate",
+        """
+        UPDATE post_daily_stats
+        SET like_count = GREATEST(like_count - 1, 0), updated_at = NOW()
+        WHERE post_id = :postId AND stat_date = :statDate
+        """,
         nativeQuery = true,
     )
     fun decrementLikeCount(
@@ -69,9 +81,13 @@ interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
      * @param statDate 통계 날짜
      * @return 업데이트된 행 수 (0이면 해당 날짜 레코드 미존재)
      */
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
     @Query(
-        "UPDATE post_daily_stats SET comment_count = comment_count + 1, updated_at = NOW() WHERE post_id = :postId AND stat_date = :statDate",
+        """
+        UPDATE post_daily_stats
+        SET comment_count = comment_count + 1, updated_at = NOW()
+        WHERE post_id = :postId AND stat_date = :statDate
+        """,
         nativeQuery = true,
     )
     fun incrementCommentCount(
