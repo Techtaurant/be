@@ -1,15 +1,12 @@
 package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.common.util.DateUtils
-import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostDailyStats
 import com.techtaurant.mainserver.post.infrastructure.out.PostDailyStatsRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import org.slf4j.LoggerFactory
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Propagation
-import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDate
 import java.util.UUID
 

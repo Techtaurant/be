@@ -9,7 +9,6 @@ import java.time.LocalDate
 import java.util.*
 
 interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
-
     /**
      * 특정 게시물의 일별 조회수를 원자적으로 1 증가시킵니다.
      *
