@@ -53,7 +53,7 @@ interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
 
     /**
      * 특정 게시물의 일별 좋아요수를 원자적으로 1 감소시킵니다.
-     * 음수 방지를 위해 0 미만으로 내려가지 않습니다.
+     * 날짜가 다른 경우(어제 좋아요 → 오늘 싫어요) 음수 값을 가질 수 있습니다.
      *
      * @param postId 게시물 ID
      * @param statDate 통계 날짜
@@ -61,7 +61,11 @@ interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(
-        "UPDATE post_daily_stats SET like_count = GREATEST(like_count - 1, 0), updated_at = NOW() WHERE post_id = :postId AND stat_date = :statDate",
+        """
+        UPDATE post_daily_stats
+        SET like_count = like_count - 1, updated_at = NOW()
+        WHERE post_id = :postId AND stat_date = :statDate
+        """,
         nativeQuery = true,
     )
     fun decrementLikeCount(
@@ -78,7 +82,11 @@ interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(
-        "UPDATE post_daily_stats SET comment_count = comment_count + 1, updated_at = NOW() WHERE post_id = :postId AND stat_date = :statDate",
+        """
+        UPDATE post_daily_stats
+        SET comment_count = comment_count + 1, updated_at = NOW()
+        WHERE post_id = :postId AND stat_date = :statDate
+        """,
         nativeQuery = true,
     )
     fun incrementCommentCount(
