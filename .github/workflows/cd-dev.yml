@@ -19,7 +19,11 @@ jobs:
           username: ${{ secrets.DEV_SSH_USER }}
           key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
           port: ${{ secrets.DEV_SSH_PORT }}
+          envs: ENV
           script: |
             cd ~/Documents/techtaurant/techtaurant-be/dev-for-deploy/infra
             git pull
+            echo "$ENV" > .env
             docker compose build main-server && docker compose up -d
+        env:
+          ENV: ${{ secrets.ENV }}
