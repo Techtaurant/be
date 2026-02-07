@@ -16,6 +16,7 @@ import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
+import jakarta.persistence.EntityManager
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
@@ -43,6 +44,9 @@ class CommentWriteServiceTest : IntegrationTest() {
 
     @Autowired
     private lateinit var categoryRepository: CategoryRepository
+
+    @Autowired
+    private lateinit var entityManager: EntityManager
 
     private lateinit var testUser: User
     private lateinit var testPost: Post
@@ -98,6 +102,8 @@ class CommentWriteServiceTest : IntegrationTest() {
 
         // When
         commentWriteService.createComment(testUser.id!!, request)
+        entityManager.flush()
+        entityManager.clear()
 
         // Then
         val updatedPost = postRepository.findById(testPost.id!!).orElseThrow()
@@ -314,6 +320,8 @@ class CommentWriteServiceTest : IntegrationTest() {
                 )
             commentWriteService.createComment(testUser.id!!, request)
         }
+        entityManager.flush()
+        entityManager.clear()
 
         // Then
         val updatedPost = postRepository.findById(testPost.id!!).orElseThrow()

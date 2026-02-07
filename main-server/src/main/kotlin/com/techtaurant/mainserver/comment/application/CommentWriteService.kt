@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.enums.CommentStatus
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.post.application.PostDailyStatsService
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
@@ -25,6 +26,7 @@ class CommentWriteService(
     private val commentRepository: CommentRepository,
     private val postRepository: PostRepository,
     private val userRepository: UserRepository,
+    private val postDailyStatsService: PostDailyStatsService,
 ) {
     /**
      * 댓글을 생성합니다.
@@ -56,7 +58,10 @@ class CommentWriteService(
             )
 
         val savedComment = commentRepository.save(comment)
-        postRepository.incrementCommentCount(post.id!!)
+
+        postRepository.incrementCommentCount(request.postId)
+        postDailyStatsService.incrementCommentCount(request.postId)
+
         return CommentResponse.from(savedComment)
     }
 

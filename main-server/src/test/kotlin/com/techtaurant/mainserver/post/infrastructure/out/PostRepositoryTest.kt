@@ -7,6 +7,7 @@ import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
+import jakarta.persistence.EntityManager
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -26,6 +27,9 @@ class PostRepositoryTest : IntegrationTest() {
 
     @Autowired
     private lateinit var categoryRepository: CategoryRepository
+
+    @Autowired
+    private lateinit var entityManager: EntityManager
 
     private lateinit var testUser: User
     private lateinit var testCategory: Category
@@ -76,6 +80,7 @@ class PostRepositoryTest : IntegrationTest() {
         // When
         postRepository.incrementCommentCount(testPost.id!!)
         postRepository.flush()
+        entityManager.clear()
 
         // Then
         val updatedPost = postRepository.findById(testPost.id!!).orElseThrow()
@@ -94,6 +99,7 @@ class PostRepositoryTest : IntegrationTest() {
             postRepository.incrementCommentCount(testPost.id!!)
         }
         postRepository.flush()
+        entityManager.clear()
 
         // Then
         val updatedPost = postRepository.findById(testPost.id!!).orElseThrow()
@@ -119,6 +125,7 @@ class PostRepositoryTest : IntegrationTest() {
         // When
         postRepository.incrementCommentCount(testPost.id!!)
         postRepository.flush()
+        entityManager.clear()
 
         // Then
         val updatedPost = postRepository.findById(testPost.id!!).orElseThrow()
@@ -137,6 +144,7 @@ class PostRepositoryTest : IntegrationTest() {
         // When
         postRepository.incrementCommentCount(testPost.id!!)
         postRepository.flush()
+        entityManager.clear()
 
         // Then
         val updatedPost = postRepository.findById(testPost.id!!).orElseThrow()

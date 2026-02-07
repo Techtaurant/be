@@ -20,6 +20,7 @@ class PostLikeLogService(
     private val postLikeLogRepository: PostLikeLogRepository,
     private val postRepository: PostRepository,
     private val userRepository: UserRepository,
+    private val postDailyStatsService: PostDailyStatsService,
 ) {
     /**
      * 게시글 좋아요/싫어요 로그를 생성하거나 수정합니다.
@@ -49,8 +50,12 @@ class PostLikeLogService(
         val existingLog = postLikeLogRepository.findByPostIdAndUserId(postId, userId)
 
         if (existingLog != null) {
-            existingLog.isLiked = isLiked
-            postLikeLogRepository.save(existingLog)
+            val previousIsLiked = existingLog.isLiked
+            if (previousIsLiked != isLiked) {
+                existingLog.isLiked = isLiked
+                postLikeLogRepository.save(existingLog)
+                updateLikeCount(postId, isLiked)
+            }
         } else {
             val newLog =
                 PostLikeLog(
@@ -59,6 +64,28 @@ class PostLikeLogService(
                     isLiked = isLiked,
                 )
             postLikeLogRepository.save(newLog)
+            if (isLiked) {
+                updateLikeCount(postId, true)
+            }
+        }
+    }
+
+    /**
+     * 좋아요 상태 변경에 따라 Post와 DailyStats의 likeCount를 원자적으로 갱신합니다.
+     *
+     * @param postId 게시물 ID
+     * @param increment true이면 증가, false이면 감소
+     */
+    private fun updateLikeCount(
+        postId: UUID,
+        increment: Boolean,
+    ) {
+        if (increment) {
+            postRepository.incrementLikeCount(postId)
+            postDailyStatsService.incrementLikeCount(postId)
+        } else {
+            postRepository.decrementLikeCount(postId)
+            postDailyStatsService.decrementLikeCount(postId)
         }
     }
 }
