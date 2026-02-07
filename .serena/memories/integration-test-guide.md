@@ -34,14 +34,12 @@ main-server/src/test/kotlin/com/techtaurant/mainserver/base/TestUserFactory.kt
 
 ### 설계 철학
 
-**Singleton 객체:**
+**Singleton 객체 (데이터 생성만 담당, cleanup 없음):**
 ```kotlin
 object TestUserFactory {
     fun createTestUser(userRepository: UserRepository): User
     fun createTestCategory(categoryRepository: CategoryRepository, user: User): Category
     fun createTestPost(postRepository: PostRepository, author: User, category: Category?): Post
-    fun cleanupDependentData(commentRepository, postRepository, categoryRepository)
-    fun cleanupAllTestData(commentRepository, postRepository, categoryRepository, userRepository)
 }
 ```
 
@@ -49,41 +47,20 @@ object TestUserFactory {
 1. ✅ 테스트 데이터 생성 로직 중앙화
 2. ✅ 고유한 identifier 자동 생성 (UUID 기반)
 3. ✅ 중복 사용자 생성 방지
-4. ✅ 외래키 제약조건 순서 자동 관리
-5. ✅ 일관된 테스트 데이터 보장
+4. ✅ 일관된 테스트 데이터 보장
+5. ✅ cleanup은 각 테스트에서 직접 관리 (관리 비용 최소화)
 
-### 고유 Identifier 생성
+### 테스트 독립성 전략
 
-**문제:**
-```kotlin
-// ❌ 매 테스트마다 동일한 identifier 사용 → unique constraint 위반
-identifier = "google-test-id"
-```
+**@Transactional 테스트 (서비스, 리포지토리):**
+- @Transactional 자동 롤백으로 데이터 격리
+- 수동 cleanup 불필요
+- UUID identifier로 충돌 방지
 
-**해결책:**
-```kotlin
-// ✅ UUID로 고유한 identifier 생성
-identifier = "test-id-${UUID.randomUUID()}"
-```
-
-### Cleanup 순서
-
-**외래키 제약조건 고려:**
-```kotlin
-fun cleanupAllTestData(...) {
-    // 1. 댓글 삭제 (post_id 참조)
-    commentRepository.deleteAllInBatch()
-    
-    // 2. 게시물 삭제 (author_id, category_id 참조)
-    postRepository.deleteAllInBatch()
-    
-    // 3. 카테고리 삭제 (user_id 참조)
-    categoryRepository.deleteAllInBatch()
-    
-    // 4. 사용자 삭제 (참조 없음)
-    userRepository.deleteAllInBatch()
-}
-```
+**RestAssured HTTP 테스트 (컨트롤러):**
+- @BeforeEach에서 deleteAllInBatch() 직접 호출 (외래키 순서 준수)
+- UUID identifier로 고유성 보장
+- cleanupAllTestData/cleanupDependentData 같은 유틸 메서드 사용 안 함
 
 ## 통합 테스트 작성 패턴
 
