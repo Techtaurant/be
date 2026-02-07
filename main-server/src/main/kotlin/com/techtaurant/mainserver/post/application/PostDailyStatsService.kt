@@ -54,6 +54,7 @@ class PostDailyStatsService(
 
     /**
      * 일별 좋아요수를 원자적으로 1 감소시킵니다.
+     * 레코드가 없으면 생성 후 감소를 재시도하여 음수 값을 가질 수 있습니다.
      *
      * @param postId 게시물 ID
      */
@@ -61,7 +62,9 @@ class PostDailyStatsService(
         val today = DateUtils.today()
         val updatedRows = postDailyStatsRepository.decrementLikeCount(postId, today)
         if (updatedRows == 0) {
-            createDailyStats(postId, today)
+            createDailyStatsAndIncrement(postId, today) { id, date ->
+                postDailyStatsRepository.decrementLikeCount(id, date)
+            }
         }
     }
 

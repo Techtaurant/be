@@ -1,6 +1,9 @@
 server:
   port: 0
 
+app:
+  default-post-thumbnail-url: /static/images/post-thumbnail.png
+
 spring:
   application:
     name: TechTaurant Main API (Test)
