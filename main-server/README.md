@@ -201,6 +201,24 @@ CI에서 spotless 위반 시 PR merge가 차단됩니다.
 | 커버리지 미달 | ❌ 불가 (테스트 추가) |
 | 모든 체크 통과 | ✅ 가능 |
 
-### 설정 확인
+### 설정 방법
 
-브랜치 보호 규칙은 [GitHub Settings](https://github.com/Techtaurant/be/settings/branches)에서 확인할 수 있습니다.
+브랜치 보호 규칙은 GitHub CLI로 설정되었습니다:
+
+```bash
+# 브랜치 보호 규칙 적용
+gh api repos/Techtaurant/be/branches/main/protection \
+  -X PUT \
+  --input - << 'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": ["test"]
+  },
+  "enforce_admins": false,
+  "allow_force_pushes": false
+}
+EOF
+```
+
+설정 확인: [GitHub Settings](https://github.com/Techtaurant/be/settings/branches)
