@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.enums.CommentStatus
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.user.entity.User
@@ -40,8 +41,7 @@ class CommentWriteService(
         userId: UUID,
         request: CreateCommentRequest,
     ): CommentResponse {
-        val author = findUserById(userId)
-        val post = findPostById(request.postId)
+        val (post, author) = validatePostAndAuthor(request.postId, userId)
         val parent = resolveParent(request.parentId, request.postId)
 
         val depth = if (parent == null) 0 else 1
@@ -56,19 +56,32 @@ class CommentWriteService(
             )
 
         val savedComment = commentRepository.save(comment)
+        postRepository.incrementCommentCount(post.id!!)
         return CommentResponse.from(savedComment)
     }
 
-    private fun findUserById(userId: UUID): User {
-        return userRepository.findById(userId).orElseThrow {
-            ApiException(UserStatus.ID_NOT_FOUND)
-        }
+    /**
+     * 게시물과 작성자를 검증합니다.
+     *
+     * @param postId 게시물 ID
+     * @param userId 작성자 ID
+     * @return 검증된 Post와 User의 Pair
+     * @throws ApiException 게시물 또는 사용자를 찾을 수 없음
+     */
+    private fun validatePostAndAuthor(
+        postId: UUID,
+        userId: UUID,
+    ): Pair<Post, User> {
+        val post =
+            postRepository.findById(postId).orElseThrow {
+                ApiException(PostStatus.POST_NOT_FOUND)
+            }
+        val user =
+            userRepository.findById(userId).orElseThrow {
+                ApiException(UserStatus.ID_NOT_FOUND)
+            }
+        return Pair(post, user)
     }
-
-    private fun findPostById(postId: UUID) =
-        postRepository.findById(postId).orElseThrow {
-            ApiException(PostStatus.POST_NOT_FOUND)
-        }
 
     /**
      * 부모 댓글을 검증합니다.

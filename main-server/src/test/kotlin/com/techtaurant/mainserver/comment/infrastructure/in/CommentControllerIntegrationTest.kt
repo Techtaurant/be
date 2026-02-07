@@ -1,14 +1,15 @@
 package com.techtaurant.mainserver.comment.infrastructure.`in`
 
 import com.techtaurant.mainserver.base.IntegrationTest
-import com.techtaurant.mainserver.base.TestUserFactory
 import com.techtaurant.mainserver.comment.dto.CreateCommentRequest
-import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
+import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.infrastructure.out.CategoryRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
+import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.entity.User
+import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
@@ -38,9 +39,6 @@ class CommentControllerIntegrationTest : IntegrationTest() {
     private lateinit var categoryRepository: CategoryRepository
 
     @Autowired
-    private lateinit var commentRepository: CommentRepository
-
-    @Autowired
     private lateinit var jwtTokenProvider: JwtTokenProvider
 
     private lateinit var testUser: User
@@ -49,24 +47,38 @@ class CommentControllerIntegrationTest : IntegrationTest() {
 
     @BeforeEach
     fun setUpTestData() {
-        // 테스트 격리: 이전 테스트의 데이터 정리 (TestUserFactory 사용)
-        TestUserFactory.cleanupAllTestData(
-            commentRepository = commentRepository,
-            postRepository = postRepository,
-            categoryRepository = categoryRepository,
-            userRepository = userRepository,
-        )
+        testUser =
+            userRepository.save(
+                User(
+                    name = "테스트사용자",
+                    email = "test@example.com",
+                    provider = OAuthProvider.GOOGLE,
+                    identifier = "test-id-${UUID.randomUUID()}",
+                    role = UserRole.USER,
+                    profileImageUrl = "https://example.com/profile.jpg",
+                ),
+            )
 
-        // Given - 테스트용 사용자 생성 (고유한 identifier로 중복 방지)
-        testUser = TestUserFactory.createTestUser(userRepository)
+        val testCategory =
+            categoryRepository.save(
+                Category(
+                    user = testUser,
+                    name = "테스트카테고리",
+                    path = "테스트카테고리",
+                    depth = 1,
+                ),
+            )
 
-        // Given - 테스트용 카테고리 생성
-        val testCategory = TestUserFactory.createTestCategory(categoryRepository, testUser)
+        testPost =
+            postRepository.save(
+                Post(
+                    title = "테스트 게시물",
+                    content = "테스트 게시물 내용입니다",
+                    author = testUser,
+                    category = testCategory,
+                ),
+            )
 
-        // Given - 테스트용 게시물 생성
-        testPost = TestUserFactory.createTestPost(postRepository, testUser, testCategory)
-
-        // Given - JWT 액세스 토큰 생성
         accessToken = jwtTokenProvider.createAccessToken(testUser.id!!, testUser.role)
     }
 
@@ -87,26 +99,25 @@ class CommentControllerIntegrationTest : IntegrationTest() {
         println("Request: $request")
 
         // When - 댓글 작성 API 호출
-        val response =
-            given()
-                .contentType(ContentType.JSON)
-                .body(request)
-                .header("Authorization", "Bearer $accessToken")
-                .log().all()
-                .`when`()
-                .post("/api/comments")
-                .then()
-                .log().all()
-                .statusCode(HttpStatus.OK.value())
-                .body("data.content", equalTo("좋은 글이네요!"))
-                .body("data.postId", equalTo(testPost.id.toString()))
-                .body("data.authorId", equalTo(testUser.id.toString()))
-                .body("data.authorName", equalTo("테스트사용자"))
-                .body("data.parentId", equalTo(null))
-                .body("data.depth", equalTo(0))
-                .body("data.id", notNullValue())
-                .body("data.createdAt", notNullValue())
-                .body("data.updatedAt", notNullValue())
+        given()
+            .contentType(ContentType.JSON)
+            .body(request)
+            .header("Authorization", "Bearer $accessToken")
+            .log().all()
+            .`when`()
+            .post("/api/comments")
+            .then()
+            .log().all()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.content", equalTo("좋은 글이네요!"))
+            .body("data.postId", equalTo(testPost.id.toString()))
+            .body("data.authorId", equalTo(testUser.id.toString()))
+            .body("data.authorName", equalTo("테스트사용자"))
+            .body("data.parentId", equalTo(null))
+            .body("data.depth", equalTo(0))
+            .body("data.id", notNullValue())
+            .body("data.createdAt", notNullValue())
+            .body("data.updatedAt", notNullValue())
     }
 
     @Test

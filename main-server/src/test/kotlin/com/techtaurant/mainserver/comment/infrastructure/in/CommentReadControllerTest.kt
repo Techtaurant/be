@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import java.util.Calendar
+import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -41,18 +42,13 @@ class CommentReadControllerTest : IntegrationTest() {
 
     @BeforeEach
     fun setup() {
-        commentRepository.deleteAllInBatch()
-        postRepository.deleteAllInBatch()
-        userRepository.deleteAllInBatch()
-
-        // Given: 테스트 사용자 생성
         testUser =
             userRepository.save(
                 User(
                     name = "Test User",
                     email = "test@example.com",
                     provider = OAuthProvider.GOOGLE,
-                    identifier = "google_123",
+                    identifier = "test-id-${UUID.randomUUID()}",
                     role = UserRole.USER,
                     profileImageUrl = "https://example.com/profile.jpg",
                 ),
