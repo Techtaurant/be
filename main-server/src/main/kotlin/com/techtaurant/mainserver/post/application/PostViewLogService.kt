@@ -19,6 +19,7 @@ class PostViewLogService(
     private val postViewLogRepository: PostViewLogRepository,
     private val postRepository: PostRepository,
     private val userRepository: UserRepository,
+    private val postDailyStatsService: PostDailyStatsService,
 ) {
     /**
      * 게시글 조회 로그를 생성합니다.
@@ -56,5 +57,8 @@ class PostViewLogService(
             )
 
         postViewLogRepository.save(viewLog)
+
+        postRepository.incrementViewCount(postId)
+        postDailyStatsService.incrementViewCount(postId)
     }
 }

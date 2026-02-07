@@ -99,10 +99,43 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
     ): Post?
 
     /**
-     * 게시물의 댓글 수를 원자적으로 1 증가시킵니다.
-     * 락을 사용하지 않고 DB 레벨에서 안전하게 처리됩니다.
+     * 게시물의 조회수를 원자적으로 1 증가시킵니다.
      *
-     * @param postId 댓글 수를 증가시킬 게시물 ID
+     * @param postId 조회수를 증가시킬 게시물 ID
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Post p SET p.viewCount = p.viewCount + 1 WHERE p.id = :postId")
+    fun incrementViewCount(
+        @Param("postId") postId: UUID,
+    )
+
+    /**
+     * 게시물의 좋아요수를 원자적으로 1 증가시킵니다.
+     *
+     * @param postId 좋아요수를 증가시킬 게시물 ID
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Post p SET p.likeCount = p.likeCount + 1 WHERE p.id = :postId")
+    fun incrementLikeCount(
+        @Param("postId") postId: UUID,
+    )
+
+    /**
+     * 게시물의 좋아요수를 원자적으로 1 감소시킵니다.
+     * 음수 방지를 위해 0 미만으로 내려가지 않습니다.
+     *
+     * @param postId 좋아요수를 감소시킬 게시물 ID
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Post p SET p.likeCount = CASE WHEN p.likeCount > 0 THEN p.likeCount - 1 ELSE 0 END WHERE p.id = :postId")
+    fun decrementLikeCount(
+        @Param("postId") postId: UUID,
+    )
+
+    /**
+     * 게시물의 댓글수를 원자적으로 1 증가시킵니다.
+     *
+     * @param postId 댓글수를 증가시킬 게시물 ID
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("UPDATE Post p SET p.commentCount = p.commentCount + 1 WHERE p.id = :postId")

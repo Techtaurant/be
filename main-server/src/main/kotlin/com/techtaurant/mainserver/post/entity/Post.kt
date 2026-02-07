@@ -4,7 +4,6 @@ import com.techtaurant.mainserver.common.base.EntityBase
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.user.entity.User
 import jakarta.persistence.*
-import java.util.Date
 
 /**
  * 게시물 엔티티
@@ -16,10 +15,9 @@ import java.util.Date
  * @property category 카테고리 (Category와 N:1 관계)
  * @property tags 태그 목록 (ManyToMany)
  * @property pictures 게시물에 첨부된 사진 목록
- * @property viewCount 조회수 (캐시된 누적값, 배치로 동기화)
- * @property likeCount 좋아요수 (캐시된 누적값, 배치로 동기화)
- * @property commentCount 댓글수 (캐시된 누적값, 배치로 동기화)
- * @property statsUpdatedAt 통계 동기화 시점 (null이면 미동기화)
+ * @property viewCount 조회수 (이벤트 발생 시 원자적 증분)
+ * @property likeCount 좋아요수 (이벤트 발생 시 원자적 증분)
+ * @property commentCount 댓글수 (이벤트 발생 시 원자적 증분)
  * @property status 게시물 상태 (DRAFT: 임시저장, PUBLISHED: 발행, PRIVATE: 비공개)
  */
 @Entity
@@ -50,8 +48,6 @@ class Post(
     var likeCount: Long = 0,
     @Column(name = "comment_count", nullable = false)
     var commentCount: Long = 0,
-    @Column(name = "stats_updated_at")
-    var statsUpdatedAt: Date? = null,
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     var status: PostStatusEnum = PostStatusEnum.PUBLISHED,
