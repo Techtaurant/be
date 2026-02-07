@@ -3,7 +3,7 @@ package com.techtaurant.mainserver.comment.application
 import com.techtaurant.mainserver.comment.dto.CommentCursor
 import com.techtaurant.mainserver.comment.dto.CommentListResponse
 import com.techtaurant.mainserver.comment.enums.CommentSortType
-import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
+import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepositoryCustom
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -16,7 +16,7 @@ import java.util.UUID
 @Service
 @Transactional(readOnly = true)
 class CommentReadService(
-    private val commentRepository: CommentRepository,
+    private val commentRepository: CommentRepositoryCustom,
 ) {
     /**
      * 부모 댓글 목록을 커서 기반 페이지네이션으로 조회합니다.
