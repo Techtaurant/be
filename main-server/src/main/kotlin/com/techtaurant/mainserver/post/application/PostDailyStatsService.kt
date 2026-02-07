@@ -1,5 +1,6 @@
 package com.techtaurant.mainserver.post.application
 
+import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostDailyStats
 import com.techtaurant.mainserver.post.infrastructure.out.PostDailyStatsRepository
@@ -29,9 +30,8 @@ class PostDailyStatsService(
      *
      * @param postId 게시물 ID
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun incrementViewCount(postId: UUID) {
-        val today = LocalDate.now()
+        val today = DateUtils.today()
         val updatedRows = postDailyStatsRepository.incrementViewCount(postId, today)
         if (updatedRows == 0) {
             createDailyStatsAndIncrement(postId, today) { id, date ->
@@ -45,9 +45,8 @@ class PostDailyStatsService(
      *
      * @param postId 게시물 ID
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun incrementLikeCount(postId: UUID) {
-        val today = LocalDate.now()
+        val today = DateUtils.today()
         val updatedRows = postDailyStatsRepository.incrementLikeCount(postId, today)
         if (updatedRows == 0) {
             createDailyStatsAndIncrement(postId, today) { id, date ->
@@ -61,9 +60,8 @@ class PostDailyStatsService(
      *
      * @param postId 게시물 ID
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun decrementLikeCount(postId: UUID) {
-        val today = LocalDate.now()
+        val today = DateUtils.today()
         val updatedRows = postDailyStatsRepository.decrementLikeCount(postId, today)
         if (updatedRows == 0) {
             createDailyStats(postId, today)
@@ -75,9 +73,8 @@ class PostDailyStatsService(
      *
      * @param postId 게시물 ID
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     fun incrementCommentCount(postId: UUID) {
-        val today = LocalDate.now()
+        val today = DateUtils.today()
         val updatedRows = postDailyStatsRepository.incrementCommentCount(postId, today)
         if (updatedRows == 0) {
             createDailyStatsAndIncrement(postId, today) { id, date ->
