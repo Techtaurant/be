@@ -11,6 +11,7 @@ enum class DefaultStatus(
     BAD_REQUEST(400, 400, "Wrong Request"),
     NOT_FOUND(404, 404, "Not Found"),
     SERVER_ERROR(500, 500, "Server Error"),
+    UNKNOWN_EXCEPTION(500, 998, "Unknown exception occurred"),
 
     // 제일 마지막에
     UNDEFINED_STATUS(HttpStatus.INTERNAL_SERVER_ERROR.value(), 999, "Undefined status occurred"),

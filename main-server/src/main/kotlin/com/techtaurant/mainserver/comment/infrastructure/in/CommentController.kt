@@ -6,13 +6,10 @@ import com.techtaurant.mainserver.comment.dto.CommentResponse
 import com.techtaurant.mainserver.comment.dto.CreateCommentRequest
 import com.techtaurant.mainserver.common.dto.ApiResponse
 import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -60,26 +57,5 @@ class CommentController(
         @Valid @RequestBody request: CreateCommentRequest,
     ): ApiResponse<CommentResponse> {
         return ApiResponse.ok(commentWriteService.createComment(userId, request))
-    }
-
-    /**
-     * 게시물의 댓글 목록을 조회합니다.
-     * 댓글과 대댓글이 생성 시간 오름차순으로 정렬되어 반환됩니다.
-     */
-    @Operation(summary = "댓글 목록 조회", description = "게시물의 댓글 목록을 조회합니다")
-    @ApiResponses(
-        value = [
-            io.swagger.v3.oas.annotations.responses.ApiResponse(
-                responseCode = "200",
-                description = "조회 성공",
-            ),
-        ],
-    )
-    @GetMapping("/posts/{postId}")
-    fun getComments(
-        @Parameter(description = "게시물 ID")
-        @PathVariable postId: UUID,
-    ): ApiResponse<List<CommentResponse>> {
-        return ApiResponse.ok(commentReadService.getCommentsByPost(postId))
     }
 }

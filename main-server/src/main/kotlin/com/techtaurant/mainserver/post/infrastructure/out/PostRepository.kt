@@ -2,8 +2,10 @@ package com.techtaurant.mainserver.post.infrastructure.out
 
 import com.techtaurant.mainserver.post.entity.Post
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
+import java.util.Date
 import java.util.UUID
 
 interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
@@ -52,7 +54,7 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
     )
     fun findDraftsByAuthorWithCursor(
         @Param("authorId") authorId: UUID,
-        @Param("cursorUpdatedAt") cursorUpdatedAt: java.util.Date,
+        @Param("cursorUpdatedAt") cursorUpdatedAt: Date,
         @Param("cursorId") cursorId: UUID,
         @Param("limit") limit: Int,
     ): List<Post>
@@ -95,4 +97,16 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
     fun findPostByIdWithAuthor(
         @Param("postId") postId: UUID,
     ): Post?
+
+    /**
+     * 게시물의 댓글 수를 원자적으로 1 증가시킵니다.
+     * 락을 사용하지 않고 DB 레벨에서 안전하게 처리됩니다.
+     *
+     * @param postId 댓글 수를 증가시킬 게시물 ID
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Post p SET p.commentCount = p.commentCount + 1 WHERE p.id = :postId")
+    fun incrementCommentCount(
+        @Param("postId") postId: UUID,
+    )
 }

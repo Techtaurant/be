@@ -51,7 +51,7 @@ class PostControllerTest : IntegrationTest() {
                     name = "Test User",
                     email = "test@example.com",
                     provider = OAuthProvider.GOOGLE,
-                    identifier = "google_123",
+                    identifier = "test-id-${UUID.randomUUID()}",
                     role = UserRole.USER,
                     profileImageUrl = "https://example.com/profile.jpg",
                 ),
