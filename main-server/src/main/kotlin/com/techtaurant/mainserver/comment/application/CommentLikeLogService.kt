@@ -1,6 +1,5 @@
 package com.techtaurant.mainserver.comment.application
 
-import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.entity.CommentLikeLog
 import com.techtaurant.mainserver.comment.enums.CommentStatus
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentLikeLogRepository
@@ -63,8 +62,8 @@ class CommentLikeLogService(
                 // 예시:
                 // - 좋아요(true) → 싫어요(false): -1(취소) + -1(싫어요) = -2
                 // - 싫어요(false) → 좋아요(true): +1(취소) + +1(좋아요) = +2
-                updateLikeCount(comment, isLiked) // 이전 상태 취소
-                updateLikeCount(comment, isLiked) // 새 상태 적용
+                updateLikeCount(commentId, isLiked) // 이전 상태 취소
+                updateLikeCount(commentId, isLiked) // 새 상태 적용
             }
         } else {
             val newLog =
@@ -77,28 +76,27 @@ class CommentLikeLogService(
 
             // 중립 상태에서 좋아요/싫어요 적용
             if (isLiked) {
-                updateLikeCount(comment, true) // 좋아요 +1
+                updateLikeCount(commentId, true) // 좋아요 +1
             } else {
-                updateLikeCount(comment, false) // 싫어요 -1
+                updateLikeCount(commentId, false) // 싫어요 -1
             }
         }
     }
 
     /**
-     * 좋아요 상태 변경에 따라 Comment의 likeCount를 갱신합니다.
+     * 좋아요 상태 변경에 따라 Comment의 likeCount를 원자적으로 갱신합니다.
      *
-     * @param comment 댓글 엔티티
+     * @param commentId 댓글 ID
      * @param increment true이면 증가, false이면 감소
      */
     private fun updateLikeCount(
-        comment: Comment,
+        commentId: UUID,
         increment: Boolean,
     ) {
         if (increment) {
-            comment.likeCount++
+            commentRepository.incrementLikeCount(commentId)
         } else {
-            comment.likeCount--
+            commentRepository.decrementLikeCount(commentId)
         }
-        commentRepository.save(comment)
     }
 }

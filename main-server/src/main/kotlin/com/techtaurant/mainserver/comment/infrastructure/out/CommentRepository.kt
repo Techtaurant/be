@@ -2,6 +2,9 @@ package com.techtaurant.mainserver.comment.infrastructure.out
 
 import com.techtaurant.mainserver.comment.entity.Comment
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import java.util.UUID
 
 interface CommentRepository : JpaRepository<Comment, UUID> {
@@ -13,4 +16,40 @@ interface CommentRepository : JpaRepository<Comment, UUID> {
      * @return 댓글 목록 (생성 시간 오름차순)
      */
     fun findByPostIdOrderByCreatedAtAsc(postId: UUID): List<Comment>
+
+    /**
+     * 댓글의 좋아요수를 원자적으로 1 증가시킵니다.
+     *
+     * flushAutomatically: 쿼리 실행 '전' 쓰기 지연 저장소의 변경사항을 DB에 반영(동기화).
+     * clearAutomatically: 쿼리 실행 '후' 1차 캐시를 비워, 이후 조회 시 DB의 최신 값을 보장.
+     *
+     * clearAutomatically = false 이유:
+     * 트랜잭션 내 다른 엔티티의 영속성(Lazy Loading 등)을 유지해야 하거나,
+     * 업데이트 후 재조회가 불필요하여 불필요한 캐시 초기화/재조회 비용을 아끼기 위함.
+     *
+     * @param commentId 좋아요수를 증가시킬 댓글 ID
+     */
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
+    @Query("UPDATE Comment c SET c.likeCount = c.likeCount + 1 WHERE c.id = :commentId")
+    fun incrementLikeCount(
+        @Param("commentId") commentId: UUID,
+    )
+
+    /**
+     * 댓글의 좋아요수를 원자적으로 1 감소시킵니다.
+     *
+     * flushAutomatically: 쿼리 실행 '전' 쓰기 지연 저장소의 변경사항을 DB에 반영(동기화).
+     * clearAutomatically: 쿼리 실행 '후' 1차 캐시를 비워, 이후 조회 시 DB의 최신 값을 보장.
+     *
+     * clearAutomatically = false 이유:
+     * 트랜잭션 내 다른 엔티티의 영속성(Lazy Loading 등)을 유지해야 하거나,
+     * 업데이트 후 재조회가 불필요하여 불필요한 캐시 초기화/재조회 비용을 아끼기 위함.
+     *
+     * @param commentId 좋아요수를 감소시킬 댓글 ID
+     */
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
+    @Query("UPDATE Comment c SET c.likeCount = c.likeCount - 1 WHERE c.id = :commentId")
+    fun decrementLikeCount(
+        @Param("commentId") commentId: UUID,
+    )
 }
