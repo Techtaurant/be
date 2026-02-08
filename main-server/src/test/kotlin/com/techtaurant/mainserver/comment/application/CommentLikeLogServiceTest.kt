@@ -1,12 +1,14 @@
-package com.techtaurant.mainserver.post.application
+package com.techtaurant.mainserver.comment.application
 
 import com.techtaurant.mainserver.base.IntegrationTest
+import com.techtaurant.mainserver.comment.entity.Comment
+import com.techtaurant.mainserver.comment.enums.CommentStatus
+import com.techtaurant.mainserver.comment.infrastructure.out.CommentLikeLogRepository
+import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
-import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.infrastructure.out.CategoryRepository
-import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.user.entity.User
@@ -24,37 +26,38 @@ import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
 /**
- * PostLikeLogService 통합 테스트
+ * CommentLikeLogService 통합 테스트
  *
  * TestContainers를 활용하여 실제 PostgreSQL 데이터베이스 환경에서
- * 게시물 좋아요/싫어요 로직을 검증합니다.
+ * 댓글 좋아요/싫어요 로직을 검증합니다.
  */
-@DisplayName("PostLikeLogService 통합 테스트")
+@DisplayName("CommentLikeLogService 통합 테스트")
 @Transactional
-class PostLikeLogServiceTest : IntegrationTest() {
+class CommentLikeLogServiceTest : IntegrationTest() {
     @Autowired
-    private lateinit var postLikeLogService: PostLikeLogService
+    private lateinit var commentLikeLogService: CommentLikeLogService
 
     @Autowired
-    private lateinit var postRepository: PostRepository
+    private lateinit var commentRepository: CommentRepository
 
     @Autowired
-    private lateinit var postLikeLogRepository: PostLikeLogRepository
+    private lateinit var commentLikeLogRepository: CommentLikeLogRepository
 
     @Autowired
     private lateinit var userRepository: UserRepository
 
     @Autowired
-    private lateinit var categoryRepository: CategoryRepository
+    private lateinit var postRepository: PostRepository
 
     @Autowired
-    private lateinit var postDailyStatsService: PostDailyStatsService
+    private lateinit var categoryRepository: CategoryRepository
 
     @Autowired
     private lateinit var entityManager: EntityManager
 
     private lateinit var testUser: User
     private lateinit var testPost: Post
+    private lateinit var testComment: Comment
 
     @BeforeEach
     fun setUpTestData() {
@@ -92,6 +95,18 @@ class PostLikeLogServiceTest : IntegrationTest() {
                     category = testCategory,
                 ),
             )
+
+        // Given - 테스트 댓글 생성
+        testComment =
+            commentRepository.save(
+                Comment(
+                    content = "테스트 댓글입니다",
+                    post = testPost,
+                    author = testUser,
+                    parent = null,
+                    depth = 0,
+                ),
+            )
     }
 
     @Test
@@ -100,17 +115,17 @@ class PostLikeLogServiceTest : IntegrationTest() {
         // Given - 초기 likeCount = 0
 
         // When - 좋아요 기록
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, true)
+        commentLikeLogService.recordLike(testComment.id!!, testUser.id!!, true)
 
         // Then - 변경사항 DB 반영 및 1차 캐시 갱신
         entityManager.flush()
-        entityManager.refresh(testPost)
+        entityManager.refresh(testComment)
 
         // Then - likeCount가 1 증가
-        assertThat(testPost.likeCount).isEqualTo(1)
+        assertThat(testComment.likeCount).isEqualTo(1)
 
         // Then - 좋아요 로그 생성 확인
-        val log = postLikeLogRepository.findByPostIdAndUserId(testPost.id!!, testUser.id!!)
+        val log = commentLikeLogRepository.findByCommentIdAndUserId(testComment.id!!, testUser.id!!)
         assertThat(log).isNotNull
         assertThat(log?.isLiked).isTrue()
     }
@@ -121,17 +136,17 @@ class PostLikeLogServiceTest : IntegrationTest() {
         // Given - 초기 likeCount = 0
 
         // When - 싫어요 기록
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, false)
+        commentLikeLogService.recordLike(testComment.id!!, testUser.id!!, false)
 
         // Then - 변경사항 DB 반영 및 1차 캐시 갱신
         entityManager.flush()
-        entityManager.refresh(testPost)
+        entityManager.refresh(testComment)
 
         // Then - likeCount가 1 감소
-        assertThat(testPost.likeCount).isEqualTo(-1)
+        assertThat(testComment.likeCount).isEqualTo(-1)
 
         // Then - 싫어요 로그 생성 확인
-        val log = postLikeLogRepository.findByPostIdAndUserId(testPost.id!!, testUser.id!!)
+        val log = commentLikeLogRepository.findByCommentIdAndUserId(testComment.id!!, testUser.id!!)
         assertThat(log).isNotNull
         assertThat(log?.isLiked).isFalse()
     }
@@ -140,23 +155,23 @@ class PostLikeLogServiceTest : IntegrationTest() {
     @DisplayName("좋아요 상태에서 싫어요로 변경하면 likeCount가 2 감소한다")
     fun recordLike_fromLikeToDislike_shouldDecrementLikeCountByTwo() {
         // Given - 이미 좋아요한 상태 (likeCount = 1)
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, true)
+        commentLikeLogService.recordLike(testComment.id!!, testUser.id!!, true)
         entityManager.flush()
-        entityManager.refresh(testPost)
-        val initialLikeCount = testPost.likeCount
+        entityManager.refresh(testComment)
+        val initialLikeCount = testComment.likeCount
 
         // When - 싫어요로 변경
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, false)
+        commentLikeLogService.recordLike(testComment.id!!, testUser.id!!, false)
 
         // Then - 변경사항 DB 반영 및 1차 캐시 갱신
         entityManager.flush()
-        entityManager.refresh(testPost)
+        entityManager.refresh(testComment)
 
         // Then - likeCount가 2 감소 (좋아요 취소 -1 + 싫어요 적용 -1)
-        assertThat(testPost.likeCount).isEqualTo(initialLikeCount - 2)
+        assertThat(testComment.likeCount).isEqualTo(initialLikeCount - 2)
 
         // Then - 싫어요 로그로 업데이트 확인
-        val log = postLikeLogRepository.findByPostIdAndUserId(testPost.id!!, testUser.id!!)
+        val log = commentLikeLogRepository.findByCommentIdAndUserId(testComment.id!!, testUser.id!!)
         assertThat(log).isNotNull
         assertThat(log?.isLiked).isFalse()
     }
@@ -165,23 +180,23 @@ class PostLikeLogServiceTest : IntegrationTest() {
     @DisplayName("싫어요 상태에서 좋아요로 변경하면 likeCount가 2 증가한다")
     fun recordLike_fromDislikeToLike_shouldIncrementLikeCountByTwo() {
         // Given - 이미 싫어요한 상태 (likeCount = -1)
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, false)
+        commentLikeLogService.recordLike(testComment.id!!, testUser.id!!, false)
         entityManager.flush()
-        entityManager.refresh(testPost)
-        val initialLikeCount = testPost.likeCount
+        entityManager.refresh(testComment)
+        val initialLikeCount = testComment.likeCount
 
         // When - 좋아요로 변경
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, true)
+        commentLikeLogService.recordLike(testComment.id!!, testUser.id!!, true)
 
         // Then - 변경사항 DB 반영 및 1차 캐시 갱신
         entityManager.flush()
-        entityManager.refresh(testPost)
+        entityManager.refresh(testComment)
 
         // Then - likeCount가 2 증가 (싫어요 취소 +1 + 좋아요 적용 +1)
-        assertThat(testPost.likeCount).isEqualTo(initialLikeCount + 2)
+        assertThat(testComment.likeCount).isEqualTo(initialLikeCount + 2)
 
         // Then - 좋아요 로그로 업데이트 확인
-        val log = postLikeLogRepository.findByPostIdAndUserId(testPost.id!!, testUser.id!!)
+        val log = commentLikeLogRepository.findByCommentIdAndUserId(testComment.id!!, testUser.id!!)
         assertThat(log).isNotNull
         assertThat(log?.isLiked).isTrue()
     }
@@ -190,18 +205,23 @@ class PostLikeLogServiceTest : IntegrationTest() {
     @DisplayName("이미 좋아요한 상태에서 다시 좋아요를 기록하면 likeCount 변화가 없다")
     fun recordLike_duplicateLike_shouldNotChangeLikeCount() {
         // Given - 이미 좋아요한 상태
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, true)
-        val initialLikeCount = postRepository.findById(testPost.id!!).get().likeCount
+        commentLikeLogService.recordLike(testComment.id!!, testUser.id!!, true)
+        entityManager.flush()
+        entityManager.refresh(testComment)
+        val initialLikeCount = testComment.likeCount
 
         // When - 다시 좋아요 기록
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, true)
+        commentLikeLogService.recordLike(testComment.id!!, testUser.id!!, true)
+
+        // Then - 변경사항 DB 반영 및 1차 캐시 갱신
+        entityManager.flush()
+        entityManager.refresh(testComment)
 
         // Then - likeCount 변화 없음
-        val updatedPost = postRepository.findById(testPost.id!!).get()
-        assertThat(updatedPost.likeCount).isEqualTo(initialLikeCount)
+        assertThat(testComment.likeCount).isEqualTo(initialLikeCount)
 
         // Then - 로그는 여전히 좋아요 상태
-        val log = postLikeLogRepository.findByPostIdAndUserId(testPost.id!!, testUser.id!!)
+        val log = commentLikeLogRepository.findByCommentIdAndUserId(testComment.id!!, testUser.id!!)
         assertThat(log).isNotNull
         assertThat(log?.isLiked).isTrue()
     }
@@ -210,35 +230,40 @@ class PostLikeLogServiceTest : IntegrationTest() {
     @DisplayName("이미 싫어요한 상태에서 다시 싫어요를 기록하면 likeCount 변화가 없다")
     fun recordLike_duplicateDislike_shouldNotChangeLikeCount() {
         // Given - 이미 싫어요한 상태
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, false)
-        val initialLikeCount = postRepository.findById(testPost.id!!).get().likeCount
+        commentLikeLogService.recordLike(testComment.id!!, testUser.id!!, false)
+        entityManager.flush()
+        entityManager.refresh(testComment)
+        val initialLikeCount = testComment.likeCount
 
         // When - 다시 싫어요 기록
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, false)
+        commentLikeLogService.recordLike(testComment.id!!, testUser.id!!, false)
+
+        // Then - 변경사항 DB 반영 및 1차 캐시 갱신
+        entityManager.flush()
+        entityManager.refresh(testComment)
 
         // Then - likeCount 변화 없음
-        val updatedPost = postRepository.findById(testPost.id!!).get()
-        assertThat(updatedPost.likeCount).isEqualTo(initialLikeCount)
+        assertThat(testComment.likeCount).isEqualTo(initialLikeCount)
 
         // Then - 로그는 여전히 싫어요 상태
-        val log = postLikeLogRepository.findByPostIdAndUserId(testPost.id!!, testUser.id!!)
+        val log = commentLikeLogRepository.findByCommentIdAndUserId(testComment.id!!, testUser.id!!)
         assertThat(log).isNotNull
         assertThat(log?.isLiked).isFalse()
     }
 
     @Test
-    @DisplayName("존재하지 않는 게시물에 좋아요를 기록하면 예외가 발생한다")
-    fun recordLike_withNonExistentPost_shouldThrowException() {
-        // Given - 존재하지 않는 게시물 ID
-        val nonExistentPostId = UUID.randomUUID()
+    @DisplayName("존재하지 않는 댓글에 좋아요를 기록하면 예외가 발생한다")
+    fun recordLike_withNonExistentComment_shouldThrowException() {
+        // Given - 존재하지 않는 댓글 ID
+        val nonExistentCommentId = UUID.randomUUID()
 
         // When & Then - ApiException 발생
         assertThatThrownBy {
-            postLikeLogService.recordLike(nonExistentPostId, testUser.id!!, true)
+            commentLikeLogService.recordLike(nonExistentCommentId, testUser.id!!, true)
         }
             .isInstanceOf(ApiException::class.java)
             .extracting { (it as ApiException).status }
-            .isEqualTo(PostStatus.POST_NOT_FOUND)
+            .isEqualTo(CommentStatus.COMMENT_NOT_FOUND)
     }
 
     @Test
@@ -249,7 +274,7 @@ class PostLikeLogServiceTest : IntegrationTest() {
 
         // When & Then - ApiException 발생
         assertThatThrownBy {
-            postLikeLogService.recordLike(testPost.id!!, nonExistentUserId, true)
+            commentLikeLogService.recordLike(testComment.id!!, nonExistentUserId, true)
         }
             .isInstanceOf(ApiException::class.java)
             .extracting { (it as ApiException).status }
@@ -257,7 +282,7 @@ class PostLikeLogServiceTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("여러 사용자가 동일 게시물에 좋아요를 기록하면 각각 독립적으로 처리된다")
+    @DisplayName("여러 사용자가 동일 댓글에 좋아요를 기록하면 각각 독립적으로 처리된다")
     fun recordLike_multipleUsers_shouldHandleIndependently() {
         // Given - 추가 사용자 생성
         val anotherUser =
@@ -273,20 +298,53 @@ class PostLikeLogServiceTest : IntegrationTest() {
             )
 
         // When - 첫 번째 사용자가 좋아요
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, true)
+        commentLikeLogService.recordLike(testComment.id!!, testUser.id!!, true)
 
         // When - 두 번째 사용자가 싫어요
-        postLikeLogService.recordLike(testPost.id!!, anotherUser.id!!, false)
+        commentLikeLogService.recordLike(testComment.id!!, anotherUser.id!!, false)
+
+        // Then - 변경사항 DB 반영 및 1차 캐시 갱신
+        entityManager.flush()
+        entityManager.refresh(testComment)
 
         // Then - likeCount는 0 (좋아요 +1, 싫어요 -1)
-        val updatedPost = postRepository.findById(testPost.id!!).get()
-        assertThat(updatedPost.likeCount).isEqualTo(0)
+        assertThat(testComment.likeCount).isEqualTo(0)
 
         // Then - 각 사용자의 로그가 독립적으로 존재
-        val log1 = postLikeLogRepository.findByPostIdAndUserId(testPost.id!!, testUser.id!!)
+        val log1 = commentLikeLogRepository.findByCommentIdAndUserId(testComment.id!!, testUser.id!!)
         assertThat(log1?.isLiked).isTrue()
 
-        val log2 = postLikeLogRepository.findByPostIdAndUserId(testPost.id!!, anotherUser.id!!)
+        val log2 = commentLikeLogRepository.findByCommentIdAndUserId(testComment.id!!, anotherUser.id!!)
         assertThat(log2?.isLiked).isFalse()
+    }
+
+    @Test
+    @DisplayName("대댓글에도 좋아요/싫어요를 기록할 수 있다")
+    fun recordLike_onReply_shouldWork() {
+        // Given - 대댓글 생성
+        val reply =
+            commentRepository.save(
+                Comment(
+                    content = "대댓글입니다",
+                    post = testPost,
+                    author = testUser,
+                    parent = testComment,
+                    depth = 1,
+                ),
+            )
+
+        // When - 대댓글에 좋아요
+        commentLikeLogService.recordLike(reply.id!!, testUser.id!!, true)
+
+        // Then - 변경사항 DB 반영 및 1차 캐시 갱신
+        entityManager.flush()
+        entityManager.refresh(reply)
+        entityManager.refresh(testComment)
+
+        // Then - 대댓글의 likeCount 증가
+        assertThat(reply.likeCount).isEqualTo(1)
+
+        // Then - 부모 댓글의 likeCount는 영향받지 않음
+        assertThat(testComment.likeCount).isEqualTo(0)
     }
 }
