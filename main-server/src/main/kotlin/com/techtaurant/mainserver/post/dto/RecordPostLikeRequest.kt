@@ -1,21 +1,22 @@
 package com.techtaurant.mainserver.post.dto
 
+import com.techtaurant.mainserver.common.enums.LikeStatus
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.NotNull
 
 /**
- * 게시글 좋아요/싫어요 기록 요청 DTO
+ * 좋아요 상태 기록 요청 DTO
  * 사용자의 게시글에 대한 평가를 기록합니다.
  *
- * @property isLiked TRUE이면 좋아요, FALSE이면 싫어요를 의미합니다.
+ * @property likeStatus 좋아요 상태 (NONE: 취소, LIKE: 좋아요, DISLIKE: 싫어요)
  */
-@Schema(description = "게시글 좋아요/싫어요 기록 요청")
+@Schema(description = "좋아요 상태 기록 요청")
 data class RecordPostLikeRequest(
-    @field:NotNull(message = "좋아요 여부는 필수입니다")
+    @field:NotNull(message = "좋아요 상태는 필수입니다")
     @field:Schema(
-        description = "좋아요 여부 (true: 좋아요, false: 싫어요)",
-        example = "true",
+        description = "좋아요 상태 (NONE: 취소, LIKE: 좋아요, DISLIKE: 싫어요)",
+        example = "LIKE",
         required = true,
     )
-    val isLiked: Boolean,
+    val likeStatus: LikeStatus,
 )

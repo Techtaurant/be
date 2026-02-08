@@ -1,5 +1,6 @@
 package com.techtaurant.mainserver.post.application
 
+import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.post.dto.PostDetailResponse
 import com.techtaurant.mainserver.post.enums.PostStatus
@@ -57,11 +58,16 @@ class PostDetailReadService(
             userAgent = userAgent,
         )
 
-        val isLiked =
+        val likeStatus =
             userId?.let {
-                postLikeLogRepository.findByPostIdAndUserId(postId, it)?.isLiked ?: false
-            } ?: false
+                val log = postLikeLogRepository.findByPostIdAndUserId(postId, it)
+                when {
+                    log == null -> LikeStatus.NONE
+                    log.isLiked -> LikeStatus.LIKE
+                    else -> LikeStatus.DISLIKE
+                }
+            } ?: LikeStatus.NONE
 
-        return PostDetailResponse.from(post, isLiked)
+        return PostDetailResponse.from(post, likeStatus)
     }
 }

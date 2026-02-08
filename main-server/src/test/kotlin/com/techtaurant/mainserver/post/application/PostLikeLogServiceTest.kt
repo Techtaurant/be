@@ -1,6 +1,7 @@
 package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.base.IntegrationTest
+import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
@@ -100,7 +101,7 @@ class PostLikeLogServiceTest : IntegrationTest() {
         // Given - 초기 likeCount = 0
 
         // When - 좋아요 기록
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, true)
+        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, LikeStatus.LIKE)
 
         // Then - 변경사항 DB 반영 및 1차 캐시 갱신
         entityManager.flush()
@@ -121,7 +122,7 @@ class PostLikeLogServiceTest : IntegrationTest() {
         // Given - 초기 likeCount = 0
 
         // When - 싫어요 기록
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, false)
+        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, LikeStatus.DISLIKE)
 
         // Then - 원자적 UPDATE 쿼리 이후 영속성 컨텍스트 초기화 및 DB 재조회
         entityManager.flush()
@@ -141,13 +142,13 @@ class PostLikeLogServiceTest : IntegrationTest() {
     @DisplayName("좋아요 상태에서 싫어요로 변경하면 likeCount가 2 감소한다")
     fun recordLike_fromLikeToDislike_shouldDecrementLikeCountByTwo() {
         // Given - 이미 좋아요한 상태 (likeCount = 1)
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, true)
+        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, LikeStatus.LIKE)
         entityManager.flush()
         entityManager.clear()
         val initialLikeCount = postRepository.findById(testPost.id!!).get().likeCount
 
         // When - 싫어요로 변경
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, false)
+        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, LikeStatus.DISLIKE)
 
         // Then - 원자적 UPDATE 쿼리 이후 영속성 컨텍스트 초기화 및 DB 재조회
         entityManager.flush()
@@ -167,13 +168,13 @@ class PostLikeLogServiceTest : IntegrationTest() {
     @DisplayName("싫어요 상태에서 좋아요로 변경하면 likeCount가 2 증가한다")
     fun recordLike_fromDislikeToLike_shouldIncrementLikeCountByTwo() {
         // Given - 이미 싫어요한 상태 (likeCount = -1)
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, false)
+        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, LikeStatus.DISLIKE)
         entityManager.flush()
         entityManager.clear()
         val initialLikeCount = postRepository.findById(testPost.id!!).get().likeCount
 
         // When - 좋아요로 변경
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, true)
+        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, LikeStatus.LIKE)
 
         // Then - 원자적 UPDATE 쿼리 이후 영속성 컨텍스트 초기화 및 DB 재조회
         entityManager.flush()
@@ -193,11 +194,11 @@ class PostLikeLogServiceTest : IntegrationTest() {
     @DisplayName("이미 좋아요한 상태에서 다시 좋아요를 기록하면 likeCount 변화가 없다")
     fun recordLike_duplicateLike_shouldNotChangeLikeCount() {
         // Given - 이미 좋아요한 상태
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, true)
+        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, LikeStatus.LIKE)
         val initialLikeCount = postRepository.findById(testPost.id!!).get().likeCount
 
         // When - 다시 좋아요 기록
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, true)
+        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, LikeStatus.LIKE)
 
         // Then - likeCount 변화 없음
         val updatedPost = postRepository.findById(testPost.id!!).get()
@@ -213,11 +214,11 @@ class PostLikeLogServiceTest : IntegrationTest() {
     @DisplayName("이미 싫어요한 상태에서 다시 싫어요를 기록하면 likeCount 변화가 없다")
     fun recordLike_duplicateDislike_shouldNotChangeLikeCount() {
         // Given - 이미 싫어요한 상태
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, false)
+        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, LikeStatus.DISLIKE)
         val initialLikeCount = postRepository.findById(testPost.id!!).get().likeCount
 
         // When - 다시 싫어요 기록
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, false)
+        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, LikeStatus.DISLIKE)
 
         // Then - likeCount 변화 없음
         val updatedPost = postRepository.findById(testPost.id!!).get()
@@ -237,7 +238,7 @@ class PostLikeLogServiceTest : IntegrationTest() {
 
         // When & Then - ApiException 발생
         assertThatThrownBy {
-            postLikeLogService.recordLike(nonExistentPostId, testUser.id!!, true)
+            postLikeLogService.recordLike(nonExistentPostId, testUser.id!!, LikeStatus.LIKE)
         }
             .isInstanceOf(ApiException::class.java)
             .extracting { (it as ApiException).status }
@@ -252,7 +253,7 @@ class PostLikeLogServiceTest : IntegrationTest() {
 
         // When & Then - ApiException 발생
         assertThatThrownBy {
-            postLikeLogService.recordLike(testPost.id!!, nonExistentUserId, true)
+            postLikeLogService.recordLike(testPost.id!!, nonExistentUserId, LikeStatus.LIKE)
         }
             .isInstanceOf(ApiException::class.java)
             .extracting { (it as ApiException).status }
@@ -276,10 +277,10 @@ class PostLikeLogServiceTest : IntegrationTest() {
             )
 
         // When - 첫 번째 사용자가 좋아요
-        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, true)
+        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, LikeStatus.LIKE)
 
         // When - 두 번째 사용자가 싫어요
-        postLikeLogService.recordLike(testPost.id!!, anotherUser.id!!, false)
+        postLikeLogService.recordLike(testPost.id!!, anotherUser.id!!, LikeStatus.DISLIKE)
 
         // Then - likeCount는 0 (좋아요 +1, 싫어요 -1)
         val updatedPost = postRepository.findById(testPost.id!!).get()
