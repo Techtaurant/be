@@ -123,12 +123,13 @@ class PostLikeLogServiceTest : IntegrationTest() {
         // When - 싫어요 기록
         postLikeLogService.recordLike(testPost.id!!, testUser.id!!, false)
 
-        // Then - 변경사항 DB 반영 및 1차 캐시 갱신
+        // Then - 원자적 UPDATE 쿼리 이후 영속성 컨텍스트 초기화 및 DB 재조회
         entityManager.flush()
-        entityManager.refresh(testPost)
+        entityManager.clear()
+        val updatedPost = postRepository.findById(testPost.id!!).get()
 
         // Then - likeCount가 1 감소
-        assertThat(testPost.likeCount).isEqualTo(-1)
+        assertThat(updatedPost.likeCount).isEqualTo(-1)
 
         // Then - 싫어요 로그 생성 확인
         val log = postLikeLogRepository.findByPostIdAndUserId(testPost.id!!, testUser.id!!)
@@ -142,18 +143,19 @@ class PostLikeLogServiceTest : IntegrationTest() {
         // Given - 이미 좋아요한 상태 (likeCount = 1)
         postLikeLogService.recordLike(testPost.id!!, testUser.id!!, true)
         entityManager.flush()
-        entityManager.refresh(testPost)
-        val initialLikeCount = testPost.likeCount
+        entityManager.clear()
+        val initialLikeCount = postRepository.findById(testPost.id!!).get().likeCount
 
         // When - 싫어요로 변경
         postLikeLogService.recordLike(testPost.id!!, testUser.id!!, false)
 
-        // Then - 변경사항 DB 반영 및 1차 캐시 갱신
+        // Then - 원자적 UPDATE 쿼리 이후 영속성 컨텍스트 초기화 및 DB 재조회
         entityManager.flush()
-        entityManager.refresh(testPost)
+        entityManager.clear()
+        val updatedPost = postRepository.findById(testPost.id!!).get()
 
         // Then - likeCount가 2 감소 (좋아요 취소 -1 + 싫어요 적용 -1)
-        assertThat(testPost.likeCount).isEqualTo(initialLikeCount - 2)
+        assertThat(updatedPost.likeCount).isEqualTo(initialLikeCount - 2)
 
         // Then - 싫어요 로그로 업데이트 확인
         val log = postLikeLogRepository.findByPostIdAndUserId(testPost.id!!, testUser.id!!)
@@ -167,18 +169,19 @@ class PostLikeLogServiceTest : IntegrationTest() {
         // Given - 이미 싫어요한 상태 (likeCount = -1)
         postLikeLogService.recordLike(testPost.id!!, testUser.id!!, false)
         entityManager.flush()
-        entityManager.refresh(testPost)
-        val initialLikeCount = testPost.likeCount
+        entityManager.clear()
+        val initialLikeCount = postRepository.findById(testPost.id!!).get().likeCount
 
         // When - 좋아요로 변경
         postLikeLogService.recordLike(testPost.id!!, testUser.id!!, true)
 
-        // Then - 변경사항 DB 반영 및 1차 캐시 갱신
+        // Then - 원자적 UPDATE 쿼리 이후 영속성 컨텍스트 초기화 및 DB 재조회
         entityManager.flush()
-        entityManager.refresh(testPost)
+        entityManager.clear()
+        val updatedPost = postRepository.findById(testPost.id!!).get()
 
         // Then - likeCount가 2 증가 (싫어요 취소 +1 + 좋아요 적용 +1)
-        assertThat(testPost.likeCount).isEqualTo(initialLikeCount + 2)
+        assertThat(updatedPost.likeCount).isEqualTo(initialLikeCount + 2)
 
         // Then - 좋아요 로그로 업데이트 확인
         val log = postLikeLogRepository.findByPostIdAndUserId(testPost.id!!, testUser.id!!)
