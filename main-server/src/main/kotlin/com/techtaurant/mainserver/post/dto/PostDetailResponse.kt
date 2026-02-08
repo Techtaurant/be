@@ -1,5 +1,6 @@
 package com.techtaurant.mainserver.post.dto
 
+import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.user.entity.User
 import io.swagger.v3.oas.annotations.media.Schema
@@ -18,7 +19,7 @@ import java.util.UUID
  * @property viewCount 조회수
  * @property likeCount 좋아요수
  * @property commentCount 댓글수
- * @property isLiked 현재 사용자의 좋아요 여부
+ * @property likeStatus 현재 사용자의 좋아요 상태
  * @property createdAt 작성일
  * @property updatedAt 수정일
  */
@@ -42,8 +43,8 @@ data class PostDetailResponse(
     val likeCount: Long,
     @field:Schema(description = "댓글수")
     val commentCount: Long,
-    @field:Schema(description = "현재 사용자의 좋아요 여부")
-    val isLiked: Boolean,
+    @field:Schema(description = "현재 사용자의 좋아요 상태")
+    val likeStatus: LikeStatus,
     @field:Schema(description = "작성일")
     val createdAt: Date,
     @field:Schema(description = "수정일")
@@ -54,12 +55,12 @@ data class PostDetailResponse(
          * Post 엔티티를 PostDetailResponse로 변환합니다.
          *
          * @param post 게시물 엔티티
-         * @param isLiked 현재 사용자의 좋아요 여부
+         * @param likeStatus 현재 사용자의 좋아요 상태
          * @return 게시물 상세 응답 DTO
          */
         fun from(
             post: Post,
-            isLiked: Boolean,
+            likeStatus: LikeStatus,
         ): PostDetailResponse =
             PostDetailResponse(
                 id = post.id!!,
@@ -71,7 +72,7 @@ data class PostDetailResponse(
                 viewCount = post.viewCount,
                 likeCount = post.likeCount,
                 commentCount = post.commentCount,
-                isLiked = isLiked,
+                likeStatus = likeStatus,
                 createdAt = post.createdAt,
                 updatedAt = post.updatedAt,
             )

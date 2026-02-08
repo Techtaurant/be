@@ -17,4 +17,16 @@ interface CommentLikeLogRepository : JpaRepository<CommentLikeLog, UUID> {
         commentId: UUID,
         userId: UUID,
     ): CommentLikeLog?
+
+    /**
+     * 여러 댓글에 대한 특정 사용자의 좋아요 로그를 일괄 조회합니다.
+     *
+     * @param commentIds 댓글 ID 목록
+     * @param userId 사용자 ID
+     * @return 좋아요 로그 목록
+     */
+    fun findByCommentIdInAndUserId(
+        commentIds: List<UUID>,
+        userId: UUID,
+    ): List<CommentLikeLog>
 }

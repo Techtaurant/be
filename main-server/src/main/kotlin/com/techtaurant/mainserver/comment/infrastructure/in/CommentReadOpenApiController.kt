@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -47,6 +48,7 @@ class CommentReadController(
     )
     @GetMapping("/posts/{postId}")
     fun getParentComments(
+        @AuthenticationPrincipal userId: UUID?,
         @Parameter(description = "게시물 ID")
         @PathVariable postId: UUID,
         @Parameter(description = "이전 응답의 nextCursor (첫 페이지는 생략)")
@@ -61,7 +63,7 @@ class CommentReadController(
         @RequestParam(defaultValue = "LATEST")
         sort: CommentSortType,
     ): ApiResponse<CursorPageResponse<CommentListResponse>> {
-        return ApiResponse.ok(commentReadService.getParentComments(postId, cursor, size, sort))
+        return ApiResponse.ok(commentReadService.getParentComments(postId, cursor, size, sort, userId))
     }
 
     @Operation(
@@ -82,6 +84,7 @@ class CommentReadController(
     )
     @GetMapping("/{commentId}/replies")
     fun getReplies(
+        @AuthenticationPrincipal userId: UUID?,
         @Parameter(description = "부모 댓글 ID")
         @PathVariable commentId: UUID,
         @Parameter(description = "이전 응답의 nextCursor (첫 페이지는 생략)")
@@ -96,6 +99,6 @@ class CommentReadController(
         @RequestParam(defaultValue = "LATEST")
         sort: CommentSortType,
     ): ApiResponse<CursorPageResponse<CommentListResponse>> {
-        return ApiResponse.ok(commentReadService.getReplies(commentId, cursor, size, sort))
+        return ApiResponse.ok(commentReadService.getReplies(commentId, cursor, size, sort, userId))
     }
 }

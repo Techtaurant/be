@@ -24,7 +24,7 @@ class PostLikeController(
     private val postLikeLogService: PostLikeLogService,
 ) {
     @PostMapping("/{postId}/like")
-    @Operation(summary = "게시글 좋아요/싫어요", description = "게시글에 대한 좋아요 또는 싫어요를 기록합니다. 인증된 사용자만 호출 가능합니다.")
+    @Operation(summary = "게시글 좋아요 상태 변경", description = "게시글에 대한 좋아요 상태를 변경합니다. NONE: 취소, LIKE: 좋아요, DISLIKE: 싫어요. 인증된 사용자만 호출 가능합니다.")
     @ApiResponses(
         value = [
             io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -49,7 +49,7 @@ class PostLikeController(
         postLikeLogService.recordLike(
             postId = postId,
             userId = userId,
-            isLiked = request.isLiked,
+            likeStatus = request.likeStatus,
         )
 
         return ApiResponse.ok(Unit)

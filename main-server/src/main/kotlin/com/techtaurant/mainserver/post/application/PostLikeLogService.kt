@@ -1,5 +1,6 @@
 package com.techtaurant.mainserver.post.application
 
+import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.post.entity.PostLikeLog
 import com.techtaurant.mainserver.post.enums.PostStatus
@@ -23,19 +24,19 @@ class PostLikeLogService(
     private val postDailyStatsService: PostDailyStatsService,
 ) {
     /**
-     * 게시글 좋아요/싫어요 로그를 생성하거나 수정합니다.
-     * 동일한 사용자의 기존 로그가 있으면 isLiked 값만 업데이트하고, 없으면 새로 생성합니다.
+     * 게시글 좋아요 상태를 기록합니다.
+     * 동일한 사용자의 기존 로그가 있으면 상태를 전이하고, 없으면 새로 생성합니다.
      *
      * @param postId 평가할 게시글 ID
      * @param userId 평가한 사용자 ID
-     * @param isLiked true이면 좋아요, false이면 싫어요
+     * @param likeStatus 좋아요 상태 (NONE: 취소, LIKE: 좋아요, DISLIKE: 싫어요)
      * @throws ApiException 게시글 또는 사용자가 존재하지 않는 경우
      */
     @Transactional
     fun recordLike(
         postId: UUID,
         userId: UUID,
-        isLiked: Boolean,
+        likeStatus: LikeStatus,
     ) {
         val post =
             postRepository.findById(postId).orElseThrow {
@@ -51,35 +52,43 @@ class PostLikeLogService(
 
         if (existingLog != null) {
             val previousIsLiked = existingLog.isLiked
-            if (previousIsLiked != isLiked) {
-                existingLog.isLiked = isLiked
-                postLikeLogRepository.save(existingLog)
 
-                // 좋아요/싫어요 상태 변경 시:
-                // 1. 이전 상태 취소 (±1)
-                // 2. 새 상태 적용 (±1)
-                // 총 변경량: ±2
-                //
-                // 예시:
-                // - 좋아요(true) → 싫어요(false): -1(취소) + -1(싫어요) = -2
-                // - 싫어요(false) → 좋아요(true): +1(취소) + +1(좋아요) = +2
-                updateLikeCount(postId, isLiked) // 이전 상태 취소
-                updateLikeCount(postId, isLiked) // 새 상태 적용
+            when (likeStatus) {
+                LikeStatus.NONE -> {
+                    // 좋아요/싫어요 취소 → 로그 삭제, 카운트 복원
+                    postLikeLogRepository.delete(existingLog)
+                    updateLikeCount(postId, !previousIsLiked)
+                }
+                LikeStatus.LIKE -> {
+                    if (!previousIsLiked) {
+                        // DISLIKE → LIKE: +2
+                        existingLog.isLiked = true
+                        postLikeLogRepository.save(existingLog)
+                        updateLikeCount(postId, true)
+                        updateLikeCount(postId, true)
+                    }
+                }
+                LikeStatus.DISLIKE -> {
+                    if (previousIsLiked) {
+                        // LIKE → DISLIKE: -2
+                        existingLog.isLiked = false
+                        postLikeLogRepository.save(existingLog)
+                        updateLikeCount(postId, false)
+                        updateLikeCount(postId, false)
+                    }
+                }
             }
         } else {
-            val newLog =
-                PostLikeLog(
-                    post = post,
-                    user = user,
-                    isLiked = isLiked,
-                )
-            postLikeLogRepository.save(newLog)
-
-            // 중립 상태에서 좋아요/싫어요 적용
-            if (isLiked) {
-                updateLikeCount(postId, true) // 좋아요 +1
-            } else {
-                updateLikeCount(postId, false) // 싫어요 -1
+            when (likeStatus) {
+                LikeStatus.NONE -> { /* 이미 중립 상태, 무시 */ }
+                LikeStatus.LIKE -> {
+                    postLikeLogRepository.save(PostLikeLog(post = post, user = user, isLiked = true))
+                    updateLikeCount(postId, true)
+                }
+                LikeStatus.DISLIKE -> {
+                    postLikeLogRepository.save(PostLikeLog(post = post, user = user, isLiked = false))
+                    updateLikeCount(postId, false)
+                }
             }
         }
     }

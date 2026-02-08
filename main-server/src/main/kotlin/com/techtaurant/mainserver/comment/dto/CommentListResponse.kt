@@ -1,6 +1,7 @@
 package com.techtaurant.mainserver.comment.dto
 
 import com.techtaurant.mainserver.comment.entity.Comment
+import com.techtaurant.mainserver.common.enums.LikeStatus
 import io.swagger.v3.oas.annotations.media.Schema
 import java.util.*
 
@@ -29,13 +30,18 @@ data class CommentListResponse(
     val likeCount: Long,
     @field:Schema(description = "대댓글 수")
     val replyCount: Long,
+    @field:Schema(description = "현재 사용자의 좋아요 상태")
+    val likeStatus: LikeStatus,
     @field:Schema(description = "생성 시각")
     val createdAt: Date,
     @field:Schema(description = "수정 시각")
     val updatedAt: Date,
 ) {
     companion object {
-        fun from(comment: Comment): CommentListResponse {
+        fun from(
+            comment: Comment,
+            likeStatus: LikeStatus = LikeStatus.NONE,
+        ): CommentListResponse {
             return CommentListResponse(
                 id = comment.id!!,
                 content = comment.content,
@@ -47,6 +53,7 @@ data class CommentListResponse(
                 depth = comment.depth,
                 likeCount = comment.likeCount,
                 replyCount = comment.replyCount,
+                likeStatus = likeStatus,
                 createdAt = comment.createdAt,
                 updatedAt = comment.updatedAt,
             )

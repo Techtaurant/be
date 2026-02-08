@@ -2,9 +2,12 @@ package com.techtaurant.mainserver.comment.application
 
 import com.techtaurant.mainserver.comment.dto.CommentCursor
 import com.techtaurant.mainserver.comment.dto.CommentListResponse
+import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.enums.CommentSortType
+import com.techtaurant.mainserver.comment.infrastructure.out.CommentLikeLogRepository
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepositoryCustom
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
+import com.techtaurant.mainserver.common.enums.LikeStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -17,6 +20,7 @@ import java.util.UUID
 @Transactional(readOnly = true)
 class CommentReadService(
     private val commentRepository: CommentRepositoryCustom,
+    private val commentLikeLogRepository: CommentLikeLogRepository,
 ) {
     /**
      * 부모 댓글 목록을 커서 기반 페이지네이션으로 조회합니다.
@@ -32,6 +36,7 @@ class CommentReadService(
         cursor: String?,
         size: Int,
         sortType: CommentSortType = CommentSortType.LATEST,
+        userId: UUID? = null,
     ): CursorPageResponse<CommentListResponse> {
         val commentCursor = cursor?.let { CommentCursor.decode(it) }
 
@@ -63,7 +68,7 @@ class CommentReadService(
             }
 
         return CursorPageResponse(
-            content = content.map { CommentListResponse.from(it) },
+            content = mapCommentsWithLikeStatus(content, userId),
             nextCursor = nextCursor,
             hasNext = hasNext,
             size = content.size,
@@ -84,6 +89,7 @@ class CommentReadService(
         cursor: String?,
         size: Int,
         sortType: CommentSortType = CommentSortType.LATEST,
+        userId: UUID? = null,
     ): CursorPageResponse<CommentListResponse> {
         val commentCursor = cursor?.let { CommentCursor.decode(it) }
 
@@ -115,10 +121,37 @@ class CommentReadService(
             }
 
         return CursorPageResponse(
-            content = content.map { CommentListResponse.from(it) },
+            content = mapCommentsWithLikeStatus(content, userId),
             nextCursor = nextCursor,
             hasNext = hasNext,
             size = content.size,
         )
+    }
+
+    /**
+     * 댓글 목록에 사용자의 좋아요 상태를 매핑합니다.
+     *
+     * @param comments 댓글 목록
+     * @param userId 사용자 ID (비회원인 경우 null)
+     * @return 좋아요 상태가 포함된 응답 목록
+     */
+    private fun mapCommentsWithLikeStatus(
+        comments: List<Comment>,
+        userId: UUID?,
+    ): List<CommentListResponse> {
+        if (userId == null || comments.isEmpty()) {
+            return comments.map { CommentListResponse.from(it) }
+        }
+
+        val commentIds = comments.map { it.id!! }
+        val likeLogs = commentLikeLogRepository.findByCommentIdInAndUserId(commentIds, userId)
+        val likeStatusMap =
+            likeLogs.associate { log ->
+                log.comment.id!! to if (log.isLiked) LikeStatus.LIKE else LikeStatus.DISLIKE
+            }
+
+        return comments.map { comment ->
+            CommentListResponse.from(comment, likeStatusMap[comment.id!!] ?: LikeStatus.NONE)
+        }
     }
 }
