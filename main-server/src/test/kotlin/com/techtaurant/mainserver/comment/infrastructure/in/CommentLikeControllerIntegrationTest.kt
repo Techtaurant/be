@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.comment.dto.RecordCommentLikeRequest
 import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentLikeLogRepository
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
+import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.infrastructure.out.CategoryRepository
@@ -115,7 +116,7 @@ class CommentLikeControllerIntegrationTest : IntegrationTest() {
     @DisplayName("댓글 좋아요 성공 - 유효한 요청으로 좋아요 기록")
     fun recordLike_withValidRequest_shouldRecordLike() {
         // Given - 좋아요 요청 데이터
-        val request = RecordCommentLikeRequest(isLiked = true)
+        val request = RecordCommentLikeRequest(likeStatus = LikeStatus.LIKE)
 
         // When - 좋아요 요청
         val response =
@@ -143,8 +144,8 @@ class CommentLikeControllerIntegrationTest : IntegrationTest() {
     @DisplayName("댓글 좋아요 성공 - 싫어요로 변경")
     fun recordLike_withDislikeRequest_shouldChangeToDislike() {
         // Given - 이미 좋아요한 상태 (likeCount = 1)
-        commentLikeLogService.recordLike(testComment.id!!, testUser.id!!, true)
-        val request = RecordCommentLikeRequest(isLiked = false)
+        commentLikeLogService.recordLike(testComment.id!!, testUser.id!!, LikeStatus.LIKE)
+        val request = RecordCommentLikeRequest(likeStatus = LikeStatus.DISLIKE)
 
         // When - 싫어요로 변경 요청
         val response =
@@ -172,9 +173,9 @@ class CommentLikeControllerIntegrationTest : IntegrationTest() {
     @DisplayName("댓글 좋아요 성공 - 중복 좋아요 무시")
     fun recordLike_withDuplicateRequest_shouldIgnore() {
         // Given - 이미 좋아요한 상태
-        commentLikeLogService.recordLike(testComment.id!!, testUser.id!!, true)
+        commentLikeLogService.recordLike(testComment.id!!, testUser.id!!, LikeStatus.LIKE)
         val initialLikeCount = commentRepository.findById(testComment.id!!).get().likeCount
-        val request = RecordCommentLikeRequest(isLiked = true)
+        val request = RecordCommentLikeRequest(likeStatus = LikeStatus.LIKE)
 
         // When - 다시 좋아요 요청
         val response =
@@ -197,7 +198,7 @@ class CommentLikeControllerIntegrationTest : IntegrationTest() {
     @DisplayName("댓글 좋아요 실패 - 인증되지 않은 사용자")
     fun recordLike_withoutAuthentication_shouldReturnUnauthorized() {
         // Given - 좋아요 요청 데이터
-        val request = RecordCommentLikeRequest(isLiked = true)
+        val request = RecordCommentLikeRequest(likeStatus = LikeStatus.LIKE)
 
         // When - 인증 헤더 없이 요청
         val response =
@@ -216,7 +217,7 @@ class CommentLikeControllerIntegrationTest : IntegrationTest() {
     fun recordLike_withNonExistentComment_shouldReturnNotFound() {
         // Given - 존재하지 않는 댓글 ID
         val nonExistentCommentId = UUID.randomUUID()
-        val request = RecordCommentLikeRequest(isLiked = true)
+        val request = RecordCommentLikeRequest(likeStatus = LikeStatus.LIKE)
 
         // When - 좋아요 요청
         val response =
