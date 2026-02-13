@@ -5,9 +5,11 @@ import com.techtaurant.mainserver.security.cache.TokenCacheManager
 import com.techtaurant.mainserver.security.helper.CookieHelper
 import com.techtaurant.mainserver.security.helper.JwtExceptionMapper
 import com.techtaurant.mainserver.security.jwt.JwtConstants
+import com.techtaurant.mainserver.security.jwt.JwtProperties
 import com.techtaurant.mainserver.security.jwt.JwtStatus
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
+import io.jsonwebtoken.ExpiredJwtException
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.stereotype.Service
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional
 class TokenRefreshService(
     private val cookieHelper: CookieHelper,
     private val jwtTokenProvider: JwtTokenProvider,
+    private val jwtProperties: JwtProperties,
     private val tokenCacheManager: TokenCacheManager,
     private val userRepository: UserRepository,
 ) {
@@ -34,6 +37,8 @@ class TokenRefreshService(
         val userId =
             try {
                 jwtTokenProvider.validateAndGetUserId(clientRefreshToken)
+            } catch (e: ExpiredJwtException) {
+                throw ApiException(JwtStatus.REFRESH_TOKEN_EXPIRED)
             } catch (e: Exception) {
                 throw ApiException(JwtExceptionMapper.mapToJwtStatus(e = e))
             }
@@ -66,13 +71,13 @@ class TokenRefreshService(
             response,
             JwtConstants.ACCESS_TOKEN_COOKIE,
             newAccessToken,
-            (JwtConstants.ACCESS_TOKEN_EXPIRED_TIME / 1000).toInt(),
+            (jwtProperties.accessTokenExpireMs / 1000).toInt(),
         )
         cookieHelper.addCookie(
             response,
             JwtConstants.REFRESH_TOKEN_COOKIE,
             newRefreshToken,
-            (JwtConstants.REFRESH_TOKEN_EXPIRED_TIME / 1000).toInt(),
+            (jwtProperties.refreshTokenExpireMs / 1000).toInt(),
         )
     }
 }

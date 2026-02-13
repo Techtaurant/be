@@ -20,21 +20,12 @@ class JwtTokenProvider(
         Keys.hmacShaKeyFor(jwtProperties.secret.toByteArray())
     }
 
-    /**
-     * AccessToken을 생성합니다.
-     *
-     * JWT에 userId와 role을 포함하여 Stateless 인증을 구현합니다.
-     *
-     * @param userId 사용자 ID
-     * @param role 사용자 권한
-     * @return 생성된 AccessToken
-     */
     fun createAccessToken(
         userId: UUID,
         role: UserRole,
     ): String {
         val now = Date()
-        val expiryDate = Date(now.time + JwtConstants.ACCESS_TOKEN_EXPIRED_TIME)
+        val expiryDate = Date(now.time + jwtProperties.accessTokenExpireMs)
 
         return Jwts.builder()
             .subject(userId.toString())
@@ -45,17 +36,8 @@ class JwtTokenProvider(
             .compact()
     }
 
-    /**
-     * RefreshToken을 생성합니다.
-     *
-     * RefreshToken은 userId만 포함합니다.
-     * 토큰 갱신 시 DB에서 최신 권한을 조회하여 새 AccessToken에 반영합니다.
-     *
-     * @param userId 사용자 ID
-     * @return 생성된 RefreshToken
-     */
     fun createRefreshToken(userId: UUID): String {
-        return createToken(userId, JwtConstants.REFRESH_TOKEN_EXPIRED_TIME)
+        return createToken(userId, jwtProperties.refreshTokenExpireMs)
     }
 
     private fun createToken(

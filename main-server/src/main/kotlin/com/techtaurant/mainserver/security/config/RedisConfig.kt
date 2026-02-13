@@ -3,6 +3,7 @@ package com.techtaurant.mainserver.security.config
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.techtaurant.mainserver.security.jwt.JwtProperties
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -23,6 +24,7 @@ class RedisConfig(
     @Value("\${spring.data.redis.host}") private val host: String,
     @Value("\${spring.data.redis.port}") private val port: Int,
     @Value("\${spring.data.redis.password}") private val password: String,
+    private val jwtProperties: JwtProperties,
 ) {
     @Bean
     fun redisConnectionFactory(): RedisConnectionFactory {
@@ -45,11 +47,16 @@ class RedisConfig(
         val objectMapper = objectMapper()
         val redisSerializer = GenericJackson2JsonRedisSerializer(objectMapper)
 
+        val cacheTtlMap =
+            mapOf(
+                CacheType.REFRESH_TOKEN to Duration.ofMillis(jwtProperties.refreshTokenExpireMs),
+            )
+
         val cacheConfigurations =
             CacheType.values().associate { cacheType ->
                 cacheType.cacheName to
                     RedisCacheConfiguration.defaultCacheConfig()
-                        .entryTtl(Duration.ofSeconds(cacheType.expiredAfterWrite))
+                        .entryTtl(cacheTtlMap[cacheType] ?: Duration.ofHours(1))
                         .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(StringRedisSerializer()))
                         .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(redisSerializer))
             }

@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.security.jwt
 
 import com.techtaurant.mainserver.security.SecurityConstants
 import com.techtaurant.mainserver.security.helper.JwtExceptionMapper
+import io.jsonwebtoken.ExpiredJwtException
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -44,6 +45,8 @@ class JwtAuthenticationFilter(
                         authorities,
                     )
                 SecurityContextHolder.getContext().authentication = authentication
+            } catch (e: ExpiredJwtException) {
+                request.setAttribute(SecurityConstants.ERROR_ATTRIBUTE, JwtStatus.ACCESS_TOKEN_EXPIRED)
             } catch (e: Exception) {
                 request.setAttribute(SecurityConstants.ERROR_ATTRIBUTE, JwtExceptionMapper.mapToJwtStatus(e = e))
             }

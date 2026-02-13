@@ -4,6 +4,7 @@ import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.security.cache.TokenCacheManager
 import com.techtaurant.mainserver.security.helper.CookieHelper
 import com.techtaurant.mainserver.security.jwt.JwtConstants
+import com.techtaurant.mainserver.security.jwt.JwtProperties
 import com.techtaurant.mainserver.security.jwt.JwtStatus
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.entity.User
@@ -27,6 +28,12 @@ class TokenRefreshServiceTest {
     private lateinit var tokenRefreshService: TokenRefreshService
     private val cookieHelper: CookieHelper = mockk()
     private val jwtTokenProvider: JwtTokenProvider = mockk()
+    private val jwtProperties: JwtProperties =
+        JwtProperties(
+            secret = "test-secret",
+            accessTokenExpireMs = 3600000,
+            refreshTokenExpireMs = 604800000,
+        )
     private val tokenCacheManager: TokenCacheManager = mockk()
     private val userRepository: UserRepository = mockk()
 
@@ -36,6 +43,7 @@ class TokenRefreshServiceTest {
             TokenRefreshService(
                 cookieHelper,
                 jwtTokenProvider,
+                jwtProperties,
                 tokenCacheManager,
                 userRepository,
             )
@@ -74,7 +82,7 @@ class TokenRefreshServiceTest {
                 response,
                 JwtConstants.ACCESS_TOKEN_COOKIE,
                 newAccessToken,
-                (JwtConstants.ACCESS_TOKEN_EXPIRED_TIME / 1000).toInt(),
+                (jwtProperties.accessTokenExpireMs / 1000).toInt(),
             )
         }
         verify {
@@ -82,7 +90,7 @@ class TokenRefreshServiceTest {
                 response,
                 JwtConstants.REFRESH_TOKEN_COOKIE,
                 newRefreshToken,
-                (JwtConstants.REFRESH_TOKEN_EXPIRED_TIME / 1000).toInt(),
+                (jwtProperties.refreshTokenExpireMs / 1000).toInt(),
             )
         }
         verify { tokenCacheManager.saveRefreshToken(userId.toString(), newRefreshToken) }
@@ -125,7 +133,7 @@ class TokenRefreshServiceTest {
             assertThrows<ApiException> {
                 tokenRefreshService.execute(request, response)
             }
-        assertEquals(JwtStatus.TOKEN_EXPIRED, exception.status)
+        assertEquals(JwtStatus.REFRESH_TOKEN_EXPIRED, exception.status)
     }
 
     @Test

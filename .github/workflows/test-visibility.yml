@@ -18,21 +18,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER: testuser
-          POSTGRES_PASSWORD: testpass
-          POSTGRES_DB: techtaurant_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -58,10 +43,6 @@ jobs:
           ./gradlew test jacocoTestReport -x jacocoTestCoverageVerification --stacktrace > test-output.log 2>&1 || (echo "❌ 테스트 실패! test-output.log를 확인하세요." && cat test-output.log && exit 1)
           echo "✅ 테스트 성공!"
         env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/techtaurant_test
-          SPRING_DATASOURCE_USERNAME: testuser
-          SPRING_DATASOURCE_PASSWORD: testpass
-          SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.PostgreSQLDialect
           SPRING_PROFILES_ACTIVE: test
 
       - name: 테스트 로그 및 리포트 업로드
@@ -85,11 +66,3 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           min-coverage-overall: 50
           min-coverage-changed-files: 50
-
-      - name: 테스트 실패 시 PostgreSQL 로그 확인
-        if: failure()
-        run: |
-          echo "=== PostgreSQL Connection Test ==="
-          PGPASSWORD=testpass psql -h localhost -U testuser -d techtaurant_test -c "SELECT 1;" || echo "PostgreSQL connection failed"
-          echo "=== Test Results ==="
-          find main-server/build/reports/tests -name "*.html" -type f | head -5

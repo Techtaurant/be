@@ -65,6 +65,8 @@ cors:
 
 jwt:
   secret: test-jwt-secret-key-minimum-256-bits-for-hs256-algorithm
+  access-token-expire-ms: 3600000
+  refresh-token-expire-ms: 604800000
 
 oauth2:
   redirect:
