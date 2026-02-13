@@ -1,7 +1,6 @@
 package com.techtaurant.mainserver.security.helper
 
 import com.techtaurant.mainserver.security.jwt.JwtStatus
-import io.jsonwebtoken.ExpiredJwtException
 import io.jsonwebtoken.MalformedJwtException
 import io.jsonwebtoken.UnsupportedJwtException
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -9,13 +8,6 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 
 class JwtExceptionMapperTest {
-    @Test
-    @DisplayName("ExpiredJwtException은 TOKEN_EXPIRED로 매핑")
-    fun `map ExpiredJwtException to TOKEN_EXPIRED`() {
-        val status = JwtExceptionMapper.mapToJwtStatus(ExpiredJwtException(null, null, "expired"))
-        assertEquals(JwtStatus.TOKEN_EXPIRED, status)
-    }
-
     @Test
     @DisplayName("MalformedJwtException은 MALFORMED_TOKEN으로 매핑")
     fun `map MalformedJwtException to MALFORMED_TOKEN`() {

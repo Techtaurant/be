@@ -4,6 +4,7 @@ import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.security.cache.TokenCacheManager
 import com.techtaurant.mainserver.security.helper.CookieHelper
 import com.techtaurant.mainserver.security.jwt.JwtConstants
+import com.techtaurant.mainserver.security.jwt.JwtProperties
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.security.oauth.CustomOAuth2User
 import com.techtaurant.mainserver.security.oauth.repository.HttpCookieOAuth2AuthorizationRequestRepository
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional
 @Component
 class OAuth2SuccessHandler(
     private val jwtTokenProvider: JwtTokenProvider,
+    private val jwtProperties: JwtProperties,
     private val cookieHelper: CookieHelper,
     private val tokenCacheManager: TokenCacheManager,
     private val cookieOAuth2AuthorizationRequestRepository: HttpCookieOAuth2AuthorizationRequestRepository,
@@ -45,13 +47,13 @@ class OAuth2SuccessHandler(
             response,
             JwtConstants.ACCESS_TOKEN_COOKIE,
             accessToken,
-            (JwtConstants.ACCESS_TOKEN_EXPIRED_TIME / 1000).toInt(),
+            (jwtProperties.accessTokenExpireMs / 1000).toInt(),
         )
         cookieHelper.addCookie(
             response,
             JwtConstants.REFRESH_TOKEN_COOKIE,
             refreshToken,
-            (JwtConstants.REFRESH_TOKEN_EXPIRED_TIME / 1000).toInt(),
+            (jwtProperties.refreshTokenExpireMs / 1000).toInt(),
         )
 
         // OAuth2 인증 완료 후 authorization request 쿠키 정리
