@@ -47,9 +47,10 @@ class RedisConfig(
         val objectMapper = objectMapper()
         val redisSerializer = GenericJackson2JsonRedisSerializer(objectMapper)
 
-        val cacheTtlMap = mapOf(
-            CacheType.REFRESH_TOKEN to Duration.ofMillis(jwtProperties.refreshTokenExpireMs),
-        )
+        val cacheTtlMap =
+            mapOf(
+                CacheType.REFRESH_TOKEN to Duration.ofMillis(jwtProperties.refreshTokenExpireMs),
+            )
 
         val cacheConfigurations =
             CacheType.values().associate { cacheType ->

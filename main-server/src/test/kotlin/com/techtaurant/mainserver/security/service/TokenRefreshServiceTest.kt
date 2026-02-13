@@ -28,11 +28,12 @@ class TokenRefreshServiceTest {
     private lateinit var tokenRefreshService: TokenRefreshService
     private val cookieHelper: CookieHelper = mockk()
     private val jwtTokenProvider: JwtTokenProvider = mockk()
-    private val jwtProperties: JwtProperties = JwtProperties(
-        secret = "test-secret",
-        accessTokenExpireMs = 3600000,
-        refreshTokenExpireMs = 604800000,
-    )
+    private val jwtProperties: JwtProperties =
+        JwtProperties(
+            secret = "test-secret",
+            accessTokenExpireMs = 3600000,
+            refreshTokenExpireMs = 604800000,
+        )
     private val tokenCacheManager: TokenCacheManager = mockk()
     private val userRepository: UserRepository = mockk()
 
