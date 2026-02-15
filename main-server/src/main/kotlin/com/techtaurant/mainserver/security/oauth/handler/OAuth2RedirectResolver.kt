@@ -25,22 +25,28 @@ class OAuth2RedirectResolver(
         const val FAILURE_PATH = "/oauth/error"
     }
 
-    fun resolve(request: HttpServletRequest, path: String): String {
-        val origin = cookieHelper.getCookie(
-            request,
-            HttpCookieOAuth2AuthorizationRequestRepository.OAUTH2_ORIGIN_COOKIE,
-        )
+    fun resolve(
+        request: HttpServletRequest,
+        path: String,
+    ): String {
+        val origin =
+            cookieHelper.getCookie(
+                request,
+                HttpCookieOAuth2AuthorizationRequestRepository.OAUTH2_ORIGIN_COOKIE,
+            )
 
-        val allowedOrigins = corsProperties.allowedOrigins
-            .split(",")
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
+        val allowedOrigins =
+            corsProperties.allowedOrigins
+                .split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
 
-        val validOrigin = if (origin != null && origin in allowedOrigins) {
-            origin
-        } else {
-            allowedOrigins.firstOrNull() ?: "http://localhost:3000"
-        }
+        val validOrigin =
+            if (origin != null && origin in allowedOrigins) {
+                origin
+            } else {
+                allowedOrigins.firstOrNull() ?: "http://localhost:3000"
+            }
 
         return "$validOrigin$path"
     }
