@@ -17,18 +17,14 @@
 ### Updated
 1. **IntegrationTest.kt** - Now uses Testcontainers
    - PostgreSQL container started in companion object
-   - Redis container started in companion object
    - `@DynamicPropertySource` injects container properties into Spring
    - Properties registered:
      - spring.datasource.url
      - spring.datasource.username
      - spring.datasource.password
-     - spring.data.redis.host
-     - spring.data.redis.port
 
 2. **application-test.yml** - Simplified
    - Removed hardcoded database URLs
-   - Removed hardcoded Redis ports
    - Properties come from @DynamicPropertySource instead
 
 3. **Documentation Updated**
@@ -55,16 +51,10 @@ PostgreSQL 15 container started
   ├─ Password: test_password
   └─ Port: Dynamic (assigned by Docker)
   ↓
-Redis 7 container started
-  ├─ Image: redis:7-alpine
-  └─ Port: Dynamic (assigned by Docker)
-  ↓
 @DynamicPropertySource registers properties:
   ├─ spring.datasource.url = jdbc:postgresql://...
   ├─ spring.datasource.username
-  ├─ spring.datasource.password
-  ├─ spring.data.redis.host
-  └─ spring.data.redis.port
+  └─ spring.datasource.password
   ↓
 Spring Boot initializes with container properties
   ↓
@@ -190,13 +180,8 @@ abstract class IntegrationTest {
             .withExposedPorts(5432)
             .waitingFor(Wait.forListeningPort())
         
-        private val redisContainer = GenericContainer("redis:7-alpine")
-            .withExposedPorts(6379)
-            .waitingFor(Wait.forListeningPort())
-        
         init {
             postgresContainer.start()
-            redisContainer.start()
         }
         
         @JvmStatic
