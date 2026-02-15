@@ -7,7 +7,6 @@ import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
-import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.containers.wait.strategy.Wait
 import java.time.Duration
@@ -40,14 +39,8 @@ abstract class IntegrationTest {
                 .withExposedPorts(5432)
                 .waitingFor(Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(60)))
 
-        private val redisContainer =
-            GenericContainer("redis:7-alpine")
-                .withExposedPorts(6379)
-                .waitingFor(Wait.forListeningPort().withStartupTimeout(Duration.ofSeconds(60)))
-
         init {
             postgresContainer.start()
-            redisContainer.start()
         }
 
         @JvmStatic
@@ -56,9 +49,6 @@ abstract class IntegrationTest {
             registry.add("spring.datasource.url") { postgresContainer.jdbcUrl }
             registry.add("spring.datasource.username") { postgresContainer.username }
             registry.add("spring.datasource.password") { postgresContainer.password }
-            registry.add("spring.data.redis.host") { redisContainer.host }
-            registry.add("spring.data.redis.port") { redisContainer.getMappedPort(6379) }
-            registry.add("spring.data.redis.password") { "" }
         }
     }
 }

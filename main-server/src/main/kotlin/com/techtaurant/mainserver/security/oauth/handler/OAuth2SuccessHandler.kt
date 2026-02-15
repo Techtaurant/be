@@ -1,7 +1,7 @@
 package com.techtaurant.mainserver.security.oauth.handler
 
 import com.techtaurant.mainserver.common.exception.ApiException
-import com.techtaurant.mainserver.security.cache.TokenCacheManager
+import com.techtaurant.mainserver.security.cache.TokenCachePort
 import com.techtaurant.mainserver.security.helper.CookieHelper
 import com.techtaurant.mainserver.security.jwt.JwtConstants
 import com.techtaurant.mainserver.security.jwt.JwtProperties
@@ -22,7 +22,7 @@ class OAuth2SuccessHandler(
     private val jwtTokenProvider: JwtTokenProvider,
     private val jwtProperties: JwtProperties,
     private val cookieHelper: CookieHelper,
-    private val tokenCacheManager: TokenCacheManager,
+    private val tokenCacheManager: TokenCachePort,
     private val cookieOAuth2AuthorizationRequestRepository: HttpCookieOAuth2AuthorizationRequestRepository,
     @param:Value("\${oauth2.redirect.success-url}") private val successRedirectUrl: String,
 ) : AuthenticationSuccessHandler {

@@ -1,6 +1,6 @@
 package com.techtaurant.mainserver.security.service
 
-import com.techtaurant.mainserver.security.cache.TokenCacheManager
+import com.techtaurant.mainserver.security.cache.TokenCachePort
 import com.techtaurant.mainserver.security.helper.CookieHelper
 import com.techtaurant.mainserver.security.jwt.JwtConstants
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
@@ -19,7 +19,7 @@ import java.util.UUID
 class LogoutService(
     private val cookieHelper: CookieHelper,
     private val jwtTokenProvider: JwtTokenProvider,
-    private val tokenCacheManager: TokenCacheManager,
+    private val tokenCacheManager: TokenCachePort,
 ) {
     fun logout(
         request: HttpServletRequest,

@@ -47,8 +47,7 @@ class BaseStatus(Enum):
     # 1200-1299: 5xx 서버 에러
     INTERNAL_SERVER_ERROR = ("1200", 500, "내부 서버 오류가 발생했습니다")
     DATABASE_ERROR = ("1201", 500, "데이터베이스 오류가 발생했습니다")
-    REDIS_ERROR = ("1202", 500, "Redis 오류가 발생했습니다")
-    UNKNOWN_ERROR = ("1203", 500, "알 수 없는 오류가 발생했습니다")
+    UNKNOWN_ERROR = ("1202", 500, "알 수 없는 오류가 발생했습니다")
 
     def __init__(self, custom_code: str, http_code: int, message: str):
         """

@@ -15,12 +15,12 @@
 ### Configuration Files (3)
 1. **`.env.test`** - Test environment variables
    - PostgreSQL: localhost:5432, credentials: test_user/test_password
-   - Redis: localhost:6379
+   - 
    - JWT secret, OAuth credentials for testing
 
 2. **`src/main/resources/application-test.yml`** - Spring Boot test profile
    - Database configuration for techtaurant_test
-   - Redis cache settings
+
    - Logging configuration (DEBUG level)
    - CORS and JWT settings
 
@@ -31,7 +31,6 @@
 ### Infrastructure Files (2)
 1. **`docker-compose.test.yml`** - Container orchestration
    - PostgreSQL 15 Alpine with health checks
-   - Redis 7 Alpine with health checks
    - Isolated network: techtaurant-test
 
 2. **`run-e2e-tests.sh`** - Automated test script
@@ -55,7 +54,6 @@
 
 3. **`src/test/kotlin/.../base/TestConfig.kt`**
    - Spring TestConfiguration for test profile
-   - Redis test configuration
    - Profile: "test"
 
 4. **`src/test/kotlin/.../api/HealthCheckE2ETest.kt`**
@@ -124,10 +122,10 @@ testRuntimeOnly("com.h2database:h2")
 ✅ **RestAssured Integration** - API testing framework
 ✅ **Random Port Allocation** - Enables parallel test execution
 ✅ **Isolated Test Database** - Separate techtaurant_test database
-✅ **Redis Cache** - For testing caching mechanisms
+✅ **Caffeine Cache** - In-memory caching via TokenCachePort interface
 ✅ **Bearer Token Helpers** - JWT token testing
 ✅ **Cookie Helpers** - Cookie management in tests
-✅ **Docker Compose** - PostgreSQL 15 + Redis 7
+✅ **Docker Compose** - PostgreSQL 15
 ✅ **Health Checks** - Service readiness verification
 ✅ **Automated Setup/Cleanup** - run-e2e-tests.sh script
 ✅ **Spring Test Profile** - Automatic configuration loading
@@ -197,8 +195,6 @@ DB_PORT=5432
 DB_NAME=techtaurant_test
 DB_USERNAME=test_user
 DB_PASSWORD=test_password
-REDIS_HOST=localhost
-REDIS_PORT=6379
 JWT_SECRET=test-jwt-secret-key-minimum-256-bits-for-hs256-algorithm
 GOOGLE_CLIENT_ID=test-client-id
 GOOGLE_CLIENT_SECRET=test-client-secret

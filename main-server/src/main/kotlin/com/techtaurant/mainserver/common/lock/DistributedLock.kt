@@ -2,7 +2,7 @@ package com.techtaurant.mainserver.common.lock
 
 /**
  * 분산 락 추상화 인터페이스
- * 현재는 Caffeine 기반 메모리 락을 사용하며, 추후 Redis 기반으로 확장 가능합니다.
+ * 현재는 Caffeine 기반 메모리 락을 사용합니다.
  */
 interface DistributedLock {
     /**

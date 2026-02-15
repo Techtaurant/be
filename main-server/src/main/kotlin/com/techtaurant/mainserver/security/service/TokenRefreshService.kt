@@ -1,7 +1,7 @@
 package com.techtaurant.mainserver.security.service
 
 import com.techtaurant.mainserver.common.exception.ApiException
-import com.techtaurant.mainserver.security.cache.TokenCacheManager
+import com.techtaurant.mainserver.security.cache.TokenCachePort
 import com.techtaurant.mainserver.security.helper.CookieHelper
 import com.techtaurant.mainserver.security.helper.JwtExceptionMapper
 import com.techtaurant.mainserver.security.jwt.JwtConstants
@@ -20,7 +20,7 @@ class TokenRefreshService(
     private val cookieHelper: CookieHelper,
     private val jwtTokenProvider: JwtTokenProvider,
     private val jwtProperties: JwtProperties,
-    private val tokenCacheManager: TokenCacheManager,
+    private val tokenCacheManager: TokenCachePort,
     private val userRepository: UserRepository,
 ) {
     @Transactional

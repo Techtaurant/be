@@ -111,13 +111,3 @@ class DatabaseException(BaseAPIException):
             BaseStatus.DATABASE_ERROR,
             message or BaseStatus.DATABASE_ERROR.message,
         )
-
-
-class RedisException(BaseAPIException):
-    """Redis 오류"""
-
-    def __init__(self, message: str | None = None):
-        super().__init__(
-            BaseStatus.REDIS_ERROR,
-            message or BaseStatus.REDIS_ERROR.message,
-        )

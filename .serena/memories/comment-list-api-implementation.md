@@ -177,7 +177,7 @@ A  CommentReadControllerTest.kt (통합 테스트 - 성공)
 ## 참고사항
 
 ### 테스트 환경 설정
-- Testcontainers: PostgreSQL 15-alpine, Redis 7-alpine
+- Testcontainers: PostgreSQL 15-alpine
 - @DynamicPropertySource로 컨테이너 URL 주입
 - cleanup.sql로 각 테스트 전 데이터 초기화
 

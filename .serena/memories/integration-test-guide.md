@@ -181,13 +181,8 @@ abstract class IntegrationTest {
             .withExposedPorts(5432)
             .waitingFor(Wait.forListeningPort())
         
-        private val redisContainer = GenericContainer("redis:7-alpine")
-            .withExposedPorts(6379)
-            .waitingFor(Wait.forListeningPort())
-        
         init {
             postgresContainer.start()
-            redisContainer.start()
         }
         
         @JvmStatic
@@ -196,9 +191,6 @@ abstract class IntegrationTest {
             registry.add("spring.datasource.url") { postgresContainer.jdbcUrl }
             registry.add("spring.datasource.username") { postgresContainer.username }
             registry.add("spring.datasource.password") { postgresContainer.password }
-            registry.add("spring.data.redis.host") { redisContainer.host }
-            registry.add("spring.data.redis.port") { redisContainer.getMappedPort(6379) }
-            registry.add("spring.data.redis.password") { "" }
         }
     }
 }

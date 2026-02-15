@@ -1,7 +1,7 @@
 package com.techtaurant.mainserver.security.service
 
 import com.techtaurant.mainserver.common.exception.ApiException
-import com.techtaurant.mainserver.security.cache.TokenCacheManager
+import com.techtaurant.mainserver.security.cache.TokenCachePort
 import com.techtaurant.mainserver.security.helper.CookieHelper
 import com.techtaurant.mainserver.security.jwt.JwtConstants
 import com.techtaurant.mainserver.security.jwt.JwtProperties
@@ -34,7 +34,7 @@ class TokenRefreshServiceTest {
             accessTokenExpireMs = 3600000,
             refreshTokenExpireMs = 604800000,
         )
-    private val tokenCacheManager: TokenCacheManager = mockk()
+    private val tokenCacheManager: TokenCachePort = mockk()
     private val userRepository: UserRepository = mockk()
 
     @BeforeEach
