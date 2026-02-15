@@ -63,12 +63,6 @@ jwt:
   access-token-expire-ms: ${JWT_ACCESS_TOKEN_EXPIRE_MS:3600000}
   refresh-token-expire-ms: ${JWT_REFRESH_TOKEN_EXPIRE_MS:604800000}
 
-# OAuth2 Redirect
-oauth2:
-  redirect:
-    success-url: ${OAUTH2_SUCCESS_REDIRECT_URL:http://localhost:3000/oauth/callback}
-    failure-url: ${OAUTH2_FAILURE_REDIRECT_URL:http://localhost:3000/oauth/error}
-
 # Cookie
 # 주의: SameSite=None은 반드시 Secure=true와 함께 사용해야 함 (Chrome 80+)
 cookie:

@@ -11,7 +11,6 @@ import com.techtaurant.mainserver.security.oauth.repository.HttpCookieOAuth2Auth
 import com.techtaurant.mainserver.user.enums.UserStatus
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.core.Authentication
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler
 import org.springframework.stereotype.Component
@@ -24,7 +23,7 @@ class OAuth2SuccessHandler(
     private val cookieHelper: CookieHelper,
     private val tokenCacheManager: TokenCachePort,
     private val cookieOAuth2AuthorizationRequestRepository: HttpCookieOAuth2AuthorizationRequestRepository,
-    @param:Value("\${oauth2.redirect.success-url}") private val successRedirectUrl: String,
+    private val redirectResolver: OAuth2RedirectResolver,
 ) : AuthenticationSuccessHandler {
     @Transactional
     override fun onAuthenticationSuccess(
@@ -59,6 +58,7 @@ class OAuth2SuccessHandler(
         // OAuth2 인증 완료 후 authorization request 쿠키 정리
         cookieOAuth2AuthorizationRequestRepository.removeAuthorizationRequestCookies(response)
 
-        response.sendRedirect(successRedirectUrl)
+        val redirectUrl = redirectResolver.resolve(request, OAuth2RedirectResolver.SUCCESS_PATH)
+        response.sendRedirect(redirectUrl)
     }
 }
