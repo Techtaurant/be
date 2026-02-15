@@ -8,7 +8,6 @@ from app.common.utils.browser_page_pool import create_browser_pool
 from app.configs.config import settings
 from app.configs.database import close_db
 from app.configs.exception_handler import register_exception_handlers
-from app.configs.redis import redis_client
 
 
 @asynccontextmanager
@@ -16,12 +15,10 @@ async def lifespan(app: FastAPI):
     """
     애플리케이션 생명주기 관리
 
-    시작 시 Redis와 브라우저 풀을 초기화하고,
-    종료 시 데이터베이스, Redis, 브라우저 풀 연결을 종료합니다.
+    시작 시 브라우저 풀을 초기화하고,
+    종료 시 데이터베이스, 브라우저 풀 연결을 종료합니다.
     """
     # Startup
-    await redis_client.connect()
-
     # 브라우저 풀 생성 및 초기화
     browser_pool = create_browser_pool()
     await browser_pool.__aenter__()
@@ -31,7 +28,6 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     await close_db()
-    await redis_client.disconnect()
 
     # 브라우저 풀 종료
     if hasattr(app.state, "browser_pool"):
