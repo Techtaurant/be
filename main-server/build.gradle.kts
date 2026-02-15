@@ -33,7 +33,6 @@ dependencies {
 
     // Database
     runtimeOnly("org.postgresql:postgresql")
-    implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("com.github.gavlyukovskiy:p6spy-spring-boot-starter:1.9.0")
 
     // Environment Variables
@@ -77,6 +76,7 @@ dependencies {
     kapt("org.hibernate.orm:hibernate-jpamodelgen")
 
     // Caffeine Cache
+    implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
 }
 
