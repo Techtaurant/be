@@ -5,7 +5,6 @@ import com.techtaurant.mainserver.security.oauth.status.OAuthStatus
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.core.AuthenticationException
 import org.springframework.security.web.authentication.AuthenticationFailureHandler
 import org.springframework.stereotype.Component
@@ -14,7 +13,7 @@ import org.springframework.web.util.UriComponentsBuilder
 @Component
 class OAuth2FailureHandler(
     private val cookieOAuth2AuthorizationRequestRepository: HttpCookieOAuth2AuthorizationRequestRepository,
-    @param:Value("\${oauth2.redirect.failure-url}") private val failureRedirectUrl: String,
+    private val redirectResolver: OAuth2RedirectResolver,
 ) : AuthenticationFailureHandler {
     private val logger = LoggerFactory.getLogger(OAuth2FailureHandler::class.java)
 
@@ -36,9 +35,10 @@ class OAuth2FailureHandler(
         )
 
         val status = OAuthStatus.OAUTH_AUTHENTICATION_FAILED
+        val baseUrl = redirectResolver.resolve(request, OAuth2RedirectResolver.FAILURE_PATH)
 
         val redirectUrl =
-            UriComponentsBuilder.fromUriString(failureRedirectUrl)
+            UriComponentsBuilder.fromUriString(baseUrl)
                 .queryParam("error", status.getCustomStatusCode())
                 .queryParam("message", status.getDescription())
                 .build()
