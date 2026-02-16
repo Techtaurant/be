@@ -45,6 +45,8 @@ jobs:
             --platform linux/arm64 \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
             --push \
             ./main-server
 
