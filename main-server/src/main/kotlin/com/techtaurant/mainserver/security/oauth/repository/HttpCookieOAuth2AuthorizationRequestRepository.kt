@@ -79,9 +79,14 @@ class HttpCookieOAuth2AuthorizationRequestRepository(
 
     /**
      * 요청에서 클라이언트 origin을 추출한다.
-     * Origin 헤더를 우선 사용하고, 없으면 Referer 헤더에서 origin 부분만 추출한다.
+     * 쿼리 파라미터를 우선 사용하고, 없으면 Origin 헤더, Referer 헤더 순서로 추출한다.
      */
     private fun resolveOrigin(request: HttpServletRequest): String? {
+        val queryOrigin = request.getParameter("origin")
+        if (!queryOrigin.isNullOrBlank()) {
+            return queryOrigin
+        }
+
         val origin = request.getHeader("Origin")
         if (!origin.isNullOrBlank() && origin != "null") {
             return origin
