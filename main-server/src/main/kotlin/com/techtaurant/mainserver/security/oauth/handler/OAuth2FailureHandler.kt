@@ -28,10 +28,12 @@ class OAuth2FailureHandler(
         val oauthProvider = extractOAuthProvider(request.requestURI)
 
         logger.error(
-            "OAuth2 authentication failed: provider={}, error={}, clientIp={}",
+            "OAuth2 authentication failed: provider={}, error={}, errorClass={}, clientIp={}",
             oauthProvider,
             exception.message,
+            exception.javaClass.simpleName,
             clientIp,
+            exception,
         )
 
         val status = OAuthStatus.OAUTH_AUTHENTICATION_FAILED

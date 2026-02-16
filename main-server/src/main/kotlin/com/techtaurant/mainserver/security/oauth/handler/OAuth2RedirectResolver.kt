@@ -4,6 +4,7 @@ import com.techtaurant.mainserver.security.config.CorsProperties
 import com.techtaurant.mainserver.security.helper.CookieHelper
 import com.techtaurant.mainserver.security.oauth.repository.HttpCookieOAuth2AuthorizationRequestRepository
 import jakarta.servlet.http.HttpServletRequest
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 
 /**
@@ -20,6 +21,8 @@ class OAuth2RedirectResolver(
     private val cookieHelper: CookieHelper,
     private val corsProperties: CorsProperties,
 ) {
+    private val logger = LoggerFactory.getLogger(OAuth2RedirectResolver::class.java)
+
     companion object {
         const val SUCCESS_PATH = "/oauth/callback"
         const val FAILURE_PATH = "/oauth/error"
@@ -41,13 +44,30 @@ class OAuth2RedirectResolver(
                 .map { it.trim() }
                 .filter { it.isNotEmpty() }
 
+        logger.info(
+            "resolve: originCookie={}, allowedOrigins={}, path={}",
+            origin,
+            allowedOrigins,
+            path,
+        )
+
+        val allCookieNames = request.cookies?.map { it.name } ?: emptyList()
+        logger.info("resolve: allCookies={}", allCookieNames)
+
         val validOrigin =
             if (origin != null && origin in allowedOrigins) {
                 origin
             } else {
+                logger.warn(
+                    "resolve: origin not in allowedOrigins, falling back. origin={}, allowedOrigins={}",
+                    origin,
+                    allowedOrigins,
+                )
                 allowedOrigins.firstOrNull() ?: "http://localhost:3000"
             }
 
-        return "$validOrigin$path"
+        val redirectUrl = "$validOrigin$path"
+        logger.info("resolve: redirectUrl={}", redirectUrl)
+        return redirectUrl
     }
 }
