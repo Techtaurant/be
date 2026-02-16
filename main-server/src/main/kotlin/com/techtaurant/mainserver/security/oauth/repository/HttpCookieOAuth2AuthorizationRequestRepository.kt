@@ -23,7 +23,8 @@ import java.util.Base64
 class HttpCookieOAuth2AuthorizationRequestRepository(
     private val cookieHelper: CookieHelper,
 ) : AuthorizationRequestRepository<OAuth2AuthorizationRequest> {
-    private val logger = LoggerFactory.getLogger(HttpCookieOAuth2AuthorizationRequestRepository::class.java)
+    private val logger =
+        LoggerFactory.getLogger(HttpCookieOAuth2AuthorizationRequestRepository::class.java)
 
     companion object {
         const val OAUTH2_AUTHORIZATION_REQUEST_COOKIE = "oauth2_auth_request"
@@ -32,8 +33,17 @@ class HttpCookieOAuth2AuthorizationRequestRepository(
     }
 
     override fun loadAuthorizationRequest(request: HttpServletRequest): OAuth2AuthorizationRequest? {
-        return cookieHelper.getCookie(request, OAUTH2_AUTHORIZATION_REQUEST_COOKIE)
-            ?.let { deserialize(it) }
+        val cookieValue = cookieHelper.getCookie(request, OAUTH2_AUTHORIZATION_REQUEST_COOKIE)
+        val originCookie = cookieHelper.getCookie(request, OAUTH2_ORIGIN_COOKIE)
+        logger.info(
+            "loadAuthorizationRequest: authRequestCookiePresent={}, originCookie={}, requestURI={}",
+            cookieValue != null,
+            originCookie,
+            request.requestURI,
+        )
+        val allCookieNames = request.cookies?.map { it.name } ?: emptyList()
+        logger.info("loadAuthorizationRequest: allCookies={}", allCookieNames)
+        return cookieValue?.let { deserialize(it) }
     }
 
     override fun saveAuthorizationRequest(
@@ -55,6 +65,12 @@ class HttpCookieOAuth2AuthorizationRequestRepository(
 
         // 요청의 Origin을 쿠키에 저장하여 인증 완료 후 원래 출처로 리다이렉트
         val origin = resolveOrigin(request)
+        logger.info(
+            "saveAuthorizationRequest: resolvedOrigin={}, requestURL={}, queryString={}",
+            origin,
+            request.requestURL,
+            request.queryString,
+        )
         if (origin != null) {
             cookieHelper.addCookie(
                 response,
@@ -62,6 +78,9 @@ class HttpCookieOAuth2AuthorizationRequestRepository(
                 origin,
                 COOKIE_EXPIRE_SECONDS,
             )
+            logger.info("saveAuthorizationRequest: oauth2_origin cookie set to {}", origin)
+        } else {
+            logger.warn("saveAuthorizationRequest: origin is null, oauth2_origin cookie NOT set")
         }
     }
 
