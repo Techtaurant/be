@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.post.dto.PostDetailResponse
 import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
+import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -21,6 +22,7 @@ class PostDetailReadService(
     private val postRepository: PostRepository,
     private val postViewLogService: PostViewLogService,
     private val postLikeLogRepository: PostLikeLogRepository,
+    private val postReadLogRepository: PostReadLogRepository,
 ) {
     /**
      * 게시물 상세 정보를 조회합니다.
@@ -68,6 +70,11 @@ class PostDetailReadService(
                 }
             } ?: LikeStatus.NONE
 
-        return PostDetailResponse.from(post, likeStatus)
+        val isRead =
+            userId?.let {
+                postReadLogRepository.existsByPostIdAndUserId(postId, it)
+            } ?: false
+
+        return PostDetailResponse.from(post, likeStatus, isRead)
     }
 }

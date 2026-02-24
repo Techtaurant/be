@@ -8,8 +8,8 @@ import com.techtaurant.mainserver.post.dto.PostListTagResponse
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
+import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
-import com.techtaurant.mainserver.post.infrastructure.out.PostViewLogRepository
 import com.techtaurant.mainserver.user.entity.User
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.core.context.SecurityContextHolder
@@ -24,7 +24,7 @@ import java.util.UUID
 @Transactional(readOnly = true)
 class PostListReadService(
     private val postRepository: PostRepository,
-    private val postViewLogRepository: PostViewLogRepository,
+    private val postReadLogRepository: PostReadLogRepository,
     @param:Value("\${app.default-post-thumbnail-url}")
     private val defaultThumbnailUrl: String,
 ) {
@@ -75,10 +75,10 @@ class PostListReadService(
         val currentUserId = getCurrentUserId()
         val readPostIds =
             if (currentUserId != null && content.isNotEmpty()) {
-                postViewLogRepository.findDistinctPostIdsByUserIdAndPostIdIn(
+                postReadLogRepository.findByUserIdAndPostIdIn(
                     userId = currentUserId,
                     postIds = content.mapNotNull { it.id },
-                ).toSet()
+                ).map { it.postId }.toSet()
             } else {
                 emptySet()
             }
