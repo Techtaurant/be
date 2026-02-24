@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.enums.CommentStatus
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.common.util.HtmlSanitizer
 import com.techtaurant.mainserver.post.application.PostDailyStatsService
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.enums.PostStatus
@@ -50,7 +51,7 @@ class CommentWriteService(
 
         val comment =
             Comment(
-                content = request.content,
+                content = HtmlSanitizer.sanitizeContent(request.content),
                 post = post,
                 author = author,
                 parent = parent,
