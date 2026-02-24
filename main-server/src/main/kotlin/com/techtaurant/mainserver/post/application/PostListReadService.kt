@@ -193,6 +193,7 @@ class PostListReadService(
             viewCount = post.viewCount,
             likeCount = post.likeCount,
             commentCount = post.commentCount,
+            status = post.status,
             createdAt = post.createdAt,
         )
     }
