@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.lock.DistributedLock
+import com.techtaurant.mainserver.common.util.HtmlSanitizer
 import com.techtaurant.mainserver.post.dto.CreatePostRequest
 import com.techtaurant.mainserver.post.dto.PostResponse
 import com.techtaurant.mainserver.post.dto.UpdatePostRequest
@@ -77,8 +78,8 @@ class PostWriteService(
 
         val post =
             Post(
-                title = title,
-                content = content,
+                title = HtmlSanitizer.sanitizeTitle(title),
+                content = HtmlSanitizer.sanitizeContent(content),
                 author = author,
                 category = category,
                 tags = tags.toMutableSet(),
@@ -114,8 +115,8 @@ class PostWriteService(
             throw ApiException(PostStatus.CANNOT_MODIFY_OTHERS_POST)
         }
 
-        request.title?.let { post.title = it }
-        request.content?.let { post.content = it }
+        request.title?.let { post.title = HtmlSanitizer.sanitizeTitle(it) }
+        request.content?.let { post.content = HtmlSanitizer.sanitizeContent(it) }
         request.categoryPath?.let { post.category = resolveCategory(it, post.author) }
         request.tags?.let { post.tags = resolveTags(it).toMutableSet() }
 

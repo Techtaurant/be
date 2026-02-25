@@ -22,6 +22,7 @@ import java.util.UUID
  * @property commentCount 댓글수
  * @property likeStatus 현재 사용자의 좋아요 상태
  * @property status 게시물 상태 (DRAFT: 임시저장, PUBLISHED: 발행, PRIVATE: 비공개)
+ * @property isRead 현재 사용자가 읽음 표시한 게시물인지 여부 (비회원은 항상 false)
  * @property createdAt 작성일
  * @property updatedAt 수정일
  */
@@ -49,6 +50,8 @@ data class PostDetailResponse(
     val likeStatus: LikeStatus,
     @field:Schema(description = "게시물 상태 (DRAFT: 임시저장, PUBLISHED: 발행, PRIVATE: 비공개)")
     val status: PostStatusEnum,
+    @field:Schema(description = "현재 사용자가 읽음 표시한 게시물인지 여부")
+    val isRead: Boolean,
     @field:Schema(description = "작성일")
     val createdAt: Date,
     @field:Schema(description = "수정일")
@@ -60,11 +63,13 @@ data class PostDetailResponse(
          *
          * @param post 게시물 엔티티
          * @param likeStatus 현재 사용자의 좋아요 상태
+         * @param isRead 현재 사용자가 읽음 표시한 게시물인지 여부
          * @return 게시물 상세 응답 DTO
          */
         fun from(
             post: Post,
             likeStatus: LikeStatus,
+            isRead: Boolean,
         ): PostDetailResponse =
             PostDetailResponse(
                 id = post.id!!,
@@ -78,6 +83,7 @@ data class PostDetailResponse(
                 commentCount = post.commentCount,
                 likeStatus = likeStatus,
                 status = post.status,
+                isRead = isRead,
                 createdAt = post.createdAt,
                 updatedAt = post.updatedAt,
             )

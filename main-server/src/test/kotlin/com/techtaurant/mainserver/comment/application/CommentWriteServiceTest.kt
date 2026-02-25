@@ -21,6 +21,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ActiveProfiles
@@ -301,6 +302,91 @@ class CommentWriteServiceTest : IntegrationTest() {
         }
             .isInstanceOf(ApiException::class.java)
             .hasFieldOrPropertyWithValue("status", CommentStatus.COMMENT_MAX_DEPTH_EXCEEDED)
+    }
+
+    @Nested
+    @DisplayName("댓글 생성 시 HTML sanitization")
+    inner class CreateCommentSanitization {
+        @Test
+        @DisplayName("댓글 content에서 script 태그가 제거된다")
+        fun createComment_contentScriptTagRemoved() {
+            // Given
+            val request =
+                CreateCommentRequest(
+                    postId = testPost.id!!,
+                    content = "<p>좋은 글이네요!</p><script>alert('xss')</script>",
+                    parentId = null,
+                )
+
+            // When
+            val response = commentWriteService.createComment(testUser.id!!, request)
+
+            // Then
+            val savedComment = commentRepository.findById(response.id).orElseThrow()
+            assertThat(savedComment.content).contains("좋은 글이네요!")
+            assertThat(savedComment.content).doesNotContain("<script>")
+            assertThat(savedComment.content).doesNotContain("alert")
+        }
+
+        @Test
+        @DisplayName("댓글 content에서 GitHub 허용 태그는 유지된다")
+        fun createComment_contentAllowedTagsPreserved() {
+            // Given
+            val request =
+                CreateCommentRequest(
+                    postId = testPost.id!!,
+                    content = "<p><strong>강조</strong> 텍스트와 <code>코드</code></p>",
+                    parentId = null,
+                )
+
+            // When
+            val response = commentWriteService.createComment(testUser.id!!, request)
+
+            // Then
+            val savedComment = commentRepository.findById(response.id).orElseThrow()
+            assertThat(savedComment.content).contains("<strong>강조</strong>")
+            assertThat(savedComment.content).contains("<code>코드</code>")
+        }
+
+        @Test
+        @DisplayName("댓글 content에서 이벤트 핸들러 속성이 제거된다")
+        fun createComment_contentEventHandlersRemoved() {
+            // Given
+            val request =
+                CreateCommentRequest(
+                    postId = testPost.id!!,
+                    content = """<div onclick="alert('xss')">내용</div>""",
+                    parentId = null,
+                )
+
+            // When
+            val response = commentWriteService.createComment(testUser.id!!, request)
+
+            // Then
+            val savedComment = commentRepository.findById(response.id).orElseThrow()
+            assertThat(savedComment.content).doesNotContain("onclick")
+            assertThat(savedComment.content).contains("내용")
+        }
+
+        @Test
+        @DisplayName("댓글 content에서 iframe 태그가 제거된다")
+        fun createComment_contentIframeRemoved() {
+            // Given
+            val request =
+                CreateCommentRequest(
+                    postId = testPost.id!!,
+                    content = """댓글 내용<iframe src="https://evil.com"></iframe>""",
+                    parentId = null,
+                )
+
+            // When
+            val response = commentWriteService.createComment(testUser.id!!, request)
+
+            // Then
+            val savedComment = commentRepository.findById(response.id).orElseThrow()
+            assertThat(savedComment.content).contains("댓글 내용")
+            assertThat(savedComment.content).doesNotContain("<iframe")
+        }
     }
 
     @Test

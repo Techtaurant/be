@@ -78,6 +78,9 @@ dependencies {
     // Caffeine Cache
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("com.github.ben-manes.caffeine:caffeine:3.1.8")
+
+    // HTML Sanitization
+    implementation("org.jsoup:jsoup:1.18.3")
 }
 
 kotlin {
