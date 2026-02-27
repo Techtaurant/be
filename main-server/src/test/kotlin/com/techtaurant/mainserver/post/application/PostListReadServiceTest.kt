@@ -70,7 +70,7 @@ class PostListReadServiceTest {
     private fun setCurrentUser(user: User?) {
         if (user != null) {
             val authentication = mockk<Authentication>()
-            every { authentication.principal } returns user
+            every { authentication.principal } returns user.id!!
             val securityContext = mockk<SecurityContext>()
             every { securityContext.authentication } returns authentication
             SecurityContextHolder.setContext(securityContext)

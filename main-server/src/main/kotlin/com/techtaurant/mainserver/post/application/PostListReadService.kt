@@ -11,7 +11,6 @@ import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
-import com.techtaurant.mainserver.user.entity.User
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
@@ -235,13 +234,14 @@ class PostListReadService(
 
     /**
      * SecurityContext에서 현재 로그인한 사용자의 ID를 추출합니다.
+     * JwtAuthenticationFilter가 principal에 UUID를 저장하므로 UUID로 캐스팅합니다.
      * 인증되지 않은 사용자(비회원)인 경우 null을 반환합니다.
      *
      * @return 현재 사용자 ID (비회원이면 null)
      */
     private fun getCurrentUserId(): UUID? {
         val authentication = SecurityContextHolder.getContext().authentication
-        return (authentication?.principal as? User)?.id
+        return authentication?.principal as? UUID
     }
 
     /**
