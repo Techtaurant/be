@@ -95,8 +95,9 @@ class PostReadOpenApiController(
         @Parameter(description = "정렬 기준 (LATEST: 최신순, VIEW: 조회순, LIKE: 추천순, COMMENT: 댓글순)")
         @RequestParam(defaultValue = "LATEST")
         sort: PostSortType,
+        @AuthenticationPrincipal userId: UUID?,
     ): ApiResponse<CursorPageResponse<PostListItemResponse>> {
-        return ApiResponse.ok(postListReadService.getPosts(cursor, size, period, sort))
+        return ApiResponse.ok(postListReadService.getPosts(cursor, size, period, sort, userId))
     }
 
     @Operation(

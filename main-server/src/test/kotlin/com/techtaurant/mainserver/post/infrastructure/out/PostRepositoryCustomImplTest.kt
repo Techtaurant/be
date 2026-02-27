@@ -38,6 +38,8 @@ class PostRepositoryCustomImplTest : IntegrationTest() {
 
     @BeforeEach
     fun setUpTestData() {
+        postRepository.deleteAll()
+
         userA =
             userRepository.save(
                 User(

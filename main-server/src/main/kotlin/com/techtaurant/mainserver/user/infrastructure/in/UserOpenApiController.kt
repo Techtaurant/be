@@ -18,6 +18,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -109,6 +110,7 @@ class UserOpenApiController(
         @Parameter(description = "카테고리 ID 필터 (생략 시 전체)")
         @RequestParam(required = false)
         categoryId: UUID?,
+        @AuthenticationPrincipal currentUserId: UUID?,
     ): ApiResponse<CursorPageResponse<PostListItemResponse>> {
         return ApiResponse.ok(
             postListReadService.getPostsByUserId(
@@ -118,6 +120,7 @@ class UserOpenApiController(
                 period = period,
                 sortType = sort,
                 categoryId = categoryId,
+                currentUserId = currentUserId,
             ),
         )
     }

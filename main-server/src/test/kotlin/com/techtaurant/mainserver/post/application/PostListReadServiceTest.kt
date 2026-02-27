@@ -14,14 +14,10 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.springframework.security.core.Authentication
-import org.springframework.security.core.context.SecurityContext
-import org.springframework.security.core.context.SecurityContextHolder
 import java.util.UUID
 
 class PostListReadServiceTest {
@@ -62,23 +58,6 @@ class PostListReadServiceTest {
             ).apply { id = UUID.randomUUID() }
     }
 
-    @AfterEach
-    fun tearDown() {
-        SecurityContextHolder.clearContext()
-    }
-
-    private fun setCurrentUser(user: User?) {
-        if (user != null) {
-            val authentication = mockk<Authentication>()
-            every { authentication.principal } returns user.id!!
-            val securityContext = mockk<SecurityContext>()
-            every { securityContext.authentication } returns authentication
-            SecurityContextHolder.setContext(securityContext)
-        } else {
-            SecurityContextHolder.clearContext()
-        }
-    }
-
     private fun createPost(
         author: User,
         status: PostStatusEnum = PostStatusEnum.PUBLISHED,
@@ -97,7 +76,6 @@ class PostListReadServiceTest {
         @DisplayName("로그인 사용자 조회 시 visibleToUserId에 현재 사용자 ID를 전달한다")
         fun getPosts_loggedInUser_passesVisibleToUserId() {
             // given
-            setCurrentUser(testUser)
             val posts = listOf(createPost(testUser))
             every {
                 postRepository.findPostsWithConditions(
@@ -113,7 +91,7 @@ class PostListReadServiceTest {
             } returns emptyList()
 
             // when
-            postListReadService.getPosts(cursor = null, size = 20)
+            postListReadService.getPosts(cursor = null, size = 20, userId = testUser.id!!)
 
             // then
             verify {
@@ -131,7 +109,6 @@ class PostListReadServiceTest {
         @DisplayName("비로그인 사용자 조회 시 visibleToUserId에 null을 전달한다")
         fun getPosts_anonymousUser_passesNullVisibleToUserId() {
             // given
-            setCurrentUser(null)
             val posts = listOf(createPost(otherUser))
             every {
                 postRepository.findPostsWithConditions(
@@ -144,7 +121,7 @@ class PostListReadServiceTest {
             } returns posts
 
             // when
-            postListReadService.getPosts(cursor = null, size = 20)
+            postListReadService.getPosts(cursor = null, size = 20, userId = null)
 
             // then
             verify {
@@ -166,7 +143,6 @@ class PostListReadServiceTest {
         @DisplayName("본인 조회 시 모든 상태(DRAFT, PUBLISHED, PRIVATE)로 Repository를 호출한다")
         fun getPostsByUserId_ownPosts_queriesAllStatuses() {
             // given
-            setCurrentUser(testUser)
             val posts = listOf(createPost(testUser))
             every {
                 postRepository.findPostsWithConditions(
@@ -188,6 +164,7 @@ class PostListReadServiceTest {
                 userId = testUser.id!!,
                 cursor = null,
                 size = 20,
+                currentUserId = testUser.id!!,
             )
 
             // then
@@ -208,7 +185,6 @@ class PostListReadServiceTest {
         @DisplayName("타인 조회 시 PUBLISHED만으로 Repository를 호출한다")
         fun getPostsByUserId_otherUserPosts_queriesPublishedOnly() {
             // given
-            setCurrentUser(testUser)
             val posts = listOf(createPost(otherUser))
             every {
                 postRepository.findPostsWithConditions(
@@ -230,6 +206,7 @@ class PostListReadServiceTest {
                 userId = otherUser.id!!,
                 cursor = null,
                 size = 20,
+                currentUserId = testUser.id!!,
             )
 
             // then
@@ -250,7 +227,6 @@ class PostListReadServiceTest {
         @DisplayName("비로그인 사용자 조회 시 PUBLISHED만으로 Repository를 호출하고 isRead는 항상 false이다")
         fun getPostsByUserId_anonymousUser_queriesPublishedOnly() {
             // given
-            setCurrentUser(null)
             val posts = listOf(createPost(otherUser))
             every {
                 postRepository.findPostsWithConditions(
@@ -270,6 +246,7 @@ class PostListReadServiceTest {
                     userId = otherUser.id!!,
                     cursor = null,
                     size = 20,
+                    currentUserId = null,
                 )
 
             // then
@@ -290,15 +267,13 @@ class PostListReadServiceTest {
         @Test
         @DisplayName("잘못된 커서 전달 시 빈 응답을 반환한다")
         fun getPostsByUserId_invalidCursor_returnsEmptyResponse() {
-            // given
-            setCurrentUser(testUser)
-
-            // when
+            // given & when
             val result =
                 postListReadService.getPostsByUserId(
                     userId = testUser.id!!,
                     cursor = "invalid-cursor-string",
                     size = 20,
+                    currentUserId = testUser.id!!,
                 )
 
             // then
@@ -312,7 +287,6 @@ class PostListReadServiceTest {
         @DisplayName("다음 페이지가 있으면 hasNext가 true이고 nextCursor가 반환된다")
         fun getPostsByUserId_hasMorePosts_returnsHasNextTrue() {
             // given
-            setCurrentUser(testUser)
             val posts = (1..3).map { createPost(testUser) }
             every {
                 postRepository.findPostsWithConditions(
@@ -335,6 +309,7 @@ class PostListReadServiceTest {
                     userId = testUser.id!!,
                     cursor = null,
                     size = 2,
+                    currentUserId = testUser.id!!,
                 )
 
             // then
@@ -347,7 +322,6 @@ class PostListReadServiceTest {
         @DisplayName("다음 페이지가 없으면 hasNext가 false이고 nextCursor가 null이다")
         fun getPostsByUserId_noMorePosts_returnsHasNextFalse() {
             // given
-            setCurrentUser(testUser)
             val posts = listOf(createPost(testUser))
             every {
                 postRepository.findPostsWithConditions(
@@ -370,6 +344,7 @@ class PostListReadServiceTest {
                     userId = testUser.id!!,
                     cursor = null,
                     size = 20,
+                    currentUserId = testUser.id!!,
                 )
 
             // then
@@ -382,7 +357,6 @@ class PostListReadServiceTest {
         @DisplayName("로그인 사용자가 조회 시 읽음 기록이 반영된다")
         fun getPostsByUserId_loggedInUser_appliesReadStatus() {
             // given
-            setCurrentUser(testUser)
             val post1 = createPost(otherUser)
             val post2 = createPost(otherUser)
             val posts = listOf(post1, post2)
@@ -409,6 +383,7 @@ class PostListReadServiceTest {
                     userId = otherUser.id!!,
                     cursor = null,
                     size = 20,
+                    currentUserId = testUser.id!!,
                 )
 
             // then

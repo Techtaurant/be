@@ -42,7 +42,7 @@ class PostReadLogService(
 
         val user =
             userRepository.findById(userId).orElseThrow {
-                ApiException(UserStatus.ID_NOT_FOUND)
+                ApiException(UserStatus.USER_NOT_FOUND)
             }
 
         val existingLog = postReadLogRepository.findByPostIdAndUserId(postId, userId)

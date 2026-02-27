@@ -36,6 +36,8 @@ class PostReadOpenApiControllerIntegrationTest : IntegrationTest() {
 
     @BeforeEach
     fun setUpTestData() {
+        postRepository.deleteAllInBatch()
+        userRepository.deleteAllInBatch()
         testUser =
             userRepository.save(
                 User(

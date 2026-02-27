@@ -12,7 +12,6 @@ import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -35,6 +34,7 @@ class PostListReadService(
      * @param size 페이지 크기
      * @param period 기간 필터 (WEEK, MONTH, YEAR, ALL)
      * @param sortType 정렬 기준 (LATEST, VIEW, LIKE, COMMENT)
+     * @param userId 현재 사용자 ID (비회원이면 null)
      * @return 커서 기반 페이지 응답
      */
     fun getPosts(
@@ -42,6 +42,7 @@ class PostListReadService(
         size: Int,
         period: PostPeriod = PostPeriod.ALL,
         sortType: PostSortType = PostSortType.LATEST,
+        userId: UUID? = null,
     ): CursorPageResponse<PostListItemResponse> {
         val postCursor = cursor?.let { PostCursor.decode(it) }
 
@@ -54,15 +55,13 @@ class PostListReadService(
             )
         }
 
-        val currentUserId = getCurrentUserId()
-
         val posts =
             postRepository.findPostsWithConditions(
                 cursor = postCursor,
                 size = size + 1,
                 period = period,
                 sortType = sortType,
-                visibleToUserId = currentUserId,
+                visibleToUserId = userId,
             )
 
         val hasNext = posts.size > size
@@ -74,10 +73,11 @@ class PostListReadService(
             } else {
                 null
             }
+
         val readPostIds =
-            if (currentUserId != null && content.isNotEmpty()) {
+            if (userId != null && content.isNotEmpty()) {
                 postReadLogRepository.findByUserIdAndPostIdIn(
-                    userId = currentUserId,
+                    userId = userId,
                     postIds = content.mapNotNull { it.id },
                 ).map { it.postId }.toSet()
             } else {
@@ -106,6 +106,7 @@ class PostListReadService(
      * @param period 기간 필터 (WEEK, MONTH, YEAR, ALL)
      * @param sortType 정렬 기준 (LATEST, VIEW, LIKE, COMMENT)
      * @param categoryId 카테고리 필터 (null이면 전체)
+     * @param currentUserId 현재 로그인 사용자 ID (본인/타인 분기용, 비회원이면 null)
      * @return 커서 기반 페이지 응답
      */
     fun getPostsByUserId(
@@ -115,6 +116,7 @@ class PostListReadService(
         period: PostPeriod = PostPeriod.ALL,
         sortType: PostSortType = PostSortType.LATEST,
         categoryId: UUID? = null,
+        currentUserId: UUID? = null,
     ): CursorPageResponse<PostListItemResponse> {
         val postCursor = cursor?.let { PostCursor.decode(it) }
 
@@ -127,7 +129,6 @@ class PostListReadService(
             )
         }
 
-        val currentUserId = getCurrentUserId()
         val statuses =
             if (currentUserId == userId) {
                 PostStatusEnum.entries
@@ -230,18 +231,6 @@ class PostListReadService(
         id: UUID,
     ): String {
         return "${updatedAt.time}_$id"
-    }
-
-    /**
-     * SecurityContext에서 현재 로그인한 사용자의 ID를 추출합니다.
-     * JwtAuthenticationFilter가 principal에 UUID를 저장하므로 UUID로 캐스팅합니다.
-     * 인증되지 않은 사용자(비회원)인 경우 null을 반환합니다.
-     *
-     * @return 현재 사용자 ID (비회원이면 null)
-     */
-    private fun getCurrentUserId(): UUID? {
-        val authentication = SecurityContextHolder.getContext().authentication
-        return authentication?.principal as? UUID
     }
 
     /**
