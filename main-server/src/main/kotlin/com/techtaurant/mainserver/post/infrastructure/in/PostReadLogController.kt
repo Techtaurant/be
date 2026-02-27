@@ -20,7 +20,7 @@ import java.util.UUID
 @RestController
 @RequestMapping("/api/posts")
 @Validated
-class PostReadController(
+class PostReadLogController(
     private val postReadLogService: PostReadLogService,
 ) {
     @PostMapping("/{postId}/read")
