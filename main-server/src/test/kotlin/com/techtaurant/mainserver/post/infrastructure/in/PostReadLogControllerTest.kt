@@ -29,7 +29,7 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @DisplayName("게시물 읽음 표시 API")
-class PostReadControllerTest : IntegrationTest() {
+class PostReadLogControllerTest : IntegrationTest() {
     @Autowired
     private lateinit var postReadLogRepository: PostReadLogRepository
 
