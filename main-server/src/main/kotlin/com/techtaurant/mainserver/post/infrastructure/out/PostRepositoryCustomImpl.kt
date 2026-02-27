@@ -21,6 +21,7 @@ import jakarta.persistence.criteria.Predicate
 import jakarta.persistence.criteria.Root
 import org.springframework.stereotype.Repository
 import java.util.Calendar
+import java.util.UUID
 
 /**
  * 게시물 동적 쿼리 구현체
@@ -42,6 +43,9 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         size: Int,
         period: PostPeriod,
         sortType: PostSortType,
+        authorId: UUID?,
+        statuses: List<PostStatusEnum>?,
+        categoryId: UUID?,
     ): List<Post> {
         val cb = entityManager.criteriaBuilder
         val cq = cb.createQuery(Post::class.java)
@@ -53,7 +57,15 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
 
         val predicates = mutableListOf<Predicate>()
 
-        predicates.add(cb.equal(root.get(Post_.status), PostStatusEnum.PUBLISHED))
+        if (statuses != null) {
+            predicates.add(root.get(Post_.status).`in`(statuses))
+        } else {
+            predicates.add(cb.equal(root.get(Post_.status), PostStatusEnum.PUBLISHED))
+        }
+
+        authorId?.let { predicates.add(cb.equal(root.get(Post_.author).get(EntityBase_.id), it)) }
+        categoryId?.let { predicates.add(cb.equal(root.get(Post_.category).get(EntityBase_.id), it)) }
+
         addPeriodCondition(cb, root, period, predicates)
         addCursorCondition(cb, root, cursor, sortType, predicates)
 

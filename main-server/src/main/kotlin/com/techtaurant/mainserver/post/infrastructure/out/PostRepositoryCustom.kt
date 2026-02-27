@@ -4,6 +4,8 @@ import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
+import com.techtaurant.mainserver.post.enums.PostStatusEnum
+import java.util.UUID
 
 /**
  * 게시물 동적 쿼리를 위한 커스텀 Repository
@@ -16,6 +18,9 @@ interface PostRepositoryCustom {
      * @param size 페이지 크기
      * @param period 기간 필터
      * @param sortType 정렬 타입
+     * @param authorId 작성자 ID 필터 (null이면 미적용)
+     * @param statuses 게시물 상태 필터 (null이면 PUBLISHED만 조회)
+     * @param categoryId 카테고리 ID 필터 (null이면 미적용)
      * @return 게시물 목록
      */
     fun findPostsWithConditions(
@@ -23,5 +28,8 @@ interface PostRepositoryCustom {
         size: Int,
         period: PostPeriod,
         sortType: PostSortType,
+        authorId: UUID? = null,
+        statuses: List<PostStatusEnum>? = null,
+        categoryId: UUID? = null,
     ): List<Post>
 }
