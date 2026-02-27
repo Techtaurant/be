@@ -22,7 +22,7 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration
 class SwaggerConfig(
-    @Value("\${swagger.base-url}")
+    @param:Value("\${swagger.base-url}")
     private val swaggerBaseUrl: String,
 ) {
     companion object {
