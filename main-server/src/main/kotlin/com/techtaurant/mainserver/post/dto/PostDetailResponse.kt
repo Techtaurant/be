@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.post.dto
 
 import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.post.entity.Post
+import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.user.entity.User
 import io.swagger.v3.oas.annotations.media.Schema
 import java.util.Date
@@ -20,6 +21,7 @@ import java.util.UUID
  * @property likeCount 좋아요수
  * @property commentCount 댓글수
  * @property likeStatus 현재 사용자의 좋아요 상태
+ * @property status 게시물 상태 (DRAFT: 임시저장, PUBLISHED: 발행, PRIVATE: 비공개)
  * @property isRead 현재 사용자가 읽음 표시한 게시물인지 여부 (비회원은 항상 false)
  * @property createdAt 작성일
  * @property updatedAt 수정일
@@ -46,6 +48,8 @@ data class PostDetailResponse(
     val commentCount: Long,
     @field:Schema(description = "현재 사용자의 좋아요 상태")
     val likeStatus: LikeStatus,
+    @field:Schema(description = "게시물 상태 (DRAFT: 임시저장, PUBLISHED: 발행, PRIVATE: 비공개)")
+    val status: PostStatusEnum,
     @field:Schema(description = "현재 사용자가 읽음 표시한 게시물인지 여부")
     val isRead: Boolean,
     @field:Schema(description = "작성일")
@@ -78,6 +82,7 @@ data class PostDetailResponse(
                 likeCount = post.likeCount,
                 commentCount = post.commentCount,
                 likeStatus = likeStatus,
+                status = post.status,
                 isRead = isRead,
                 createdAt = post.createdAt,
                 updatedAt = post.updatedAt,
