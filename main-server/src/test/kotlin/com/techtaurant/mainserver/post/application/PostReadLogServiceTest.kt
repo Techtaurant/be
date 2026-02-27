@@ -172,7 +172,7 @@ class PostReadLogServiceTest : IntegrationTest() {
         }
             .isInstanceOf(ApiException::class.java)
             .extracting { (it as ApiException).status }
-            .isEqualTo(UserStatus.ID_NOT_FOUND)
+            .isEqualTo(UserStatus.USER_NOT_FOUND)
     }
 
     @Test

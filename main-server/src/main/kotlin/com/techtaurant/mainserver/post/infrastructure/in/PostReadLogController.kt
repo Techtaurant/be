@@ -23,7 +23,7 @@ import java.util.UUID
 class PostReadLogController(
     private val postReadLogService: PostReadLogService,
 ) {
-    @PostMapping("/{postId}/read")
+    @PostMapping("/{postId}/read-logs")
     @Operation(summary = "게시물 읽음 상태 변경", description = "게시물에 대한 읽음 상태를 변경합니다. isRead=true: 읽음 표시, isRead=false: 안읽음 표시. 인증된 사용자만 호출 가능합니다.")
     @ApiResponses(
         value = [
@@ -37,7 +37,9 @@ class PostReadLogController(
             ),
             io.swagger.v3.oas.annotations.responses.ApiResponse(
                 responseCode = "404",
-                description = "게시물 또는 사용자를 찾을 수 없음",
+                description = """게시물 또는 사용자를 찾을 수 없음
+                    - 게시물 미존재: status=3001, message="게시물을 찾을 수 없습니다"
+                    - 사용자 미존재: status=1002, message="사용자를 찾을 수 없습니다"""",
             ),
         ],
     )

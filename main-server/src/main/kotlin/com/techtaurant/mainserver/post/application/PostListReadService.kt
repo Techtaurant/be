@@ -10,9 +10,7 @@ import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
-import com.techtaurant.mainserver.user.entity.User
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -35,6 +33,7 @@ class PostListReadService(
      * @param size 페이지 크기
      * @param period 기간 필터 (WEEK, MONTH, YEAR, ALL)
      * @param sortType 정렬 기준 (LATEST, VIEW, LIKE, COMMENT)
+     * @param userId 현재 사용자 ID (비회원이면 null)
      * @return 커서 기반 페이지 응답
      */
     fun getPosts(
@@ -42,6 +41,7 @@ class PostListReadService(
         size: Int,
         period: PostPeriod = PostPeriod.ALL,
         sortType: PostSortType = PostSortType.LATEST,
+        userId: UUID? = null,
     ): CursorPageResponse<PostListItemResponse> {
         val postCursor = cursor?.let { PostCursor.decode(it) }
 
@@ -72,11 +72,10 @@ class PostListReadService(
                 null
             }
 
-        val currentUserId = getCurrentUserId()
         val readPostIds =
-            if (currentUserId != null && content.isNotEmpty()) {
+            if (userId != null && content.isNotEmpty()) {
                 postReadLogRepository.findByUserIdAndPostIdIn(
-                    userId = currentUserId,
+                    userId = userId,
                     postIds = content.mapNotNull { it.id },
                 ).map { it.postId }.toSet()
             } else {
@@ -147,17 +146,6 @@ class PostListReadService(
         id: UUID,
     ): String {
         return "${updatedAt.time}_$id"
-    }
-
-    /**
-     * SecurityContext에서 현재 로그인한 사용자의 ID를 추출합니다.
-     * 인증되지 않은 사용자(비회원)인 경우 null을 반환합니다.
-     *
-     * @return 현재 사용자 ID (비회원이면 null)
-     */
-    private fun getCurrentUserId(): UUID? {
-        val authentication = SecurityContextHolder.getContext().authentication
-        return (authentication?.principal as? User)?.id
     }
 
     /**

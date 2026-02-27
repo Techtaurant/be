@@ -103,7 +103,7 @@ class PostReadLogControllerTest : IntegrationTest() {
         // Given: 읽음 기록이 없는 상태
         val request = RecordPostReadRequest(isRead = true)
 
-        // When: POST /api/posts/{postId}/read 호출
+        // When: POST /api/posts/{postId}/read-logs 호출
         val response =
             RestAssured
                 .given()
@@ -111,7 +111,7 @@ class PostReadLogControllerTest : IntegrationTest() {
                 .header("Authorization", "Bearer $accessToken")
                 .body(request)
                 .`when`()
-                .post("/api/posts/${testPost.id}/read")
+                .post("/api/posts/${testPost.id}/read-logs")
                 .then()
                 .statusCode(200)
                 .extract()
@@ -140,7 +140,7 @@ class PostReadLogControllerTest : IntegrationTest() {
         val readLogId = readLog.id!!
         val request = RecordPostReadRequest(isRead = false)
 
-        // When: POST /api/posts/{postId}/read 호출 (isRead=false)
+        // When: POST /api/posts/{postId}/read-logs 호출 (isRead=false)
         val response =
             RestAssured
                 .given()
@@ -148,7 +148,7 @@ class PostReadLogControllerTest : IntegrationTest() {
                 .header("Authorization", "Bearer $accessToken")
                 .body(request)
                 .`when`()
-                .post("/api/posts/${testPost.id}/read")
+                .post("/api/posts/${testPost.id}/read-logs")
                 .then()
                 .statusCode(200)
                 .extract()
@@ -178,7 +178,7 @@ class PostReadLogControllerTest : IntegrationTest() {
                 .header("Authorization", "Bearer $accessToken")
                 .body(request)
                 .`when`()
-                .post("/api/posts/$nonExistentPostId/read")
+                .post("/api/posts/$nonExistentPostId/read-logs")
                 .then()
                 .statusCode(404)
                 .extract()
@@ -202,7 +202,7 @@ class PostReadLogControllerTest : IntegrationTest() {
             .contentType(ContentType.JSON)
             .body(request)
             .`when`()
-            .post("/api/posts/${testPost.id}/read")
+            .post("/api/posts/${testPost.id}/read-logs")
             .then()
             .statusCode(401)
     }
@@ -227,7 +227,7 @@ class PostReadLogControllerTest : IntegrationTest() {
                 .header("Authorization", "Bearer $accessToken")
                 .body(request)
                 .`when`()
-                .post("/api/posts/${testPost.id}/read")
+                .post("/api/posts/${testPost.id}/read-logs")
                 .then()
                 .statusCode(200)
                 .extract()
