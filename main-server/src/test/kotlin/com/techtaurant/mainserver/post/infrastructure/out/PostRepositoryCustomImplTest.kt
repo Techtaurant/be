@@ -280,4 +280,96 @@ class PostRepositoryCustomImplTest : IntegrationTest() {
             assertThat(result[0].id).isEqualTo(target.id)
         }
     }
+
+    @Nested
+    @DisplayName("visibleToUserId 필터링")
+    inner class VisibleToUserIdFilter {
+        @Test
+        @DisplayName("visibleToUserId 지정 시 PUBLISHED + 해당 사용자의 모든 상태 게시물을 반환한다")
+        fun findPostsWithConditions_withVisibleToUserId_returnsPublishedAndOwnPosts() {
+            // given
+            val publishedByA = createPost(userA, PostStatusEnum.PUBLISHED)
+            val draftByA = createPost(userA, PostStatusEnum.DRAFT)
+            val privateByA = createPost(userA, PostStatusEnum.PRIVATE)
+            val publishedByB = createPost(userB, PostStatusEnum.PUBLISHED)
+            createPost(userB, PostStatusEnum.DRAFT)
+            createPost(userB, PostStatusEnum.PRIVATE)
+
+            // when
+            val result =
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 10,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.LATEST,
+                    visibleToUserId = userA.id!!,
+                )
+
+            // then
+            val resultIds = result.map { it.id }.toSet()
+            assertThat(resultIds).containsExactlyInAnyOrder(
+                publishedByA.id,
+                draftByA.id,
+                privateByA.id,
+                publishedByB.id,
+            )
+        }
+
+        @Test
+        @DisplayName("visibleToUserId가 null이면 PUBLISHED만 반환한다")
+        fun findPostsWithConditions_withoutVisibleToUserId_returnsPublishedOnly() {
+            // given
+            val publishedByA = createPost(userA, PostStatusEnum.PUBLISHED)
+            createPost(userA, PostStatusEnum.DRAFT)
+            createPost(userA, PostStatusEnum.PRIVATE)
+            val publishedByB = createPost(userB, PostStatusEnum.PUBLISHED)
+            createPost(userB, PostStatusEnum.DRAFT)
+
+            // when
+            val result =
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 10,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.LATEST,
+                    visibleToUserId = null,
+                )
+
+            // then
+            val resultIds = result.map { it.id }.toSet()
+            assertThat(resultIds).containsExactlyInAnyOrder(
+                publishedByA.id,
+                publishedByB.id,
+            )
+        }
+
+        @Test
+        @DisplayName("visibleToUserId는 statuses보다 우선 적용된다")
+        fun findPostsWithConditions_visibleToUserIdOverridesStatuses() {
+            // given
+            val publishedByA = createPost(userA, PostStatusEnum.PUBLISHED)
+            val draftByA = createPost(userA, PostStatusEnum.DRAFT)
+            val publishedByB = createPost(userB, PostStatusEnum.PUBLISHED)
+            createPost(userB, PostStatusEnum.DRAFT)
+
+            // when
+            val result =
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 10,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.LATEST,
+                    statuses = listOf(PostStatusEnum.PUBLISHED),
+                    visibleToUserId = userA.id!!,
+                )
+
+            // then
+            val resultIds = result.map { it.id }.toSet()
+            assertThat(resultIds).containsExactlyInAnyOrder(
+                publishedByA.id,
+                draftByA.id,
+                publishedByB.id,
+            )
+        }
+    }
 }

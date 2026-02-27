@@ -46,6 +46,7 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         authorId: UUID?,
         statuses: List<PostStatusEnum>?,
         categoryId: UUID?,
+        visibleToUserId: UUID?,
     ): List<Post> {
         val cb = entityManager.criteriaBuilder
         val cq = cb.createQuery(Post::class.java)
@@ -57,7 +58,11 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
 
         val predicates = mutableListOf<Predicate>()
 
-        if (statuses != null) {
+        if (visibleToUserId != null) {
+            val publishedPredicate = cb.equal(root.get(Post_.status), PostStatusEnum.PUBLISHED)
+            val ownPostPredicate = cb.equal(root.get(Post_.author).get(EntityBase_.id), visibleToUserId)
+            predicates.add(cb.or(publishedPredicate, ownPostPredicate))
+        } else if (statuses != null) {
             predicates.add(root.get(Post_.status).`in`(statuses))
         } else {
             predicates.add(cb.equal(root.get(Post_.status), PostStatusEnum.PUBLISHED))

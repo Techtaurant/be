@@ -91,6 +91,75 @@ class PostListReadServiceTest {
         ).apply { id = UUID.randomUUID() }
 
     @Nested
+    @DisplayName("getPosts")
+    inner class GetPosts {
+        @Test
+        @DisplayName("로그인 사용자 조회 시 visibleToUserId에 현재 사용자 ID를 전달한다")
+        fun getPosts_loggedInUser_passesVisibleToUserId() {
+            // given
+            setCurrentUser(testUser)
+            val posts = listOf(createPost(testUser))
+            every {
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 21,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.LATEST,
+                    visibleToUserId = testUser.id!!,
+                )
+            } returns posts
+            every {
+                postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
+            } returns emptyList()
+
+            // when
+            postListReadService.getPosts(cursor = null, size = 20)
+
+            // then
+            verify {
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 21,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.LATEST,
+                    visibleToUserId = testUser.id!!,
+                )
+            }
+        }
+
+        @Test
+        @DisplayName("비로그인 사용자 조회 시 visibleToUserId에 null을 전달한다")
+        fun getPosts_anonymousUser_passesNullVisibleToUserId() {
+            // given
+            setCurrentUser(null)
+            val posts = listOf(createPost(otherUser))
+            every {
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 21,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.LATEST,
+                    visibleToUserId = null,
+                )
+            } returns posts
+
+            // when
+            postListReadService.getPosts(cursor = null, size = 20)
+
+            // then
+            verify {
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 21,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.LATEST,
+                    visibleToUserId = null,
+                )
+            }
+        }
+    }
+
+    @Nested
     @DisplayName("getPostsByUserId")
     inner class GetPostsByUserId {
         @Test

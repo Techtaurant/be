@@ -55,12 +55,15 @@ class PostListReadService(
             )
         }
 
+        val currentUserId = getCurrentUserId()
+
         val posts =
             postRepository.findPostsWithConditions(
                 cursor = postCursor,
                 size = size + 1,
                 period = period,
                 sortType = sortType,
+                visibleToUserId = currentUserId,
             )
 
         val hasNext = posts.size > size
@@ -72,8 +75,6 @@ class PostListReadService(
             } else {
                 null
             }
-
-        val currentUserId = getCurrentUserId()
         val readPostIds =
             if (currentUserId != null && content.isNotEmpty()) {
                 postReadLogRepository.findByUserIdAndPostIdIn(
