@@ -6,6 +6,83 @@
 cd main-server && ./gradlew spotlessApply && ./gradlew spotlessCheck
 ```
 
+## Swagger 에러 응답 명세 규칙
+
+Swagger `@ApiResponse`에 에러를 문서화할 때, `GlobalExceptionHandler`가 실제로 반환하는 응답 포맷과 일치하도록 `@Content` + `@Schema` + `@ExampleObject`를 반드시 포함한다.
+
+### 에러 응답 유형
+
+**1. Validation 에러 (400)** — `@Valid`, `@Min`, `@Max` 등 검증 실패 시
+
+`GlobalExceptionHandler`가 `ApiResponse<ValidationErrorResponse>`를 반환한다.
+
+```json
+{"status": 400, "data": {"errors": {"필드명": "에러메시지"}}, "message": "Wrong Request"}
+```
+
+**2. 비즈니스 에러 (ApiException)** — 도메인 규칙 위반 시
+
+`GlobalExceptionHandler`가 `ApiResponse<null>`을 반환한다. `status`는 도메인별 `StatusIfs` enum의 `customStatusCode`를 사용한다.
+
+```json
+{"status": 3001, "data": null, "message": "게시물을 찾을 수 없습니다"}
+```
+
+### 작성 패턴
+
+Swagger의 `ApiResponse`와 프로젝트의 `ApiResponse`가 이름 충돌하므로, Swagger 쪽은 `import ... as SwaggerApiResponse` alias를 사용한다.
+
+```kotlin
+import com.techtaurant.mainserver.common.dto.ApiResponse
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.ExampleObject
+import io.swagger.v3.oas.annotations.media.Schema
+import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
+import io.swagger.v3.oas.annotations.responses.ApiResponses
+
+// Validation 에러
+SwaggerApiResponse(
+    responseCode = "400",
+    description = "에러 상황 설명",
+    content = [
+        Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = ApiResponse::class),
+            examples = [
+                ExampleObject(
+                    name = "예시 이름",
+                    value = EXAMPLE_CONSTANT, // companion object const val 사용
+                ),
+            ],
+        ),
+    ],
+)
+
+// 비즈니스 에러
+SwaggerApiResponse(
+    responseCode = "404",
+    description = "에러 상황 설명",
+    content = [
+        Content(
+            mediaType = "application/json",
+            schema = Schema(implementation = ApiResponse::class),
+            examples = [
+                ExampleObject(
+                    name = "예시 이름",
+                    value = EXAMPLE_CONSTANT,
+                ),
+            ],
+        ),
+    ],
+)
+```
+
+### 주의사항
+
+- ExampleObject의 `value`는 줄 길이(140자) 제한을 지키기 위해 `companion object`의 `const val`로 분리한다
+- `status` 필드 값은 반드시 해당 도메인의 `StatusIfs` enum에 정의된 `customStatusCode`를 사용한다 (DefaultStatus: 400, PostStatus: 3001~3009 등)
+- `message` 필드 값은 해당 `StatusIfs` enum의 `description`과 일치시킨다
+
 ## Dev Test User API
 
 dev 환경에서 OAuth2 플로우 없이 테스트 사용자로 JWT를 발급받을 수 있는 API.
