@@ -9,7 +9,7 @@ on:
 
 env:
   AWS_REGION: ap-northeast-2
-  ECR_REPOSITORY: techtaurant-main-server
+  ECR_REPOSITORY: techtaurant-dev-server
 
 jobs:
   deploy:
@@ -57,6 +57,27 @@ jobs:
             --cache-to type=gha,mode=max \
             --push \
             ./main-server
+
+      - name: Fetch env from SSM Parameter Store
+        run: |
+          aws ssm get-parameters-by-path \
+            --path "/techtaurant/dev" \
+            --with-decryption \
+            --query "Parameters[*].[Name,Value]" \
+            --output text | while IFS=$'\t' read -r name value; do
+              key=$(echo "$name" | awk -F'/' '{print $NF}')
+              echo "${key}=${value}" >> .env
+          done
+
+      - name: Deploy .env to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEV_SSH_HOST }}
+          username: ${{ secrets.DEV_SSH_USER }}
+          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.DEV_SSH_PORT }}
+          source: ".env"
+          target: "/home/ec2-user/app"
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.2.0
