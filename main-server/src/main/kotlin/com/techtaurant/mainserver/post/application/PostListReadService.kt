@@ -26,6 +26,8 @@ class PostListReadService(
     private val postReadLogRepository: PostReadLogRepository,
     @param:Value("\${app.default-post-thumbnail-url}")
     private val defaultThumbnailUrl: String,
+    @param:Value("\${swagger.base-url}")
+    private val baseUrl: String,
 ) {
     /**
      * 게시물 목록을 커서 기반 페이지네이션으로 조회
@@ -253,7 +255,7 @@ class PostListReadService(
                 ?: post.pictures
                     .minByOrNull { it.displayOrder }
                     ?.pictureUrl
-                ?: defaultThumbnailUrl
+                ?: "$baseUrl$defaultThumbnailUrl"
 
         return PostListItemResponse(
             id = post.id!!,
