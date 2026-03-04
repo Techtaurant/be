@@ -25,11 +25,14 @@ class PostListReadServiceTest {
     private val postReadLogRepository: PostReadLogRepository = mockk()
     private val defaultThumbnailUrl = "/static/images/post-thumbnail.png"
 
+    private val baseUrl = "http://localhost:8080"
+
     private val postListReadService =
         PostListReadService(
             postRepository = postRepository,
             postReadLogRepository = postReadLogRepository,
             defaultThumbnailUrl = defaultThumbnailUrl,
+            baseUrl = baseUrl,
         )
 
     private lateinit var testUser: User
