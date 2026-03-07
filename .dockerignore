@@ -1,25 +1,7 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-
-# Virtual Environment
-venv/
-env/
-ENV/
-.venv
-
-# uv
-.uv/
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-.nox/
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
 
 # Environment
 .env
@@ -29,6 +11,9 @@ htmlcov/
 # IDE
 .vscode/
 .idea/
+*.iws
+*.iml
+*.ipr
 *.swp
 *.swo
 *~
@@ -38,7 +23,6 @@ htmlcov/
 .gitignore
 
 # Docker
-Dockerfile
 docker-compose.yml
 .dockerignore
 
@@ -57,10 +41,3 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
-
-# Alembic
-alembic/versions/*.pyc
-
-# Temporary files
-*.tmp
-*.temp

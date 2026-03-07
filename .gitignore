@@ -1,105 +1,52 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Spring Boot / Gradle
+HELP.md
+.gradle/
 build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-.ruff_cache/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
 
-# Virtual Environment
-.mypy_cache/
-venv/
-env/
-ENV/
-.venv
+# Spring STS
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
 
-# IDE
-.vscode/
+# IntelliJ IDEA
 .idea/
 *.iws
 *.iml
 *.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# NetBeans
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+
+# Kotlin
+.kotlinGEMINI.md
+
+# IDE
+.vscode/
 *.swp
 *.swo
 *~
-
-# Environment Variables
-.env
-.env.local
-main-server/.env
-main-server/.env.local
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Logs
-*.log
-logs/
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-
-# Alembic
-# alembic/versions/*.py  # 마이그레이션 파일은 커밋해야 함
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Spring Boot / Gradle
-main-server/HELP.md
-main-server/.gradle
-main-server/build/
-!main-server/gradle/wrapper/gradle-wrapper.jar
-!main-server/**/src/main/**/build/
-!main-server/**/src/test/**/build/
-
-# Spring STS
-main-server/.apt_generated
-main-server/.classpath
-main-server/.factorypath
-main-server/.project
-main-server/.settings
-main-server/.springBeans
-main-server/.sts4-cache
-main-server/bin/
-!main-server/**/src/main/**/bin/
-!main-server/**/src/test/**/bin/
-
-# IntelliJ IDEA (Spring Boot specific)
-main-server/out/
-!main-server/**/src/main/**/out/
-!main-server/**/src/test/**/out/
-
-# NetBeans
-main-server/nbproject/private/
-main-server/nbbuild/
-main-server/dist/
-main-server/nbdist/
-main-server/.nb-gradle/
-
-# Kotlin
-main-server/.kotlinGEMINI.md
 
 # Terraform
 **/.terraform/
@@ -113,3 +60,11 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 *.pem
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

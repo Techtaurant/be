@@ -56,7 +56,7 @@ jobs:
             --cache-from type=gha \
             --cache-to type=gha,mode=max \
             --push \
-            ./main-server
+            .
 
       - name: Fetch env from SSM Parameter Store
         run: |
