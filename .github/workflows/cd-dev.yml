@@ -9,7 +9,6 @@ on:
 
 env:
   AWS_REGION: ap-northeast-2
-  ECR_REPOSITORY: techtaurant-dev-server
 
 jobs:
   deploy:
@@ -31,6 +30,14 @@ jobs:
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Get ECR repository name from SSM
+        run: |
+          ECR_REPO=$(aws ssm get-parameter \
+            --name "/techtaurant/dev/ECR_REPOSITORY_NAME" \
+            --query "Parameter.Value" \
+            --output text)
+          echo "ECR_REPOSITORY_NAME=$ECR_REPO" >> $GITHUB_ENV
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -51,8 +58,8 @@ jobs:
         run: |
           docker buildx build \
             --platform linux/arm64 \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY_NAME:latest \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY_NAME:${{ github.sha }} \
             --cache-from type=gha \
             --cache-to type=gha,mode=max \
             --push \
