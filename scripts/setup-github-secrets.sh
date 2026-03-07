@@ -25,20 +25,35 @@ echo "저장소: $REPO"
 echo "시크릿 파일: $ENV_FILE"
 echo ""
 
+# KEY에 해당하는 값을 .env.secrets에서 읽음
+get_val() {
+  local key="$1"
+  local raw
+  raw=$(grep "^${key}=" "$ENV_FILE" 2>/dev/null | head -1 | cut -d'=' -f2- || true)
+  # 따옴표 제거
+  raw="${raw%\"}"
+  raw="${raw#\"}"
+  raw="${raw%\'}"
+  raw="${raw#\'}"
+  echo "$raw"
+}
+
 set_secret() {
   local key="$1"
-  local value="$2"
+  local value
+  value=$(get_val "$key")
   if [[ -z "$value" ]]; then
     echo "  [SKIP] $key (값이 비어있음)"
     return
   fi
   echo "  [SET]  $key"
-  echo "$value" | gh secret set "$key" --repo "$REPO" --body -
+  printf '%s' "$value" | gh secret set "$key" --repo "$REPO" --body -
 }
 
 set_secret_from_file() {
   local key="$1"
-  local path="$2"
+  local path
+  path=$(get_val "$2")
   if [[ -z "$path" ]]; then
     echo "  [SKIP] $key (경로가 비어있음)"
     return
@@ -52,30 +67,16 @@ set_secret_from_file() {
   gh secret set "$key" --repo "$REPO" < "$expanded_path"
 }
 
-# .env.secrets 파싱
-declare -A secrets
-while IFS='=' read -r key value || [[ -n "$key" ]]; do
-  # 주석, 빈 줄 건너뜀
-  [[ -z "$key" || "$key" =~ ^# ]] && continue
-  # 따옴표 제거
-  value="${value%\"}"
-  value="${value#\"}"
-  value="${value%\'}"
-  value="${value#\'}"
-  secrets["$key"]="$value"
-done < "$ENV_FILE"
-
 echo "=== AWS 시크릿 ==="
-set_secret "AWS_ACCESS_KEY_ID"       "${secrets[AWS_ACCESS_KEY_ID]:-}"
-set_secret "AWS_SECRET_ACCESS_KEY"   "${secrets[AWS_SECRET_ACCESS_KEY]:-}"
+set_secret "AWS_ACCESS_KEY_ID"
+set_secret "AWS_SECRET_ACCESS_KEY"
 
 echo ""
 echo "=== SSH 시크릿 ==="
-set_secret "DEV_SSH_HOST"   "${secrets[DEV_SSH_HOST]:-}"
-set_secret "DEV_SSH_USER"   "${secrets[DEV_SSH_USER]:-}"
-set_secret "DEV_SSH_PORT"   "${secrets[DEV_SSH_PORT]:-}"
-# PEM 키는 파일 경로로 읽음
-set_secret_from_file "DEV_SSH_PRIVATE_KEY" "${secrets[DEV_SSH_PRIVATE_KEY_PATH]:-}"
+set_secret           "DEV_SSH_HOST"
+set_secret           "DEV_SSH_USER"
+set_secret           "DEV_SSH_PORT"
+set_secret_from_file "DEV_SSH_PRIVATE_KEY" "DEV_SSH_PRIVATE_KEY_PATH"
 
 echo ""
 echo "완료. 현재 등록된 시크릿 목록:"
