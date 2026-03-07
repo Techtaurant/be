@@ -30,13 +30,11 @@ jobs:
           cache: gradle
 
       - name: Spotless Check
-        working-directory: ./main-server
         run: |
           chmod +x gradlew
           ./gradlew spotlessCheck
 
       - name: Run Tests & Generate Coverage Report
-        working-directory: ./main-server
         run: |
           echo "테스트 실행 중... 상세 로그는 artifact에서 확인하세요."
           chmod +x gradlew
@@ -51,9 +49,9 @@ jobs:
         with:
           name: test-logs-and-reports
           path: |
-            main-server/test-output.log
-            main-server/build/reports/jacoco/test/
-            main-server/build/test-results/
+            test-output.log
+            build/reports/jacoco/test/
+            build/test-results/
           retention-days: 30
 
       - name: 테스트 커버리지를 PR에 코멘트로 등록
@@ -62,7 +60,7 @@ jobs:
         uses: madrapps/jacoco-report@v1.2
         with:
           title: 📝 테스트 커버리지 리포트입니다
-          paths: ${{ github.workspace }}/main-server/build/reports/jacoco/test/jacocoTestReport.xml
+          paths: ${{ github.workspace }}/build/reports/jacoco/test/jacocoTestReport.xml
           token: ${{ secrets.GITHUB_TOKEN }}
           min-coverage-overall: 50
           min-coverage-changed-files: 50
