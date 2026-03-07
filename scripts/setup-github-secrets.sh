@@ -3,7 +3,7 @@
 # 사용법: ./scripts/setup-github-secrets.sh
 set -euo pipefail
 
-ENV_FILE="${1:-.env.secrets}"
+ENV_FILE="${1:-.env}"
 REPO=$(git remote get-url origin | sed 's|https://github.com/||' | sed 's|git@github.com:||' | sed 's|\.git$||')
 
 # 의존성 확인
