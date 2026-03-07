@@ -68,6 +68,7 @@ jobs:
               key=$(echo "$name" | awk -F'/' '{print $NF}')
               echo "${key}=${value}" >> .env
           done
+          echo "ECR_REGISTRY=${{ steps.ecr-login.outputs.registry }}" >> .env
 
       - name: Deploy .env to EC2
         uses: appleboy/scp-action@v0.1.7
@@ -79,15 +80,24 @@ jobs:
           source: ".env"
           target: "/home/ec2-user/app"
 
-      - name: Deploy to EC2
+      - name: Pull new image and restart service
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.DEV_SSH_HOST }}
           username: ${{ secrets.DEV_SSH_USER }}
           key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
           port: ${{ secrets.DEV_SSH_PORT }}
+          script_stop: true
           script: |
+            set -euo pipefail
             cd /home/ec2-user/app
-            aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.ap-northeast-2.amazonaws.com
+
+            ECR_REGISTRY=$(grep '^ECR_REGISTRY=' .env | cut -d'=' -f2-)
+            aws ecr get-login-password --region ap-northeast-2 \
+              | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
+
             docker compose pull app
-            docker compose up -d
+            docker compose up -d --no-deps app
+
+            echo "Deployment complete. Running containers:"
+            docker compose ps
