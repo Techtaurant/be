@@ -177,14 +177,6 @@ class PostListReadService(
         return "${updatedAt.time}_$id"
     }
 
-    /**
-     * Post 엔티티를 PostListItemResponse DTO로 변환합니다.
-     * 썸네일 URL과 읽음 여부를 계산하여 포함합니다.
-     *
-     * @param post 게시물 엔티티
-     * @param isRead 현재 사용자가 읽은 게시물인지 여부
-     * @return 응답 DTO
-     */
     private fun convertToResponse(
         post: Post,
         isRead: Boolean,
@@ -202,6 +194,7 @@ class PostListReadService(
         return PostListItemResponse(
             id = post.id!!,
             title = post.title,
+            authorId = post.author.id!!,
             authorName = post.author.name,
             authorProfileImageUrl = post.author.profileImageUrl,
             thumbnailUrl = thumbnailUrl,

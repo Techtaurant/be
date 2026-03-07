@@ -6,28 +6,14 @@ import io.swagger.v3.oas.annotations.media.Schema
 import java.util.Date
 import java.util.UUID
 
-/**
- * 게시물 목록 아이템 응답 DTO
- *
- * @property id 게시물 ID
- * @property title 게시물 제목
- * @property authorName 작성자 이름
- * @property authorProfileImageUrl 작성자 프로필 이미지 URL
- * @property thumbnailUrl 게시물 썸네일 이미지 URL
- * @property isRead 로그인한 사용자가 읽은 게시물인지 여부 (비회원은 항상 false)
- * @property tags 태그 목록
- * @property viewCount 조회수
- * @property likeCount 좋아요수
- * @property commentCount 댓글수
- * @property status 게시물 상태 (DRAFT: 임시저장, PUBLISHED: 발행, PRIVATE: 비공개)
- * @property createdAt 작성일
- */
 @Schema(description = "게시물 목록 아이템")
 data class PostListItemResponse(
     @field:Schema(description = "게시물 ID")
     val id: UUID,
     @field:Schema(description = "게시물 제목")
     val title: String,
+    @field:Schema(description = "작성자 ID")
+    val authorId: UUID,
     @field:Schema(description = "작성자 이름")
     val authorName: String,
     @field:Schema(description = "작성자 프로필 이미지 URL")
@@ -62,6 +48,7 @@ data class PostListItemResponse(
             PostListItemResponse(
                 id = post.id!!,
                 title = post.title,
+                authorId = post.author.id!!,
                 authorName = post.author.name,
                 authorProfileImageUrl = post.author.profileImageUrl,
                 thumbnailUrl = "",
