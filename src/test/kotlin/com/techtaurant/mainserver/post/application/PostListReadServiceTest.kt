@@ -94,7 +94,7 @@ class PostListReadServiceTest {
             } returns emptyList()
 
             // when
-            postListReadService.getPosts(cursor = null, size = 20, userId = testUser.id!!)
+            postListReadService.getPosts(cursor = null, size = 20, currentUserId = testUser.id!!)
 
             // then
             verify {
@@ -124,7 +124,7 @@ class PostListReadServiceTest {
             } returns posts
 
             // when
-            postListReadService.getPosts(cursor = null, size = 20, userId = null)
+            postListReadService.getPosts(cursor = null, size = 20, currentUserId = null)
 
             // then
             verify {
@@ -140,11 +140,11 @@ class PostListReadServiceTest {
     }
 
     @Nested
-    @DisplayName("getPostsByUserId")
-    inner class GetPostsByUserId {
+    @DisplayName("getPosts (authorId 필터)")
+    inner class GetPostsWithAuthorId {
         @Test
         @DisplayName("본인 조회 시 모든 상태(DRAFT, PUBLISHED, PRIVATE)로 Repository를 호출한다")
-        fun getPostsByUserId_ownPosts_queriesAllStatuses() {
+        fun getPosts_ownPosts_queriesAllStatuses() {
             // given
             val posts = listOf(createPost(testUser))
             every {
@@ -163,11 +163,11 @@ class PostListReadServiceTest {
             } returns emptyList()
 
             // when
-            postListReadService.getPostsByUserId(
-                userId = testUser.id!!,
+            postListReadService.getPosts(
                 cursor = null,
                 size = 20,
                 currentUserId = testUser.id!!,
+                authorId = testUser.id!!,
             )
 
             // then
@@ -186,7 +186,7 @@ class PostListReadServiceTest {
 
         @Test
         @DisplayName("타인 조회 시 PUBLISHED만으로 Repository를 호출한다")
-        fun getPostsByUserId_otherUserPosts_queriesPublishedOnly() {
+        fun getPosts_otherUserPosts_queriesPublishedOnly() {
             // given
             val posts = listOf(createPost(otherUser))
             every {
@@ -205,11 +205,11 @@ class PostListReadServiceTest {
             } returns emptyList()
 
             // when
-            postListReadService.getPostsByUserId(
-                userId = otherUser.id!!,
+            postListReadService.getPosts(
                 cursor = null,
                 size = 20,
                 currentUserId = testUser.id!!,
+                authorId = otherUser.id!!,
             )
 
             // then
@@ -228,7 +228,7 @@ class PostListReadServiceTest {
 
         @Test
         @DisplayName("비로그인 사용자 조회 시 PUBLISHED만으로 Repository를 호출하고 isRead는 항상 false이다")
-        fun getPostsByUserId_anonymousUser_queriesPublishedOnly() {
+        fun getPosts_anonymousUser_queriesPublishedOnly() {
             // given
             val posts = listOf(createPost(otherUser))
             every {
@@ -245,11 +245,11 @@ class PostListReadServiceTest {
 
             // when
             val result =
-                postListReadService.getPostsByUserId(
-                    userId = otherUser.id!!,
+                postListReadService.getPosts(
                     cursor = null,
                     size = 20,
                     currentUserId = null,
+                    authorId = otherUser.id!!,
                 )
 
             // then
@@ -269,14 +269,14 @@ class PostListReadServiceTest {
 
         @Test
         @DisplayName("잘못된 커서 전달 시 빈 응답을 반환한다")
-        fun getPostsByUserId_invalidCursor_returnsEmptyResponse() {
+        fun getPosts_invalidCursor_returnsEmptyResponse() {
             // given & when
             val result =
-                postListReadService.getPostsByUserId(
-                    userId = testUser.id!!,
+                postListReadService.getPosts(
                     cursor = "invalid-cursor-string",
                     size = 20,
                     currentUserId = testUser.id!!,
+                    authorId = testUser.id!!,
                 )
 
             // then
@@ -288,7 +288,7 @@ class PostListReadServiceTest {
 
         @Test
         @DisplayName("다음 페이지가 있으면 hasNext가 true이고 nextCursor가 반환된다")
-        fun getPostsByUserId_hasMorePosts_returnsHasNextTrue() {
+        fun getPosts_hasMorePosts_returnsHasNextTrue() {
             // given
             val posts = (1..3).map { createPost(testUser) }
             every {
@@ -308,11 +308,11 @@ class PostListReadServiceTest {
 
             // when
             val result =
-                postListReadService.getPostsByUserId(
-                    userId = testUser.id!!,
+                postListReadService.getPosts(
                     cursor = null,
                     size = 2,
                     currentUserId = testUser.id!!,
+                    authorId = testUser.id!!,
                 )
 
             // then
@@ -323,7 +323,7 @@ class PostListReadServiceTest {
 
         @Test
         @DisplayName("다음 페이지가 없으면 hasNext가 false이고 nextCursor가 null이다")
-        fun getPostsByUserId_noMorePosts_returnsHasNextFalse() {
+        fun getPosts_noMorePosts_returnsHasNextFalse() {
             // given
             val posts = listOf(createPost(testUser))
             every {
@@ -343,11 +343,11 @@ class PostListReadServiceTest {
 
             // when
             val result =
-                postListReadService.getPostsByUserId(
-                    userId = testUser.id!!,
+                postListReadService.getPosts(
                     cursor = null,
                     size = 20,
                     currentUserId = testUser.id!!,
+                    authorId = testUser.id!!,
                 )
 
             // then
@@ -358,7 +358,7 @@ class PostListReadServiceTest {
 
         @Test
         @DisplayName("로그인 사용자가 조회 시 읽음 기록이 반영된다")
-        fun getPostsByUserId_loggedInUser_appliesReadStatus() {
+        fun getPosts_loggedInUser_appliesReadStatus() {
             // given
             val post1 = createPost(otherUser)
             val post2 = createPost(otherUser)
@@ -382,11 +382,11 @@ class PostListReadServiceTest {
 
             // when
             val result =
-                postListReadService.getPostsByUserId(
-                    userId = otherUser.id!!,
+                postListReadService.getPosts(
                     cursor = null,
                     size = 20,
                     currentUserId = testUser.id!!,
+                    authorId = otherUser.id!!,
                 )
 
             // then

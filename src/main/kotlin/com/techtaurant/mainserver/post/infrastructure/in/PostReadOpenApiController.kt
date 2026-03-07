@@ -95,9 +95,25 @@ class PostReadOpenApiController(
         @Parameter(description = "정렬 기준 (LATEST: 최신순, VIEW: 조회순, LIKE: 추천순, COMMENT: 댓글순)")
         @RequestParam(defaultValue = "LATEST")
         sort: PostSortType,
-        @AuthenticationPrincipal userId: UUID?,
+        @Parameter(description = "작성자 ID 필터 (생략 시 전체 조회, 본인 조회 시 DRAFT/PRIVATE 포함)")
+        @RequestParam(required = false)
+        authorId: UUID?,
+        @Parameter(description = "카테고리 ID 필터 (authorId 지정 시에만 적용, 생략 시 전체)")
+        @RequestParam(required = false)
+        categoryId: UUID?,
+        @AuthenticationPrincipal currentUserId: UUID?,
     ): ApiResponse<CursorPageResponse<PostListItemResponse>> {
-        return ApiResponse.ok(postListReadService.getPosts(cursor, size, period, sort, userId))
+        return ApiResponse.ok(
+            postListReadService.getPosts(
+                cursor = cursor,
+                size = size,
+                period = period,
+                sortType = sort,
+                currentUserId = currentUserId,
+                authorId = authorId,
+                categoryId = categoryId,
+            ),
+        )
     }
 
     @Operation(
