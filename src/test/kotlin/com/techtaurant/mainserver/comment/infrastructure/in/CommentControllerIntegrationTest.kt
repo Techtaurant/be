@@ -108,7 +108,7 @@ class CommentControllerIntegrationTest : IntegrationTest() {
             .post("/api/comments")
             .then()
             .log().all()
-            .statusCode(HttpStatus.OK.value())
+            .statusCode(HttpStatus.CREATED.value())
             .body("data.content", equalTo("좋은 글이네요!"))
             .body("data.postId", equalTo(testPost.id.toString()))
             .body("data.authorId", equalTo(testUser.id.toString()))
@@ -139,7 +139,7 @@ class CommentControllerIntegrationTest : IntegrationTest() {
                 .`when`()
                 .post("/api/comments")
                 .then()
-                .statusCode(HttpStatus.OK.value())
+                .statusCode(HttpStatus.CREATED.value())
                 .extract()
                 .path<String>("data.id")
 
@@ -161,7 +161,7 @@ class CommentControllerIntegrationTest : IntegrationTest() {
             .`when`()
             .post("/api/comments")
             .then()
-            .statusCode(HttpStatus.OK.value())
+            .statusCode(HttpStatus.CREATED.value())
             .body("data.content", equalTo("대댓글입니다"))
             .body("data.parentId", equalTo(parentCommentId.toString()))
             .body("data.depth", equalTo(1))
@@ -286,7 +286,7 @@ class CommentControllerIntegrationTest : IntegrationTest() {
                 .`when`()
                 .post("/api/comments")
                 .then()
-                .statusCode(HttpStatus.OK.value())
+                .statusCode(HttpStatus.CREATED.value())
                 .extract()
                 .path<String>("data.id")
 
@@ -308,7 +308,7 @@ class CommentControllerIntegrationTest : IntegrationTest() {
                 .`when`()
                 .post("/api/comments")
                 .then()
-                .statusCode(HttpStatus.OK.value())
+                .statusCode(HttpStatus.CREATED.value())
                 .extract()
                 .path<String>("data.id")
 
@@ -366,7 +366,7 @@ class CommentControllerIntegrationTest : IntegrationTest() {
                 .`when`()
                 .post("/api/comments")
                 .then()
-                .statusCode(HttpStatus.OK.value())
+                .statusCode(HttpStatus.CREATED.value())
                 .extract()
                 .path<String>("data.id")
 

@@ -14,6 +14,10 @@ class ApiResponse<T>(val status: Int, val data: T?, val message: String) {
             return ApiResponse(HttpStatus.OK.value(), data, DefaultStatus.OK.getDescription())
         }
 
+        fun <T> created(data: T): ApiResponse<T> {
+            return ApiResponse(HttpStatus.CREATED.value(), data, DefaultStatus.CREATED.getDescription())
+        }
+
         fun <T> error(status: StatusIfs): ApiResponse<T?> {
             return ApiResponse(status.getCustomStatusCode(), null, status.getDescription())
         }
