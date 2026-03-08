@@ -21,11 +21,11 @@ Swagger 명세는 Controller 구현체에 직접 흩뿌리지 않고, 반드시 
 
 ### 성공 응답 규칙
 
-- 성공 응답도 `responseCode`, `description`, `content`를 빠짐없이 명시한다.
-- `content`에는 반드시 `Content(mediaType = "application/json", schema = Schema(implementation = ApiResponse::class))`를 포함한다.
+- 성공 응답은 `responseCode`와 `description`만 명시한다. `content`는 선언하지 않는다.
+- `content`에 `Schema(implementation = ApiResponse::class)`를 명시하면 SpringDoc이 제네릭 타입 정보를 잃어버려 `data: any`로 표시된다. SpringDoc이 메서드 반환 타입(`ApiResponse<SomeDto>`)에서 스키마를 자동 추론하도록 content를 생략해야 한다.
 - 생성 API는 `200`이 아니라 실제 HTTP semantics에 맞게 `201 Created`를 사용한다.
 - 구현체의 실제 응답 코드와 Swagger 명세가 다르면 안 된다. 예를 들어 `@ResponseStatus(HttpStatus.CREATED)`를 사용하면 Swagger도 `responseCode = "201"`로 맞춘다.
-- 성공 응답 예시는 공통 Swagger customizer가 채우는 방식을 우선 사용하며, 수동 예시를 추가할 때도 실제 응답 포맷과 동일해야 한다.
+- 성공 응답 예시는 공통 Swagger customizer(`openApiCustomizer`)가 자동으로 채운다. 수동 예시가 필요한 경우에는 실제 응답 포맷과 동일하게 작성한다.
 
 ## Swagger 에러 응답 명세 규칙
 
@@ -62,16 +62,11 @@ import io.swagger.v3.oas.annotations.media.ExampleObject
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 
-// 성공 응답
+// 성공 응답 — content 없이 responseCode와 description만 선언
+// SpringDoc이 메서드 반환 타입에서 실제 DTO 스키마를 자동 추론한다
 @SwaggerApiResponse(
     responseCode = "200",
     description = "조회 성공",
-    content = [
-        Content(
-            mediaType = "application/json",
-            schema = Schema(implementation = ApiResponse::class),
-        ),
-    ],
 )
 
 // Validation 에러
