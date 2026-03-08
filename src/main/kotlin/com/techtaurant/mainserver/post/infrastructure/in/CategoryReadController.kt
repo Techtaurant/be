@@ -1,6 +1,7 @@
 package com.techtaurant.mainserver.post.infrastructure.`in`
 
 import com.techtaurant.mainserver.common.dto.ApiResponse
+import com.techtaurant.mainserver.common.swagger.ApiErrorResponses
 import com.techtaurant.mainserver.post.application.CategoryReadService
 import com.techtaurant.mainserver.post.dto.CategoryResponse
 import com.techtaurant.mainserver.security.SecurityConstants
@@ -16,6 +17,7 @@ import java.util.UUID
 class CategoryReadController(
     private val categoryReadService: CategoryReadService,
 ) : CategoryReadControllerDocs {
+    @ApiErrorResponses
     @GetMapping
     override fun searchCategories(
         @PathVariable userId: UUID,

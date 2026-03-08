@@ -1,6 +1,7 @@
 package com.techtaurant.mainserver.security.infrastructure.`in`
 
 import com.techtaurant.mainserver.common.dto.ApiResponse
+import com.techtaurant.mainserver.common.swagger.ApiErrorResponses
 import com.techtaurant.mainserver.security.SecurityConstants
 import com.techtaurant.mainserver.security.aop.AuthRestController
 import com.techtaurant.mainserver.security.service.LogoutService
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 class AuthApiController(
     private val logoutService: LogoutService,
 ) : AuthApiControllerDocs {
+    @ApiErrorResponses(includeAuthenticationErrors = true)
     @PostMapping("/logout")
     override fun logout(
         request: HttpServletRequest,

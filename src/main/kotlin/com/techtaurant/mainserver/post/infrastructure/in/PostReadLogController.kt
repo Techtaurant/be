@@ -1,8 +1,11 @@
 package com.techtaurant.mainserver.post.infrastructure.`in`
 
 import com.techtaurant.mainserver.common.dto.ApiResponse
+import com.techtaurant.mainserver.common.swagger.ApiErrorResponses
 import com.techtaurant.mainserver.post.application.PostReadLogService
 import com.techtaurant.mainserver.post.dto.RecordPostReadRequest
+import com.techtaurant.mainserver.post.enums.PostStatus
+import com.techtaurant.mainserver.user.enums.UserStatus
 import jakarta.validation.Valid
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
@@ -19,6 +22,12 @@ import java.util.UUID
 class PostReadLogController(
     private val postReadLogService: PostReadLogService,
 ) : PostReadLogControllerDocs {
+    @ApiErrorResponses(
+        posts = [PostStatus.POST_NOT_FOUND],
+        users = [UserStatus.USER_NOT_FOUND],
+        includeAuthenticationErrors = true,
+        includeValidationError = true,
+    )
     @PostMapping("/{postId}/read-logs")
     override fun toggleReadStatus(
         @AuthenticationPrincipal userId: UUID,

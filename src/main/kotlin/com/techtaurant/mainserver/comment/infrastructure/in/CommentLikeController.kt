@@ -2,7 +2,10 @@ package com.techtaurant.mainserver.comment.infrastructure.`in`
 
 import com.techtaurant.mainserver.comment.application.CommentLikeLogService
 import com.techtaurant.mainserver.comment.dto.RecordCommentLikeRequest
+import com.techtaurant.mainserver.comment.enums.CommentStatus
 import com.techtaurant.mainserver.common.dto.ApiResponse
+import com.techtaurant.mainserver.common.swagger.ApiErrorResponses
+import com.techtaurant.mainserver.user.enums.UserStatus
 import jakarta.validation.Valid
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
@@ -19,6 +22,12 @@ import java.util.UUID
 class CommentLikeController(
     private val commentLikeLogService: CommentLikeLogService,
 ) : CommentLikeControllerDocs {
+    @ApiErrorResponses(
+        comments = [CommentStatus.COMMENT_NOT_FOUND],
+        users = [UserStatus.ID_NOT_FOUND],
+        includeAuthenticationErrors = true,
+        includeValidationError = true,
+    )
     @PostMapping("/{commentId}/like")
     override fun recordLike(
         @AuthenticationPrincipal userId: UUID,

@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.user.infrastructure.`in`
 
 import com.techtaurant.mainserver.common.dto.ApiResponse
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
+import com.techtaurant.mainserver.common.swagger.ApiErrorResponses
 import com.techtaurant.mainserver.post.application.PostListReadService
 import com.techtaurant.mainserver.post.dto.PostListItemResponse
 import com.techtaurant.mainserver.post.entity.PostPeriod
@@ -28,6 +29,7 @@ class UserOpenApiController(
     private val userReadService: UserReadService,
     private val postListReadService: PostListReadService,
 ) : UserOpenApiControllerDocs {
+    @ApiErrorResponses(includeValidationError = true)
     @GetMapping("/search")
     override fun searchByName(
         @NotBlank

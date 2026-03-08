@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.post.infrastructure.`in`
 
 import com.techtaurant.mainserver.common.dto.ApiResponse
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
+import com.techtaurant.mainserver.common.swagger.ApiErrorResponses
 import com.techtaurant.mainserver.post.application.TagReadService
 import com.techtaurant.mainserver.post.dto.TagResponse
 import com.techtaurant.mainserver.security.SecurityConstants
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController
 class TagReadController(
     private val tagReadService: TagReadService,
 ) : TagReadControllerDocs {
+    @ApiErrorResponses
     @GetMapping
     override fun getTags(
         @RequestParam(required = false) name: String?,

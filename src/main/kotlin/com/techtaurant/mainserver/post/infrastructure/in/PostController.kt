@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.post.infrastructure.`in`
 
 import com.techtaurant.mainserver.common.dto.ApiResponse
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
+import com.techtaurant.mainserver.common.swagger.ApiErrorResponses
 import com.techtaurant.mainserver.post.application.PostDetailReadService
 import com.techtaurant.mainserver.post.application.PostListReadService
 import com.techtaurant.mainserver.post.application.PostWriteService
@@ -10,6 +11,8 @@ import com.techtaurant.mainserver.post.dto.DraftListItemResponse
 import com.techtaurant.mainserver.post.dto.PostDetailResponse
 import com.techtaurant.mainserver.post.dto.PostResponse
 import com.techtaurant.mainserver.post.dto.UpdatePostRequest
+import com.techtaurant.mainserver.post.enums.PostStatus
+import com.techtaurant.mainserver.user.enums.UserStatus
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -33,6 +36,12 @@ class PostController(
     private val postListReadService: PostListReadService,
     private val postDetailReadService: PostDetailReadService,
 ) : PostControllerDocs {
+    @ApiErrorResponses(
+        posts = [PostStatus.CATEGORY_DEPTH_EXCEEDED, PostStatus.TITLE_REQUIRED, PostStatus.CONTENT_REQUIRED],
+        users = [UserStatus.ID_NOT_FOUND],
+        includeAuthenticationErrors = true,
+        includeValidationError = true,
+    )
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     override fun createPost(
@@ -42,6 +51,17 @@ class PostController(
         return ApiResponse.created(postWriteService.createPost(userId, request))
     }
 
+    @ApiErrorResponses(
+        posts = [
+            PostStatus.POST_NOT_FOUND,
+            PostStatus.CANNOT_MODIFY_OTHERS_POST,
+            PostStatus.CATEGORY_DEPTH_EXCEEDED,
+            PostStatus.TITLE_REQUIRED,
+            PostStatus.CONTENT_REQUIRED,
+        ],
+        includeAuthenticationErrors = true,
+        includeValidationError = true,
+    )
     @PatchMapping("/{postId}")
     override fun updatePost(
         @PathVariable postId: UUID,
@@ -51,6 +71,7 @@ class PostController(
         return ApiResponse.ok(postWriteService.updatePost(postId, request, userId))
     }
 
+    @ApiErrorResponses(includeAuthenticationErrors = true)
     @GetMapping("/drafts")
     override fun getMyDrafts(
         @RequestParam(required = false) cursor: String?,
@@ -60,6 +81,7 @@ class PostController(
         return ApiResponse.ok(postListReadService.getMyDrafts(userId, cursor, size))
     }
 
+    @ApiErrorResponses(posts = [PostStatus.POST_NOT_FOUND], includeAuthenticationErrors = true)
     @GetMapping("/drafts/{postId}")
     override fun getDraftDetail(
         @PathVariable postId: UUID,

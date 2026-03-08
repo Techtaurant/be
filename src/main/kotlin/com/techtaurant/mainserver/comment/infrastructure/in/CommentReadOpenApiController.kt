@@ -5,6 +5,7 @@ import com.techtaurant.mainserver.comment.dto.CommentListResponse
 import com.techtaurant.mainserver.comment.enums.CommentSortType
 import com.techtaurant.mainserver.common.dto.ApiResponse
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
+import com.techtaurant.mainserver.common.swagger.ApiErrorResponses
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -25,6 +26,7 @@ import java.util.UUID
 class CommentReadController(
     private val commentReadService: CommentReadService,
 ) : CommentReadControllerDocs {
+    @ApiErrorResponses(includeValidationError = true)
     @GetMapping("/posts/{postId}")
     override fun getParentComments(
         @AuthenticationPrincipal userId: UUID?,
@@ -36,6 +38,7 @@ class CommentReadController(
         return ApiResponse.ok(commentReadService.getParentComments(postId, cursor, size, sort, userId))
     }
 
+    @ApiErrorResponses(includeValidationError = true)
     @GetMapping("/{commentId}/replies")
     override fun getReplies(
         @AuthenticationPrincipal userId: UUID?,

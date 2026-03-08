@@ -1,6 +1,8 @@
 package com.techtaurant.mainserver.security.infrastructure.`in`
 
 import com.techtaurant.mainserver.common.dto.ApiResponse
+import com.techtaurant.mainserver.common.status.DefaultStatus
+import com.techtaurant.mainserver.common.swagger.ApiErrorResponses
 import com.techtaurant.mainserver.security.SecurityConstants
 import com.techtaurant.mainserver.security.dto.DevTestLoginRequest
 import com.techtaurant.mainserver.security.service.DevTestAuthService
@@ -23,6 +25,10 @@ import org.springframework.web.bind.annotation.RestController
 class DevTestAuthController(
     private val devTestAuthService: DevTestAuthService,
 ) : DevTestAuthControllerDocs {
+    @ApiErrorResponses(
+        defaults = [DefaultStatus.BAD_REQUEST, DefaultStatus.SERVER_ERROR],
+        includeValidationError = true,
+    )
     @PostMapping("/login")
     override fun login(
         @RequestBody @Valid request: DevTestLoginRequest,
