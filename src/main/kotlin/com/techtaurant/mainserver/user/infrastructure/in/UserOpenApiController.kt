@@ -1,71 +1,63 @@
 package com.techtaurant.mainserver.user.infrastructure.`in`
 
 import com.techtaurant.mainserver.common.dto.ApiResponse
+import com.techtaurant.mainserver.common.dto.CursorPageResponse
+import com.techtaurant.mainserver.common.swagger.ApiErrorResponses
+import com.techtaurant.mainserver.post.application.PostListReadService
+import com.techtaurant.mainserver.post.dto.PostListItemResponse
+import com.techtaurant.mainserver.post.entity.PostPeriod
+import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.security.SecurityConstants
 import com.techtaurant.mainserver.user.application.UserReadService
 import com.techtaurant.mainserver.user.dto.UserResponse
-import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.Parameter
-import io.swagger.v3.oas.annotations.media.Content
-import io.swagger.v3.oas.annotations.media.ExampleObject
-import io.swagger.v3.oas.annotations.media.Schema
-import io.swagger.v3.oas.annotations.responses.ApiResponses
-import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
+import java.util.UUID
 
-@Tag(name = "User", description = "사용자 Open API")
 @RestController
 @RequestMapping("${SecurityConstants.OPEN_API_PREFIX}/users")
 @Validated
 class UserOpenApiController(
     private val userReadService: UserReadService,
-) {
-    companion object {
-        private const val SEARCH_NAME_VALIDATION_ERROR_EXAMPLE =
-            "{\"status\": 400," +
-                " \"data\": {\"errors\":" +
-                " {\"searchByName.name\":" +
-                " \"공백일 수 없습니다\"}}," +
-                " \"message\": \"Wrong Request\"}"
-    }
-
-    @Operation(summary = "사용자 검색", description = "사용자 이름으로 검색합니다")
-    @ApiResponses(
-        value = [
-            io.swagger.v3.oas.annotations.responses.ApiResponse(
-                responseCode = "200",
-                description = "검색 성공",
-            ),
-            io.swagger.v3.oas.annotations.responses.ApiResponse(
-                responseCode = "400",
-                description = "name이 공백인 경우",
-                content = [
-                    Content(
-                        mediaType = "application/json",
-                        schema = Schema(implementation = ApiResponse::class),
-                        examples = [
-                            ExampleObject(
-                                name = "Validation 에러",
-                                value = SEARCH_NAME_VALIDATION_ERROR_EXAMPLE,
-                            ),
-                        ],
-                    ),
-                ],
-            ),
-        ],
-    )
+    private val postListReadService: PostListReadService,
+) : UserOpenApiControllerDocs {
+    @ApiErrorResponses(includeValidationError = true)
     @GetMapping("/search")
-    fun searchByName(
-        @Parameter(description = "검색할 사용자 이름 (1자 이상)")
-        @RequestParam
+    override fun searchByName(
         @NotBlank
-        name: String,
+        @RequestParam name: String,
     ): ApiResponse<List<UserResponse>> {
         return ApiResponse.ok(userReadService.searchByName(name))
+    }
+
+    @GetMapping("/{userId}/posts")
+    override fun getPostsByUserId(
+        @PathVariable userId: UUID,
+        @RequestParam(required = false) cursor: String?,
+        @RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int,
+        @RequestParam(defaultValue = "ALL") period: PostPeriod,
+        @RequestParam(defaultValue = "LATEST") sort: PostSortType,
+        @RequestParam(required = false) categoryId: UUID?,
+        @AuthenticationPrincipal currentUserId: UUID?,
+    ): ApiResponse<CursorPageResponse<PostListItemResponse>> {
+        return ApiResponse.ok(
+            postListReadService.getPosts(
+                cursor = cursor,
+                size = size,
+                period = period,
+                sortType = sort,
+                authorId = userId,
+                categoryId = categoryId,
+                currentUserId = currentUserId,
+            ),
+        )
     }
 }
