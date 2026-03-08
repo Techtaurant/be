@@ -11,8 +11,6 @@ import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.user.dto.UserResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
-import io.swagger.v3.oas.annotations.media.Content
-import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
@@ -26,7 +24,6 @@ interface UserOpenApiControllerDocs {
     @SwaggerApiResponse(
         responseCode = "200",
         description = "검색 성공",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = ApiResponse::class))],
     )
     @ApiErrorCodeResponses(
         [
@@ -47,7 +44,6 @@ interface UserOpenApiControllerDocs {
     @SwaggerApiResponse(
         responseCode = "200",
         description = "조회 성공",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = ApiResponse::class))],
     )
     @ApiErrorCodeResponses(
         [

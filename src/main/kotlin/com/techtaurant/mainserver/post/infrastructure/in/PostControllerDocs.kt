@@ -15,8 +15,6 @@ import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.security.jwt.JwtStatus
 import com.techtaurant.mainserver.user.enums.UserStatus
 import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.media.Content
-import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import java.util.UUID
@@ -28,7 +26,6 @@ interface PostControllerDocs {
     @SwaggerApiResponse(
         responseCode = "201",
         description = "작성 성공",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = ApiResponse::class))],
     )
     @ApiErrorCodeResponses(
         [
@@ -51,7 +48,6 @@ interface PostControllerDocs {
     @SwaggerApiResponse(
         responseCode = "200",
         description = "수정 성공",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = ApiResponse::class))],
     )
     @ApiErrorCodeResponses(
         [
@@ -77,7 +73,6 @@ interface PostControllerDocs {
     @SwaggerApiResponse(
         responseCode = "200",
         description = "조회 성공",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = ApiResponse::class))],
     )
     @ApiErrorCodeResponses(
         [
@@ -98,7 +93,6 @@ interface PostControllerDocs {
     @SwaggerApiResponse(
         responseCode = "200",
         description = "조회 성공",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = ApiResponse::class))],
     )
     @ApiErrorCodeResponses(
         [

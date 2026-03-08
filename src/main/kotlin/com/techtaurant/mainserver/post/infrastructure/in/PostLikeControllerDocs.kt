@@ -9,8 +9,6 @@ import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.security.jwt.JwtStatus
 import com.techtaurant.mainserver.user.enums.UserStatus
 import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.media.Content
-import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import java.util.UUID
@@ -25,7 +23,6 @@ interface PostLikeControllerDocs {
     @SwaggerApiResponse(
         responseCode = "200",
         description = "좋아요/싫어요 기록 성공",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = ApiResponse::class))],
     )
     @ApiErrorCodeResponses(
         [

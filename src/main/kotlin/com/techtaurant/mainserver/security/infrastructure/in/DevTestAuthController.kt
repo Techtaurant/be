@@ -27,7 +27,7 @@ class DevTestAuthController(
     override fun login(
         @RequestBody @Valid request: DevTestLoginRequest,
         response: HttpServletResponse,
-    ): ApiResponse<Nothing> {
+    ): ApiResponse<Unit> {
         devTestAuthService.execute(request, response)
         return ApiResponse.ok()
     }

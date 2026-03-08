@@ -7,8 +7,6 @@ import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponses
 import com.techtaurant.mainserver.post.dto.CategoryResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
-import io.swagger.v3.oas.annotations.media.Content
-import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
 import java.util.UUID
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
@@ -22,7 +20,6 @@ interface CategoryReadControllerDocs {
     @SwaggerApiResponse(
         responseCode = "200",
         description = "조회 성공",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = ApiResponse::class))],
     )
     @ApiErrorCodeResponses(
         [

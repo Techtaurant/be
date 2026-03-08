@@ -4,7 +4,6 @@ import com.techtaurant.mainserver.security.SecurityConstants
 import com.techtaurant.mainserver.security.jwt.JwtConstants
 import io.swagger.v3.oas.models.Components
 import io.swagger.v3.oas.models.OpenAPI
-import io.swagger.v3.oas.models.examples.Example
 import io.swagger.v3.oas.models.info.Info
 import io.swagger.v3.oas.models.security.SecurityRequirement
 import io.swagger.v3.oas.models.security.SecurityScheme
@@ -13,7 +12,6 @@ import org.springdoc.core.customizers.OpenApiCustomizer
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import java.util.LinkedHashMap
 
 /**
  * Swagger OpenAPI 설정
@@ -44,40 +42,12 @@ class SwaggerConfig(
     fun openApiCustomizer(): OpenApiCustomizer {
         return OpenApiCustomizer { openApi ->
             openApi.paths.forEach { (path, pathItem) ->
-                pathItem.readOperations().forEach { operation ->
-                    if (path.startsWith(SecurityConstants.OPEN_API_PREFIX)) {
+                if (path.startsWith(SecurityConstants.OPEN_API_PREFIX)) {
+                    pathItem.readOperations().forEach { operation ->
                         operation.security = emptyList()
-                    }
-
-                    operation.responses?.forEach { (responseCode, response) ->
-                        if (responseCode.startsWith("2")) {
-                            response.content?.get("application/json")?.let { mediaType ->
-                                if (mediaType.example == null && mediaType.examples.isNullOrEmpty()) {
-                                    mediaType.example = buildSuccessExample(responseCode)
-                                    mediaType.examples =
-                                        linkedMapOf(
-                                            responseCode to
-                                                Example()
-                                                    .summary("$responseCode 성공 응답")
-                                                    .value(buildSuccessExample(responseCode)),
-                                        )
-                                }
-                            }
-                        }
                     }
                 }
             }
-        }
-    }
-
-    private fun buildSuccessExample(responseCode: String): Map<String, Any?> {
-        val statusCode = responseCode.toIntOrNull() ?: 200
-        val message = if (statusCode == 201) "Created" else "OK"
-
-        return LinkedHashMap<String, Any?>().apply {
-            put("status", statusCode)
-            put("data", "string")
-            put("message", message)
         }
     }
 

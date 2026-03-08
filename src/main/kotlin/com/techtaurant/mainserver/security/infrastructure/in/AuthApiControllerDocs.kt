@@ -6,8 +6,6 @@ import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponse
 import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponses
 import com.techtaurant.mainserver.security.jwt.JwtStatus
 import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.media.Content
-import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
@@ -19,7 +17,6 @@ interface AuthApiControllerDocs {
     @SwaggerApiResponse(
         responseCode = "200",
         description = "로그아웃 성공",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = ApiResponse::class))],
     )
     @ApiErrorCodeResponses(
         [

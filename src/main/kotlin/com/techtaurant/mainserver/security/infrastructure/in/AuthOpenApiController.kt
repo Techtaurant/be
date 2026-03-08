@@ -18,7 +18,7 @@ class AuthOpenApiController(
     override fun refresh(
         request: HttpServletRequest,
         response: HttpServletResponse,
-    ): ApiResponse<Nothing> {
+    ): ApiResponse<Unit> {
         tokenRefreshService.execute(request = request, response = response)
         return ApiResponse.ok()
     }

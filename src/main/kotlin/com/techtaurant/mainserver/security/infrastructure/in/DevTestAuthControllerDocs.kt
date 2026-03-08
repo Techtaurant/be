@@ -6,8 +6,6 @@ import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponse
 import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponses
 import com.techtaurant.mainserver.security.dto.DevTestLoginRequest
 import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.media.Content
-import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.servlet.http.HttpServletResponse
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
@@ -21,7 +19,6 @@ interface DevTestAuthControllerDocs {
     @SwaggerApiResponse(
         responseCode = "200",
         description = "로그인 성공, 쿠키에 accessToken/refreshToken 설정",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = ApiResponse::class))],
     )
     @ApiErrorCodeResponses(
         [
@@ -31,5 +28,5 @@ interface DevTestAuthControllerDocs {
     fun login(
         request: DevTestLoginRequest,
         response: HttpServletResponse,
-    ): ApiResponse<Nothing>
+    ): ApiResponse<Unit>
 }
