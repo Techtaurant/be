@@ -1,5 +1,8 @@
 package com.techtaurant.mainserver.post.application
 
+import com.techtaurant.mainserver.attachment.application.AttachmentService
+import com.techtaurant.mainserver.attachment.entity.Attachment
+import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.post.dto.DraftListItemResponse
 import com.techtaurant.mainserver.post.dto.PostCursor
@@ -14,6 +17,8 @@ import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.Calendar
+import java.util.Date
 import java.util.UUID
 
 /**
@@ -24,11 +29,16 @@ import java.util.UUID
 class PostListReadService(
     private val postRepository: PostRepository,
     private val postReadLogRepository: PostReadLogRepository,
+    private val attachmentService: AttachmentService,
     @param:Value("\${app.default-post-thumbnail-url}")
     private val defaultThumbnailUrl: String,
     @param:Value("\${swagger.base-url}")
     private val baseUrl: String,
 ) {
+    companion object {
+        private const val STALE_DRAFT_DAYS = 14
+    }
+
     /**
      * 게시물 목록을 커서 기반 페이지네이션으로 조회
      *
@@ -111,10 +121,22 @@ class PostListReadService(
                 emptySet()
             }
 
+        val postIds = content.mapNotNull { it.id }
+        val attachmentsByPostId =
+            if (postIds.isNotEmpty()) {
+                attachmentService.getConfirmedAttachmentsByReferenceIds(postIds, AttachmentReferenceType.POST)
+            } else {
+                emptyMap()
+            }
+
         return CursorPageResponse(
             content =
                 content.map { post ->
-                    convertToResponse(post, readPostIds.contains(post.id))
+                    convertToResponse(
+                        post,
+                        readPostIds.contains(post.id),
+                        attachmentsByPostId[post.id] ?: emptyList(),
+                    )
                 },
             nextCursor = nextCursor,
             hasNext = hasNext,
@@ -131,12 +153,14 @@ class PostListReadService(
      * @param size 페이지 크기
      * @return DRAFT 게시물 목록 커서 페이지
      */
-    @Transactional(readOnly = true)
+    @Transactional
     fun getMyDrafts(
         userId: UUID,
         cursor: String?,
         size: Int,
     ): CursorPageResponse<DraftListItemResponse> {
+        deleteExpiredDrafts(userId)
+
         val posts =
             if (cursor == null) {
                 postRepository.findDraftsByAuthorFirstPage(userId, size + 1)
@@ -177,18 +201,44 @@ class PostListReadService(
         return "${updatedAt.time}_$id"
     }
 
+    /**
+     * 2주 이상 경과한 DRAFT 게시물을 삭제합니다.
+     * S3 첨부파일도 함께 삭제됩니다.
+     *
+     * @param userId 사용자 ID
+     */
+    private fun deleteExpiredDrafts(userId: UUID) {
+        val calendar =
+            Calendar.getInstance().apply {
+                add(Calendar.DAY_OF_MONTH, -STALE_DRAFT_DAYS)
+            }
+        val expirationDate = calendar.time
+
+        val staleDrafts = postRepository.findStaleDraftsByAuthor(userId, expirationDate)
+        staleDrafts.forEach { post ->
+            attachmentService.deleteAttachmentsByReference(post.id!!, AttachmentReferenceType.POST)
+            postRepository.delete(post)
+        }
+    }
+
+    /**
+     * Post 엔티티를 PostListItemResponse DTO로 변환합니다.
+     * 썸네일 URL과 읽음 여부를 계산하여 포함합니다.
+     *
+     * @param post 게시물 엔티티
+     * @param isRead 현재 사용자가 읽은 게시물인지 여부
+     * @param attachments 게시물의 CONFIRMED 첨부파일 목록 (썸네일 계산용)
+     * @return 응답 DTO
+     */
     private fun convertToResponse(
         post: Post,
         isRead: Boolean,
+        attachments: List<Attachment>,
     ): PostListItemResponse {
         val thumbnailUrl =
-            post.pictures
-                .filter { it.isThumbnail }
-                .minByOrNull { it.displayOrder }
-                ?.pictureUrl
-                ?: post.pictures
-                    .minByOrNull { it.displayOrder }
-                    ?.pictureUrl
+            attachments
+                .minByOrNull { it.createdAt }
+                ?.objectKey
                 ?: "$baseUrl$defaultThumbnailUrl"
 
         return PostListItemResponse(

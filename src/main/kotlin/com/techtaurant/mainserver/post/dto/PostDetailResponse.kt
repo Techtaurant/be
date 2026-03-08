@@ -70,11 +70,12 @@ data class PostDetailResponse(
             post: Post,
             likeStatus: LikeStatus,
             isRead: Boolean,
+            content: String = post.content,
         ): PostDetailResponse =
             PostDetailResponse(
                 id = post.id!!,
                 title = post.title,
-                content = post.content,
+                content = content,
                 author = AuthorResponse.from(post.author),
                 category = post.category?.let { CategoryResponse.from(it) },
                 tags = post.tags.map { PostListTagResponse.from(it) },

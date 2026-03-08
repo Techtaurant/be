@@ -3,18 +3,26 @@ package com.techtaurant.mainserver.post.entity
 import com.techtaurant.mainserver.common.base.EntityBase
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.user.entity.User
-import jakarta.persistence.*
+import jakarta.persistence.CascadeType
+import jakarta.persistence.Column
+import jakarta.persistence.Entity
+import jakarta.persistence.EnumType
+import jakarta.persistence.Enumerated
+import jakarta.persistence.FetchType
+import jakarta.persistence.JoinColumn
+import jakarta.persistence.JoinTable
+import jakarta.persistence.ManyToMany
+import jakarta.persistence.ManyToOne
+import jakarta.persistence.Table
 
 /**
  * 게시물 엔티티
  *
  * @property title 게시물 제목 (최대 200자)
  * @property content 게시물 본문 (TEXT 타입, 제한 없음)
- * @property contentTsVector PostgreSQL tsvector 컬럼으로 한국어 전문 검색 지원
  * @property author 작성자 (User와 N:1 관계)
  * @property category 카테고리 (Category와 N:1 관계)
  * @property tags 태그 목록 (ManyToMany)
- * @property pictures 게시물에 첨부된 사진 목록
  * @property viewCount 조회수 (이벤트 발생 시 원자적 증분)
  * @property likeCount 좋아요수 (이벤트 발생 시 원자적 증분)
  * @property commentCount 댓글수 (이벤트 발생 시 원자적 증분)
@@ -40,8 +48,6 @@ class Post(
         inverseJoinColumns = [JoinColumn(name = "tag_id")],
     )
     var tags: MutableSet<Tag> = mutableSetOf(),
-    @OneToMany(mappedBy = "post", fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
-    var pictures: MutableSet<PostPicture> = mutableSetOf(),
     @Column(name = "view_count", nullable = false)
     var viewCount: Long = 0,
     @Column(name = "like_count", nullable = false)

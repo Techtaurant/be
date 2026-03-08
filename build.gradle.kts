@@ -81,6 +81,10 @@ dependencies {
 
     // HTML Sanitization
     implementation("org.jsoup:jsoup:1.18.3")
+
+    // AWS SDK v2
+    implementation(platform("software.amazon.awssdk:bom:2.25.0"))
+    implementation("software.amazon.awssdk:s3")
 }
 
 kotlin {

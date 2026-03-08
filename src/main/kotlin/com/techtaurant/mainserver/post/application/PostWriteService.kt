@@ -1,5 +1,7 @@
 package com.techtaurant.mainserver.post.application
 
+import com.techtaurant.mainserver.attachment.application.AttachmentService
+import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.lock.DistributedLock
 import com.techtaurant.mainserver.common.util.HtmlSanitizer
@@ -28,6 +30,7 @@ class PostWriteService(
     private val tagRepository: TagRepository,
     private val userRepository: UserRepository,
     private val distributedLock: DistributedLock,
+    private val attachmentService: AttachmentService,
 ) {
     companion object {
         private const val MAX_CATEGORY_DEPTH = 5
@@ -87,6 +90,20 @@ class PostWriteService(
             )
 
         val savedPost = postRepository.save(post)
+
+        if (status != PostStatusEnum.DRAFT && !request.objectKeys.isNullOrEmpty()) {
+            val keyMap =
+                attachmentService.confirmAttachments(
+                    referenceId = savedPost.id!!,
+                    referenceType = AttachmentReferenceType.POST,
+                    objectKeys = request.objectKeys,
+                )
+            if (keyMap.isNotEmpty()) {
+                savedPost.content = replaceObjectKeys(savedPost.content, keyMap)
+                postRepository.save(savedPost)
+            }
+        }
+
         return PostResponse.from(savedPost)
     }
 
@@ -129,7 +146,55 @@ class PostWriteService(
         }
 
         val savedPost = postRepository.save(post)
+
+        val newStatus = request.status ?: post.status
+        if (newStatus != PostStatusEnum.DRAFT && !request.objectKeys.isNullOrEmpty()) {
+            val tmpKeys = request.objectKeys.filter { it.startsWith("tmp/") }
+            if (tmpKeys.isNotEmpty()) {
+                val keyMap =
+                    attachmentService.confirmAttachments(
+                        referenceId = postId,
+                        referenceType = AttachmentReferenceType.POST,
+                        objectKeys = tmpKeys,
+                    )
+                if (keyMap.isNotEmpty()) {
+                    savedPost.content = replaceObjectKeys(savedPost.content, keyMap)
+                    postRepository.save(savedPost)
+                }
+            }
+        }
+
+        val keepKeys = request.objectKeys ?: emptyList()
+        if (keepKeys.isNotEmpty()) {
+            attachmentService.deleteOrphanedAttachments(postId, AttachmentReferenceType.POST, keepKeys)
+        }
+
         return PostResponse.from(savedPost)
+    }
+
+    /**
+     * 게시물을 삭제합니다.
+     * 연관된 S3 첨부파일과 DB 레코드를 함께 삭제합니다.
+     *
+     * @param postId 게시물 ID
+     * @param userId 요청 사용자 ID
+     * @throws ApiException 게시물 없음(POST_NOT_FOUND), 권한 없음(CANNOT_MODIFY_OTHERS_POST)
+     */
+    @Transactional
+    fun deletePost(
+        postId: UUID,
+        userId: UUID,
+    ) {
+        val post =
+            postRepository.findPostByIdWithAuthor(postId)
+                ?: throw ApiException(PostStatus.POST_NOT_FOUND)
+
+        if (post.author.id != userId) {
+            throw ApiException(PostStatus.CANNOT_MODIFY_OTHERS_POST)
+        }
+
+        attachmentService.deleteAttachmentsByReference(postId, AttachmentReferenceType.POST)
+        postRepository.delete(post)
     }
 
     private fun findUserById(userId: UUID): User {
@@ -221,5 +286,24 @@ class PostWriteService(
             }
 
         return existingTags + newTags
+    }
+
+    /**
+     * content 내의 이전 objectKey를 새 objectKey로 일괄 교체합니다.
+     * markdown 이미지(`![...](key)`)와 img 태그(`src="key"`) 패턴 모두 처리합니다.
+     *
+     * @param content 게시물 본문
+     * @param keyMap 이전 objectKey → 새 objectKey 매핑
+     * @return objectKey가 교체된 content
+     */
+    private fun replaceObjectKeys(
+        content: String,
+        keyMap: Map<String, String>,
+    ): String {
+        var result = content
+        keyMap.forEach { (oldKey, newKey) ->
+            result = result.replace(oldKey, newKey)
+        }
+        return result
     }
 }

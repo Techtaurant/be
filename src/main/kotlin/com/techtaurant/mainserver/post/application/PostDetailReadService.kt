@@ -1,5 +1,7 @@
 package com.techtaurant.mainserver.post.application
 
+import com.techtaurant.mainserver.attachment.application.AttachmentService
+import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.post.dto.PostDetailResponse
@@ -23,6 +25,7 @@ class PostDetailReadService(
     private val postViewLogService: PostViewLogService,
     private val postLikeLogRepository: PostLikeLogRepository,
     private val postReadLogRepository: PostReadLogRepository,
+    private val attachmentService: AttachmentService,
 ) {
     /**
      * 게시물 상세 정보를 조회합니다.
@@ -75,6 +78,14 @@ class PostDetailReadService(
                 postReadLogRepository.existsByPostIdAndUserId(postId, it)
             } ?: false
 
-        return PostDetailResponse.from(post, likeStatus, isRead)
+        val presignedUrlMap =
+            attachmentService.generatePresignedDownloadUrlMap(postId, AttachmentReferenceType.POST)
+
+        val contentWithPresignedUrls =
+            presignedUrlMap.entries.fold(post.content) { acc, (objectKey, presignedUrl) ->
+                acc.replace(objectKey, presignedUrl)
+            }
+
+        return PostDetailResponse.from(post, likeStatus, isRead, contentWithPresignedUrls)
     }
 }

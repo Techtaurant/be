@@ -92,3 +92,10 @@ swagger:
 # App
 app:
   default-post-thumbnail-url: /static/images/post-thumbnail.png
+
+# AWS S3
+aws:
+  s3:
+    region: ${AWS_REGION:ap-northeast-2}
+    bucket-name: ${AWS_S3_BUCKET_NAME:techtaurant-media}
+    presigned-url-expire-minutes: ${AWS_S3_PRESIGNED_URL_EXPIRE_MINUTES:15}

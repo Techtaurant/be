@@ -29,4 +29,6 @@ data class UpdatePostRequest(
     val tags: List<String>? = null,
     @field:Schema(description = "게시물 상태 (DRAFT/PUBLISHED/PRIVATE)", example = "PUBLISHED")
     val status: PostStatusEnum? = null,
+    @field:Schema(description = "content에 삽입된 S3 objectKey 목록 (현재 content에 존재하는 objectKey 전체)", example = "[\"posts/uuid/photo.jpg\"]")
+    val objectKeys: List<String>? = null,
 )

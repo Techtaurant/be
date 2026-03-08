@@ -22,7 +22,6 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
         SELECT p FROM Post p
         JOIN FETCH p.author
         LEFT JOIN FETCH p.tags
-        LEFT JOIN FETCH p.pictures
         LEFT JOIN FETCH p.category
         WHERE p.id = :postId
     """,
@@ -170,4 +169,25 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
     fun incrementCommentCount(
         @Param("postId") postId: UUID,
     )
+
+    /**
+     * 특정 사용자의 2주 이상 경과한 DRAFT 게시물 목록을 조회합니다.
+     *
+     * @param authorId 작성자 ID
+     * @param before 기준 날짜 (이 날짜 이전에 수정된 DRAFT 반환)
+     * @return 만료된 DRAFT 게시물 리스트
+     */
+    @Query(
+        """
+        SELECT p FROM Post p
+        JOIN FETCH p.author
+        WHERE p.author.id = :authorId
+        AND p.status = 'DRAFT'
+        AND p.updatedAt < :before
+    """,
+    )
+    fun findStaleDraftsByAuthor(
+        @Param("authorId") authorId: UUID,
+        @Param("before") before: Date,
+    ): List<Post>
 }

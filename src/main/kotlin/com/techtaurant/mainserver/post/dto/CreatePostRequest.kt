@@ -26,4 +26,6 @@ data class CreatePostRequest(
     val tags: List<String>? = null,
     @field:Schema(description = "게시물 상태 (DRAFT/PUBLISHED/PRIVATE, 기본값: PUBLISHED)", example = "PUBLISHED")
     val status: PostStatusEnum? = null,
+    @field:Schema(description = "content에 삽입된 S3 objectKey 목록 (presigned URL 업로드 후 발급받은 값)", example = "[\"tmp/uuid/photo.jpg\"]")
+    val objectKeys: List<String>? = null,
 )

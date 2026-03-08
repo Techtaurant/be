@@ -5,7 +5,6 @@ import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
-import com.techtaurant.mainserver.post.entity.PostPicture
 import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.entity.Post_
 import com.techtaurant.mainserver.post.entity.Tag
@@ -54,7 +53,6 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
 
         root.fetch<Post, User>(Post_.AUTHOR)
         root.fetch<Post, Tag>(Post_.TAGS, JoinType.LEFT)
-        root.fetch<Post, PostPicture>(Post_.PICTURES, JoinType.LEFT)
 
         val predicates = mutableListOf<Predicate>()
 
