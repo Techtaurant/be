@@ -11,6 +11,7 @@ import com.techtaurant.mainserver.user.application.UserReadService
 import com.techtaurant.mainserver.user.dto.UserResponse
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotBlank
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
@@ -29,6 +30,7 @@ class UserOpenApiController(
 ) : UserOpenApiControllerDocs {
     @GetMapping("/search")
     override fun searchByName(
+        @NotBlank
         @RequestParam name: String,
     ): ApiResponse<List<UserResponse>> {
         return ApiResponse.ok(userReadService.searchByName(name))
@@ -45,12 +47,12 @@ class UserOpenApiController(
         @AuthenticationPrincipal currentUserId: UUID?,
     ): ApiResponse<CursorPageResponse<PostListItemResponse>> {
         return ApiResponse.ok(
-            postListReadService.getPostsByUserId(
-                userId = userId,
+            postListReadService.getPosts(
                 cursor = cursor,
                 size = size,
                 period = period,
                 sortType = sort,
+                authorId = userId,
                 categoryId = categoryId,
                 currentUserId = currentUserId,
             ),

@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import java.util.UUID
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 
@@ -37,6 +38,6 @@ interface CommentLikeControllerDocs {
     fun recordLike(
         userId: UUID,
         commentId: UUID,
-        request: RecordCommentLikeRequest,
+        @Valid request: RecordCommentLikeRequest,
     ): ApiResponse<Unit>
 }

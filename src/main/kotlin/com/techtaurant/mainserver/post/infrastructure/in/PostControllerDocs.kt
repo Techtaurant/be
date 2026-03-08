@@ -18,6 +18,7 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import java.util.UUID
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 
@@ -40,7 +41,7 @@ interface PostControllerDocs {
     )
     fun createPost(
         userId: UUID,
-        request: CreatePostRequest,
+        @Valid request: CreatePostRequest,
     ): ApiResponse<PostResponse>
 
     @Operation(
@@ -65,7 +66,7 @@ interface PostControllerDocs {
     )
     fun updatePost(
         postId: UUID,
-        request: UpdatePostRequest,
+        @Valid request: UpdatePostRequest,
         userId: UUID,
     ): ApiResponse<PostResponse>
 

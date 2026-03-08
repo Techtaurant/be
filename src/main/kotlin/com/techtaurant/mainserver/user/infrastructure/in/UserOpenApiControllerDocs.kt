@@ -14,6 +14,9 @@ import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotBlank
 import java.util.UUID
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 
@@ -27,10 +30,15 @@ interface UserOpenApiControllerDocs {
     )
     @ApiErrorCodeResponses(
         [
+            ApiErrorCodeResponse(DefaultStatus::class, ["BAD_REQUEST"]),
             ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
         ],
     )
-    fun searchByName(name: String): ApiResponse<List<UserResponse>>
+    fun searchByName(
+        @Parameter(description = "검색할 사용자 이름 (1자 이상)")
+        @NotBlank
+        name: String,
+    ): ApiResponse<List<UserResponse>>
 
     @Operation(
         summary = "사용자 게시물 목록 조회",
@@ -49,7 +57,7 @@ interface UserOpenApiControllerDocs {
     fun getPostsByUserId(
         @Parameter(description = "조회 대상 사용자 ID") userId: UUID,
         @Parameter(description = "이전 응답의 nextCursor (첫 페이지는 생략)") cursor: String?,
-        @Parameter(description = "페이지 크기 (1-100, 기본값 20)") size: Int,
+        @Parameter(description = "페이지 크기 (1-100, 기본값 20)") @Min(1) @Max(100) size: Int,
         @Parameter(description = "기간 필터 (WEEK: 7일, MONTH: 30일, YEAR: 365일, ALL: 전체)") period: PostPeriod,
         @Parameter(description = "정렬 기준 (LATEST: 최신순, VIEW: 조회순, LIKE: 추천순, COMMENT: 댓글순)") sort: PostSortType,
         @Parameter(description = "카테고리 ID 필터 (생략 시 전체)") categoryId: UUID?,

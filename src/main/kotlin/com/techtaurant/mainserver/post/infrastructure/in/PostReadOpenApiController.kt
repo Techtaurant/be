@@ -34,9 +34,23 @@ class PostReadOpenApiController(
         @RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int,
         @RequestParam(defaultValue = "ALL") period: PostPeriod,
         @RequestParam(defaultValue = "LATEST") sort: PostSortType,
-        @AuthenticationPrincipal userId: UUID?,
+        @RequestParam(required = false)
+        authorId: UUID?,
+        @RequestParam(required = false)
+        categoryId: UUID?,
+        @AuthenticationPrincipal currentUserId: UUID?,
     ): ApiResponse<CursorPageResponse<PostListItemResponse>> {
-        return ApiResponse.ok(postListReadService.getPosts(cursor, size, period, sort, userId))
+        return ApiResponse.ok(
+            postListReadService.getPosts(
+                cursor = cursor,
+                size = size,
+                period = period,
+                sortType = sort,
+                currentUserId = currentUserId,
+                authorId = authorId,
+                categoryId = categoryId,
+            ),
+        )
     }
 
     @GetMapping("/{postId}")

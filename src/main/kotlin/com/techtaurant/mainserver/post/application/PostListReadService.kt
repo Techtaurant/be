@@ -32,11 +32,16 @@ class PostListReadService(
     /**
      * 게시물 목록을 커서 기반 페이지네이션으로 조회
      *
+     * authorId 지정 시 해당 사용자의 게시물만 조회하며, 본인 조회 시 DRAFT/PRIVATE 포함, 타인 조회 시 PUBLISHED만 반환.
+     * authorId 미지정 시 전체 게시물 조회 (로그인 사용자의 DRAFT/PRIVATE 포함).
+     *
      * @param cursor 이전 응답의 nextCursor (null이면 첫 페이지)
      * @param size 페이지 크기
      * @param period 기간 필터 (WEEK, MONTH, YEAR, ALL)
      * @param sortType 정렬 기준 (LATEST, VIEW, LIKE, COMMENT)
-     * @param userId 현재 사용자 ID (비회원이면 null)
+     * @param currentUserId 현재 로그인 사용자 ID (비회원이면 null)
+     * @param authorId 작성자 필터 (null이면 전체 조회)
+     * @param categoryId 카테고리 필터 (null이면 전체, authorId 지정 시에만 적용)
      * @return 커서 기반 페이지 응답
      */
     fun getPosts(
@@ -44,81 +49,9 @@ class PostListReadService(
         size: Int,
         period: PostPeriod = PostPeriod.ALL,
         sortType: PostSortType = PostSortType.LATEST,
-        userId: UUID? = null,
-    ): CursorPageResponse<PostListItemResponse> {
-        val postCursor = cursor?.let { PostCursor.decode(it) }
-
-        if (cursor != null && postCursor == null) {
-            return CursorPageResponse(
-                content = emptyList(),
-                nextCursor = null,
-                hasNext = false,
-                size = 0,
-            )
-        }
-
-        val posts =
-            postRepository.findPostsWithConditions(
-                cursor = postCursor,
-                size = size + 1,
-                period = period,
-                sortType = sortType,
-                visibleToUserId = userId,
-            )
-
-        val hasNext = posts.size > size
-        val content = posts.take(size)
-
-        val nextCursor =
-            if (hasNext && content.isNotEmpty()) {
-                PostCursor.from(content.last(), sortType).encode()
-            } else {
-                null
-            }
-
-        val readPostIds =
-            if (userId != null && content.isNotEmpty()) {
-                postReadLogRepository.findByUserIdAndPostIdIn(
-                    userId = userId,
-                    postIds = content.mapNotNull { it.id },
-                ).map { it.postId }.toSet()
-            } else {
-                emptySet()
-            }
-
-        return CursorPageResponse(
-            content =
-                content.map { post ->
-                    convertToResponse(post, readPostIds.contains(post.id))
-                },
-            nextCursor = nextCursor,
-            hasNext = hasNext,
-            size = content.size,
-        )
-    }
-
-    /**
-     * 특정 사용자의 게시물 목록을 커서 기반 페이지네이션으로 조회
-     *
-     * 본인 조회 시 모든 상태(DRAFT, PUBLISHED, PRIVATE), 타인 조회 시 PUBLISHED만 반환
-     *
-     * @param userId 조회 대상 사용자 ID
-     * @param cursor 이전 응답의 nextCursor (null이면 첫 페이지)
-     * @param size 페이지 크기
-     * @param period 기간 필터 (WEEK, MONTH, YEAR, ALL)
-     * @param sortType 정렬 기준 (LATEST, VIEW, LIKE, COMMENT)
-     * @param categoryId 카테고리 필터 (null이면 전체)
-     * @param currentUserId 현재 로그인 사용자 ID (본인/타인 분기용, 비회원이면 null)
-     * @return 커서 기반 페이지 응답
-     */
-    fun getPostsByUserId(
-        userId: UUID,
-        cursor: String?,
-        size: Int,
-        period: PostPeriod = PostPeriod.ALL,
-        sortType: PostSortType = PostSortType.LATEST,
-        categoryId: UUID? = null,
         currentUserId: UUID? = null,
+        authorId: UUID? = null,
+        categoryId: UUID? = null,
     ): CursorPageResponse<PostListItemResponse> {
         val postCursor = cursor?.let { PostCursor.decode(it) }
 
@@ -131,23 +64,32 @@ class PostListReadService(
             )
         }
 
-        val statuses =
-            if (currentUserId == userId) {
-                PostStatusEnum.entries
-            } else {
-                listOf(PostStatusEnum.PUBLISHED)
-            }
-
         val posts =
-            postRepository.findPostsWithConditions(
-                cursor = postCursor,
-                size = size + 1,
-                period = period,
-                sortType = sortType,
-                authorId = userId,
-                statuses = statuses,
-                categoryId = categoryId,
-            )
+            if (authorId != null) {
+                val statuses =
+                    if (currentUserId == authorId) {
+                        PostStatusEnum.entries
+                    } else {
+                        listOf(PostStatusEnum.PUBLISHED)
+                    }
+                postRepository.findPostsWithConditions(
+                    cursor = postCursor,
+                    size = size + 1,
+                    period = period,
+                    sortType = sortType,
+                    authorId = authorId,
+                    statuses = statuses,
+                    categoryId = categoryId,
+                )
+            } else {
+                postRepository.findPostsWithConditions(
+                    cursor = postCursor,
+                    size = size + 1,
+                    period = period,
+                    sortType = sortType,
+                    visibleToUserId = currentUserId,
+                )
+            }
 
         val hasNext = posts.size > size
         val content = posts.take(size)
@@ -235,14 +177,6 @@ class PostListReadService(
         return "${updatedAt.time}_$id"
     }
 
-    /**
-     * Post 엔티티를 PostListItemResponse DTO로 변환합니다.
-     * 썸네일 URL과 읽음 여부를 계산하여 포함합니다.
-     *
-     * @param post 게시물 엔티티
-     * @param isRead 현재 사용자가 읽은 게시물인지 여부
-     * @return 응답 DTO
-     */
     private fun convertToResponse(
         post: Post,
         isRead: Boolean,
@@ -260,6 +194,7 @@ class PostListReadService(
         return PostListItemResponse(
             id = post.id!!,
             title = post.title,
+            authorId = post.author.id!!,
             authorName = post.author.name,
             authorProfileImageUrl = post.author.profileImageUrl,
             thumbnailUrl = thumbnailUrl,

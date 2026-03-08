@@ -16,6 +16,8 @@ import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.servlet.http.HttpServletRequest
+import jakarta.validation.constraints.Max
+import jakarta.validation.constraints.Min
 import java.util.UUID
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 
@@ -37,10 +39,12 @@ interface PostReadOpenApiControllerDocs {
     )
     fun getPosts(
         @Parameter(description = "이전 응답의 nextCursor (첫 페이지는 생략)") cursor: String?,
-        @Parameter(description = "페이지 크기 (1-100, 기본값 20)") size: Int,
+        @Parameter(description = "페이지 크기 (1-100, 기본값 20)") @Min(1) @Max(100) size: Int,
         @Parameter(description = "기간 필터 (WEEK: 7일, MONTH: 30일, YEAR: 365일, ALL: 전체)") period: PostPeriod,
         @Parameter(description = "정렬 기준 (LATEST: 최신순, VIEW: 조회순, LIKE: 추천순, COMMENT: 댓글순)") sort: PostSortType,
-        userId: UUID?,
+        @Parameter(description = "작성자 ID 필터 (생략 시 전체 조회, 본인 조회 시 DRAFT/PRIVATE 포함)") authorId: UUID?,
+        @Parameter(description = "카테고리 ID 필터 (authorId 지정 시에만 적용, 생략 시 전체)") categoryId: UUID?,
+        currentUserId: UUID?,
     ): ApiResponse<CursorPageResponse<PostListItemResponse>>
 
     @Operation(
