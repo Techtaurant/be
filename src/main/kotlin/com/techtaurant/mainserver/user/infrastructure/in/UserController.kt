@@ -4,36 +4,19 @@ import com.techtaurant.mainserver.common.dto.ApiResponse
 import com.techtaurant.mainserver.security.SecurityConstants
 import com.techtaurant.mainserver.user.application.UserReadService
 import com.techtaurant.mainserver.user.dto.UserResponse
-import io.swagger.v3.oas.annotations.Operation
-import io.swagger.v3.oas.annotations.responses.ApiResponses
-import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
-@Tag(name = "User", description = "사용자 API")
 @RestController
 @RequestMapping("${SecurityConstants.API_PREFIX}/users")
 class UserController(
     private val userReadService: UserReadService,
-) {
-    @Operation(summary = "내 정보 조회", description = "현재 로그인한 사용자의 정보를 조회합니다")
-    @ApiResponses(
-        value = [
-            io.swagger.v3.oas.annotations.responses.ApiResponse(
-                responseCode = "200",
-                description = "조회 성공",
-            ),
-            io.swagger.v3.oas.annotations.responses.ApiResponse(
-                responseCode = "401",
-                description = "인증되지 않은 사용자",
-            ),
-        ],
-    )
+) : UserControllerDocs {
     @GetMapping("/me")
-    fun getMe(
+    override fun getMe(
         @AuthenticationPrincipal userId: UUID,
     ): ApiResponse<UserResponse> {
         return ApiResponse.ok(userReadService.getMe(userId))
