@@ -119,6 +119,7 @@ class AttachmentServiceTest {
 
         @BeforeEach
         fun setUp() {
+            every { s3StorageService.exists(any()) } returns true
             every { s3StorageService.copyObject(any(), any()) } just runs
             every { s3StorageService.deleteObject(any()) } just runs
             every { attachmentRepository.saveAll(any<List<Attachment>>()) } answers { firstArg() }
