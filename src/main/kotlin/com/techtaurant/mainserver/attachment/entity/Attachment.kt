@@ -9,6 +9,8 @@ import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Index
 import jakarta.persistence.Table
+import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.type.SqlTypes
 import java.util.UUID
 
 /**
@@ -38,12 +40,14 @@ class Attachment(
     @Column(name = "reference_id")
     var referenceId: UUID? = null,
     @Enumerated(EnumType.STRING)
-    @Column(name = "reference_type", nullable = false, length = 50)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name = "reference_type", nullable = false, columnDefinition = "attachment_reference_type")
     var referenceType: AttachmentReferenceType,
     @Column(name = "object_key", nullable = false, length = 500)
     var objectKey: String,
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(nullable = false, columnDefinition = "attachment_status")
     var status: AttachmentStatus,
     @Column(name = "original_file_name", nullable = false, length = 255)
     var originalFileName: String,

@@ -1,10 +1,16 @@
+-- Attachment Reference Type ENUM 생성
+CREATE TYPE attachment_reference_type AS ENUM ('POST');
+
+-- Attachment Status ENUM 생성
+CREATE TYPE attachment_status AS ENUM ('TMP', 'CONFIRMED');
+
 -- attachments 테이블 생성 (post_pictures를 대체하는 범용 첨부파일 테이블)
 CREATE TABLE attachments (
     id UUID PRIMARY KEY,
     reference_id UUID,
-    reference_type VARCHAR(50) NOT NULL,
+    reference_type attachment_reference_type NOT NULL,
     object_key VARCHAR(500) NOT NULL,
-    status VARCHAR(20) NOT NULL,
+    status attachment_status NOT NULL,
     original_file_name VARCHAR(255) NOT NULL,
     content_type VARCHAR(100) NOT NULL,
     file_size BIGINT NOT NULL,
@@ -19,6 +25,7 @@ CREATE INDEX idx_attachments_status ON attachments(status);
 
 -- post_pictures 데이터를 attachments로 마이그레이션
 -- 기존 picture_url을 object_key로 사용하며 CONFIRMED 상태로 이관
+-- PostgreSQL ENUM 캐스팅(::attachment_reference_type) 사용
 INSERT INTO attachments (
     id,
     reference_id,
@@ -34,9 +41,9 @@ INSERT INTO attachments (
 SELECT
     id,
     post_id AS reference_id,
-    'POST' AS reference_type,
+    'POST'::attachment_reference_type AS reference_type,
     picture_url AS object_key,
-    'CONFIRMED' AS status,
+    'CONFIRMED'::attachment_status AS status,
     '' AS original_file_name,
     'image/jpeg' AS content_type,
     0 AS file_size,
