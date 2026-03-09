@@ -92,8 +92,7 @@ class PostWriteService(
         val savedPost = postRepository.save(post)
 
         if (status != PostStatusEnum.DRAFT) {
-            val contentObjectKeys = HtmlSanitizer.extractTmpObjectKeys(savedPost.content)
-            val allObjectKeys = (contentObjectKeys + (request.objectKeys ?: emptyList())).distinct()
+            val allObjectKeys = HtmlSanitizer.extractTmpObjectKeys(savedPost.content)
 
             if (allObjectKeys.isNotEmpty()) {
                 val keyMap =
@@ -154,8 +153,7 @@ class PostWriteService(
 
         val newStatus = request.status ?: post.status
         if (newStatus != PostStatusEnum.DRAFT) {
-            val contentObjectKeys = HtmlSanitizer.extractTmpObjectKeys(savedPost.content)
-            val allObjectKeys = (contentObjectKeys + (request.objectKeys ?: emptyList())).distinct()
+            val allObjectKeys = HtmlSanitizer.extractTmpObjectKeys(savedPost.content)
             val tmpKeys = allObjectKeys.filter { it.startsWith("tmp/") }
 
             if (tmpKeys.isNotEmpty()) {

@@ -165,9 +165,6 @@ def main() -> None:
     print("  📌 게시물 content에 삽입할 형식:")
     print(f"     Markdown: ![이미지]({object_key})")
     print(f"     HTML:     <img src=\"{object_key}\" />")
-    print()
-    print("  📌 confirm 요청 시 objectKeys에 포함할 값:")
-    print(f'     ["{object_key}"]')
     print(DIVIDER)
 
 
