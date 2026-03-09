@@ -110,6 +110,11 @@ tasks.withType<Test> {
     finalizedBy("jacocoTestReport")
 }
 
+// Configure bootRun task for development
+tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+    environment("SPRING_PROFILES_ACTIVE", "dev")
+}
+
 // Configure JaCoCo Test Report Task
 tasks.named<JacocoReport>("jacocoTestReport") {
     dependsOn(tasks.withType<Test>())
