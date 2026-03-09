@@ -91,16 +91,21 @@ class PostWriteService(
 
         val savedPost = postRepository.save(post)
 
-        if (status != PostStatusEnum.DRAFT && !request.objectKeys.isNullOrEmpty()) {
-            val keyMap =
-                attachmentService.confirmAttachments(
-                    referenceId = savedPost.id!!,
-                    referenceType = AttachmentReferenceType.POST,
-                    objectKeys = request.objectKeys,
-                )
-            if (keyMap.isNotEmpty()) {
-                savedPost.content = replaceObjectKeys(savedPost.content, keyMap)
-                postRepository.save(savedPost)
+        if (status != PostStatusEnum.DRAFT) {
+            val contentObjectKeys = HtmlSanitizer.extractTmpObjectKeys(savedPost.content)
+            val allObjectKeys = (contentObjectKeys + (request.objectKeys ?: emptyList())).distinct()
+
+            if (allObjectKeys.isNotEmpty()) {
+                val keyMap =
+                    attachmentService.confirmAttachments(
+                        referenceId = savedPost.id!!,
+                        referenceType = AttachmentReferenceType.POST,
+                        objectKeys = allObjectKeys,
+                    )
+                if (keyMap.isNotEmpty()) {
+                    savedPost.content = replaceObjectKeys(savedPost.content, keyMap)
+                    postRepository.save(savedPost)
+                }
             }
         }
 
@@ -148,8 +153,11 @@ class PostWriteService(
         val savedPost = postRepository.save(post)
 
         val newStatus = request.status ?: post.status
-        if (newStatus != PostStatusEnum.DRAFT && !request.objectKeys.isNullOrEmpty()) {
-            val tmpKeys = request.objectKeys.filter { it.startsWith("tmp/") }
+        if (newStatus != PostStatusEnum.DRAFT) {
+            val contentObjectKeys = HtmlSanitizer.extractTmpObjectKeys(savedPost.content)
+            val allObjectKeys = (contentObjectKeys + (request.objectKeys ?: emptyList())).distinct()
+            val tmpKeys = allObjectKeys.filter { it.startsWith("tmp/") }
+
             if (tmpKeys.isNotEmpty()) {
                 val keyMap =
                     attachmentService.confirmAttachments(
@@ -162,14 +170,37 @@ class PostWriteService(
                     postRepository.save(savedPost)
                 }
             }
-        }
 
-        val keepKeys = request.objectKeys ?: emptyList()
-        if (keepKeys.isNotEmpty()) {
-            attachmentService.deleteOrphanedAttachments(postId, AttachmentReferenceType.POST, keepKeys)
+            // 수정 후 본문에 남아있는 모든 objectKey (posts/ 경로 포함)를 유지 목록으로 사용
+            val finalKeys = extractAllObjectKeys(savedPost.content)
+            attachmentService.deleteOrphanedAttachments(postId, AttachmentReferenceType.POST, finalKeys)
         }
 
         return PostResponse.from(savedPost)
+    }
+
+    /**
+     * content에서 모든 S3 objectKey를 추출합니다. (tmp/ 및 posts/ 경로 포함)
+     */
+    private fun extractAllObjectKeys(content: String): List<String> {
+        val keys = mutableSetOf<String>()
+
+        // 1. HTML 추출
+        val doc = org.jsoup.Jsoup.parseBodyFragment(content)
+        doc.select("img[src]").forEach { keys.add(it.attr("src")) }
+        doc.select("a[href]").forEach { keys.add(it.attr("href")) }
+
+        // 2. Markdown 추출
+        val markdownRegex = Regex("""!?\[[^\]]*\]\(([^)]+)\)""")
+        markdownRegex.findAll(content).forEach { matchResult ->
+            val key = matchResult.groupValues[1]
+            // 외부 URL인 경우 제외 (http, https 등)
+            if (!key.contains("://")) {
+                keys.add(key)
+            }
+        }
+
+        return keys.toList()
     }
 
     /**

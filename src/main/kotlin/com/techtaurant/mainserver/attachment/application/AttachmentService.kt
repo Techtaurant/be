@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.attachment.entity.Attachment
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.attachment.enums.AttachmentStatus
 import com.techtaurant.mainserver.attachment.infrastructure.out.AttachmentRepository
+import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -24,6 +25,8 @@ class AttachmentService(
     @param:Value("\${aws.s3.presigned-url-expire-minutes}")
     private val presignedUrlExpireMinutes: Long,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     /**
      * S3 PUT Presigned URL을 발급하고 TMP 상태의 Attachment 레코드를 생성합니다.
      *
@@ -78,6 +81,12 @@ class AttachmentService(
         val tmpObjectKeyToNewKey = mutableMapOf<String, String>()
 
         objectKeys.forEach { tmpObjectKey ->
+            // S3에 실제로 파일이 있는지 확인하여 NoSuchKeyException 방지
+            if (!s3StorageService.exists(tmpObjectKey)) {
+                log.warn("S3 object not found for confirmation: $tmpObjectKey. Skipping.")
+                return@forEach
+            }
+
             val uniqueId = UUID.randomUUID()
             val fileName = tmpObjectKey.substringAfterLast("/")
             val newObjectKey = "posts/$referenceId/$uniqueId/$fileName"

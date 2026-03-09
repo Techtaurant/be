@@ -7,6 +7,8 @@ import software.amazon.awssdk.services.s3.model.CopyObjectRequest
 import software.amazon.awssdk.services.s3.model.Delete
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier
 import software.amazon.awssdk.services.s3.model.PutObjectRequest
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
@@ -80,6 +82,29 @@ class S3StorageService(
                 .build()
 
         return s3Presigner.presignGetObject(presignRequest).url().toString()
+    }
+
+    /**
+     * S3 오브젝트 존재 여부를 확인합니다.
+     *
+     * @param objectKey 확인 대상 S3 오브젝트 키
+     * @return 존재하면 true, 아니면 false
+     */
+    fun exists(objectKey: String): Boolean {
+        return try {
+            val request =
+                HeadObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(objectKey)
+                    .build()
+            s3Client.headObject(request)
+            true
+        } catch (e: NoSuchKeyException) {
+            false
+        } catch (e: Exception) {
+            // NoSuchKeyException 외에도 404 에러가 발생할 수 있음
+            false
+        }
     }
 
     /**
