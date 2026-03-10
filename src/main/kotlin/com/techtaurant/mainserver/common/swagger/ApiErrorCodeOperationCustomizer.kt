@@ -1,6 +1,5 @@
 package com.techtaurant.mainserver.common.swagger
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.techtaurant.mainserver.common.dto.ApiResponse
 import com.techtaurant.mainserver.common.dto.ValidationErrorResponse
 import com.techtaurant.mainserver.common.status.DefaultStatus
@@ -11,15 +10,15 @@ import io.swagger.v3.oas.models.media.MediaType
 import io.swagger.v3.oas.models.media.Schema
 import io.swagger.v3.oas.models.responses.ApiResponses
 import org.springdoc.core.customizers.OperationCustomizer
+import org.springframework.core.annotation.AnnotatedElementUtils
 import org.springframework.stereotype.Component
 import org.springframework.web.method.HandlerMethod
+import java.lang.reflect.AnnotatedElement
 import io.swagger.v3.oas.models.examples.Example as SwaggerExample
 import io.swagger.v3.oas.models.responses.ApiResponse as SwaggerApiResponse
 
 @Component
-class ApiErrorCodeOperationCustomizer(
-    private val objectMapper: ObjectMapper,
-) : OperationCustomizer {
+class ApiErrorCodeOperationCustomizer : OperationCustomizer {
     override fun customize(
         operation: Operation,
         handlerMethod: HandlerMethod,
@@ -42,17 +41,26 @@ class ApiErrorCodeOperationCustomizer(
     }
 
     private fun collectAnnotations(handlerMethod: HandlerMethod): List<ApiErrorCodeResponse> {
-        val annotations = mutableListOf<ApiErrorCodeResponse>()
+        val methodAnnotations = collectAnnotations(handlerMethod.method)
+        val classAnnotations = collectAnnotations(handlerMethod.beanType)
 
-        handlerMethod.getMethodAnnotation(ApiErrorCodeResponse::class.java)?.let {
-            annotations.add(it)
-        }
+        return (methodAnnotations + classAnnotations)
+            .distinctBy { annotation ->
+                "${annotation.statusType.qualifiedName}:${annotation.values.joinToString(",")}"
+            }
+    }
 
-        handlerMethod.getMethodAnnotation(ApiErrorCodeResponses::class.java)?.let {
-            annotations.addAll(it.value)
-        }
+    private fun collectAnnotations(element: AnnotatedElement): List<ApiErrorCodeResponse> {
+        val singleAnnotations =
+            AnnotatedElementUtils
+                .findAllMergedAnnotations(element, ApiErrorCodeResponse::class.java)
+                .toList()
+        val groupedAnnotations =
+            AnnotatedElementUtils
+                .findAllMergedAnnotations(element, ApiErrorCodeResponses::class.java)
+                .flatMap { annotation -> annotation.value.toList() }
 
-        return annotations
+        return singleAnnotations + groupedAnnotations
     }
 
     private fun extractStatusEntries(annotations: List<ApiErrorCodeResponse>): List<StatusIfs> {
@@ -93,10 +101,9 @@ class ApiErrorCodeOperationCustomizer(
         }
 
         statuses.forEach { status ->
-            val exampleJson = buildErrorJson(status)
             val example =
                 SwaggerExample().apply {
-                    value = exampleJson
+                    value = buildErrorExampleValue(status)
                     description = status.getDescription()
                 }
             mediaType.addExamples(resolveExampleName(status), example)
@@ -111,9 +118,13 @@ class ApiErrorCodeOperationCustomizer(
         operation.responses.addApiResponse(httpStatusCode, response)
     }
 
-    private fun buildErrorJson(status: StatusIfs): String {
+    private fun buildErrorExampleValue(status: StatusIfs): Map<String, Any?> {
         val errorResponse = ApiResponse.error<Any>(status)
-        return objectMapper.writeValueAsString(errorResponse)
+        return linkedMapOf(
+            "status" to errorResponse.status,
+            "data" to errorResponse.data,
+            "message" to errorResponse.message,
+        )
     }
 
     private fun addValidationErrorExample(mediaType: MediaType) {
@@ -121,7 +132,12 @@ class ApiErrorCodeOperationCustomizer(
         val validationResponse = ApiResponse.error(DefaultStatus.BAD_REQUEST, validationData)
         val example =
             SwaggerExample().apply {
-                value = objectMapper.writeValueAsString(validationResponse)
+                value =
+                    linkedMapOf(
+                        "status" to validationResponse.status,
+                        "data" to validationResponse.data,
+                        "message" to validationResponse.message,
+                    )
                 description = DefaultStatus.BAD_REQUEST.getDescription()
             }
         mediaType.addExamples("Validation 에러", example)

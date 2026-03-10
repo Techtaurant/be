@@ -4,9 +4,7 @@ import com.techtaurant.mainserver.comment.dto.CommentListResponse
 import com.techtaurant.mainserver.comment.enums.CommentSortType
 import com.techtaurant.mainserver.common.dto.ApiResponse
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
-import com.techtaurant.mainserver.common.status.DefaultStatus
-import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponse
-import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponses
+import com.techtaurant.mainserver.common.swagger.ApiCommonBadRequestAndUnknown
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -25,11 +23,7 @@ interface CommentReadControllerDocs {
         responseCode = "200",
         description = "조회 성공",
     )
-    @ApiErrorCodeResponses(
-        [
-            ApiErrorCodeResponse(DefaultStatus::class, ["BAD_REQUEST", "UNKNOWN_EXCEPTION"]),
-        ],
-    )
+    @ApiCommonBadRequestAndUnknown
     fun getParentComments(
         userId: UUID?,
         @Parameter(description = "게시물 ID") postId: UUID,
@@ -46,11 +40,7 @@ interface CommentReadControllerDocs {
         responseCode = "200",
         description = "조회 성공",
     )
-    @ApiErrorCodeResponses(
-        [
-            ApiErrorCodeResponse(DefaultStatus::class, ["BAD_REQUEST", "UNKNOWN_EXCEPTION"]),
-        ],
-    )
+    @ApiCommonBadRequestAndUnknown
     fun getReplies(
         userId: UUID?,
         @Parameter(description = "부모 댓글 ID") commentId: UUID,

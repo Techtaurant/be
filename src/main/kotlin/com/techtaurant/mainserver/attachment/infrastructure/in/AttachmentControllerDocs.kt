@@ -3,10 +3,7 @@ package com.techtaurant.mainserver.attachment.infrastructure.`in`
 import com.techtaurant.mainserver.attachment.dto.PresignedUrlRequest
 import com.techtaurant.mainserver.attachment.dto.PresignedUrlResponse
 import com.techtaurant.mainserver.common.dto.ApiResponse
-import com.techtaurant.mainserver.common.status.DefaultStatus
-import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponse
-import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponses
-import com.techtaurant.mainserver.security.jwt.JwtStatus
+import com.techtaurant.mainserver.common.swagger.ApiCommonBadRequestUnknownAndAuthenticationRequired
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
@@ -23,12 +20,7 @@ interface AttachmentControllerDocs {
         responseCode = "200",
         description = "Presigned URL 발급 성공",
     )
-    @ApiErrorCodeResponses(
-        [
-            ApiErrorCodeResponse(DefaultStatus::class, ["BAD_REQUEST", "UNKNOWN_EXCEPTION"]),
-            ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED"]),
-        ],
-    )
+    @ApiCommonBadRequestUnknownAndAuthenticationRequired
     fun issuePresignedUploadUrl(
         userId: UUID,
         @Valid request: PresignedUrlRequest,
