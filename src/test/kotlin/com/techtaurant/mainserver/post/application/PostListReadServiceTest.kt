@@ -1,5 +1,7 @@
 package com.techtaurant.mainserver.post.application
 
+import com.techtaurant.mainserver.attachment.application.AttachmentService
+import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostReadLog
@@ -23,14 +25,15 @@ import java.util.UUID
 class PostListReadServiceTest {
     private val postRepository: PostRepository = mockk()
     private val postReadLogRepository: PostReadLogRepository = mockk()
+    private val attachmentService: AttachmentService = mockk()
     private val defaultThumbnailUrl = "/static/images/post-thumbnail.png"
-
     private val baseUrl = "http://localhost:8080"
 
     private val postListReadService =
         PostListReadService(
             postRepository = postRepository,
             postReadLogRepository = postReadLogRepository,
+            attachmentService = attachmentService,
             defaultThumbnailUrl = defaultThumbnailUrl,
             baseUrl = baseUrl,
         )
@@ -75,6 +78,13 @@ class PostListReadServiceTest {
     @Nested
     @DisplayName("getPosts")
     inner class GetPosts {
+        @BeforeEach
+        fun setUp() {
+            every {
+                attachmentService.getConfirmedAttachmentsByReferenceIds(any(), AttachmentReferenceType.POST)
+            } returns emptyMap()
+        }
+
         @Test
         @DisplayName("로그인 사용자 조회 시 visibleToUserId에 현재 사용자 ID를 전달한다")
         fun getPosts_loggedInUser_passesVisibleToUserId() {
@@ -142,6 +152,13 @@ class PostListReadServiceTest {
     @Nested
     @DisplayName("getPosts (authorId 필터)")
     inner class GetPostsWithAuthorId {
+        @BeforeEach
+        fun setUp() {
+            every {
+                attachmentService.getConfirmedAttachmentsByReferenceIds(any(), AttachmentReferenceType.POST)
+            } returns emptyMap()
+        }
+
         @Test
         @DisplayName("본인 조회 시 모든 상태(DRAFT, PUBLISHED, PRIVATE)로 Repository를 호출한다")
         fun getPosts_ownPosts_queriesAllStatuses() {

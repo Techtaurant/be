@@ -4,6 +4,7 @@ import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.status.DefaultStatus
 import com.techtaurant.mainserver.security.cache.TokenCachePort
 import com.techtaurant.mainserver.security.dto.DevTestLoginRequest
+import com.techtaurant.mainserver.security.dto.DevTestLoginResponse
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.helper.CookieHelper
 import com.techtaurant.mainserver.security.jwt.JwtConstants
@@ -44,13 +45,14 @@ class DevTestAuthService(
      *
      * @param request 테스트 로그인 요청 (identifier + password)
      * @param response JWT 토큰 쿠키를 설정할 HTTP 응답
+     * @return 발급된 JWT 토큰 정보
      * @throws ApiException password가 일치하지 않는 경우
      */
     @Transactional
     fun execute(
         request: DevTestLoginRequest,
         response: HttpServletResponse,
-    ) {
+    ): DevTestLoginResponse {
         validatePassword(request.password)
 
         val user = findOrCreateTestUser(request.identifier)
@@ -72,6 +74,11 @@ class DevTestAuthService(
             JwtConstants.REFRESH_TOKEN_COOKIE,
             refreshToken,
             (jwtProperties.refreshTokenExpireMs / 1000).toInt(),
+        )
+
+        return DevTestLoginResponse(
+            accessToken = accessToken,
+            refreshToken = refreshToken,
         )
     }
 

@@ -5,6 +5,7 @@ import com.techtaurant.mainserver.common.status.DefaultStatus
 import com.techtaurant.mainserver.common.swagger.ApiErrorResponses
 import com.techtaurant.mainserver.security.SecurityConstants
 import com.techtaurant.mainserver.security.dto.DevTestLoginRequest
+import com.techtaurant.mainserver.security.dto.DevTestLoginResponse
 import com.techtaurant.mainserver.security.service.DevTestAuthService
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
@@ -33,8 +34,7 @@ class DevTestAuthController(
     override fun login(
         @RequestBody @Valid request: DevTestLoginRequest,
         response: HttpServletResponse,
-    ): ApiResponse<Unit> {
-        devTestAuthService.execute(request, response)
-        return ApiResponse.ok()
+    ): ApiResponse<DevTestLoginResponse> {
+        return ApiResponse.ok(devTestAuthService.execute(request, response))
     }
 }

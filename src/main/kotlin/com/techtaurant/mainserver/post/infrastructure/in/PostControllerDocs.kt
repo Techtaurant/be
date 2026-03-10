@@ -105,4 +105,21 @@ interface PostControllerDocs {
         postId: UUID,
         userId: UUID,
     ): ApiResponse<PostDetailResponse>
+
+    @Operation(
+        summary = "게시물 삭제",
+        description = "게시물과 연관된 S3 첨부파일을 함께 삭제합니다. 작성자만 삭제 가능합니다.",
+    )
+    @SwaggerApiResponse(responseCode = "204", description = "삭제 성공")
+    @ApiErrorCodeResponses(
+        [
+            ApiErrorCodeResponse(PostStatus::class, ["POST_NOT_FOUND", "CANNOT_MODIFY_OTHERS_POST"]),
+            ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED"]),
+            ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
+        ],
+    )
+    fun deletePost(
+        postId: UUID,
+        userId: UUID,
+    )
 }

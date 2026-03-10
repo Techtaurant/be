@@ -81,6 +81,10 @@ dependencies {
 
     // HTML Sanitization
     implementation("org.jsoup:jsoup:1.18.3")
+
+    // AWS SDK v2
+    implementation(platform("software.amazon.awssdk:bom:2.25.0"))
+    implementation("software.amazon.awssdk:s3")
 }
 
 kotlin {
@@ -104,6 +108,11 @@ jacoco {
 tasks.withType<Test> {
     useJUnitPlatform()
     finalizedBy("jacocoTestReport")
+}
+
+// Configure bootRun task for development
+tasks.named<org.springframework.boot.gradle.tasks.run.BootRun>("bootRun") {
+    environment("SPRING_PROFILES_ACTIVE", "dev")
 }
 
 // Configure JaCoCo Test Report Task

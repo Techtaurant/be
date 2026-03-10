@@ -3,6 +3,7 @@ package com.techtaurant.mainserver.user.infrastructure.`in`
 import com.techtaurant.mainserver.common.dto.ApiResponse
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.common.status.DefaultStatus
+import com.techtaurant.mainserver.common.swagger.ApiCommonBadRequestAndUnknown
 import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponse
 import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponses
 import com.techtaurant.mainserver.post.dto.PostListItemResponse
@@ -45,11 +46,7 @@ interface UserOpenApiControllerDocs {
         responseCode = "200",
         description = "조회 성공",
     )
-    @ApiErrorCodeResponses(
-        [
-            ApiErrorCodeResponse(DefaultStatus::class, ["BAD_REQUEST", "UNKNOWN_EXCEPTION"]),
-        ],
-    )
+    @ApiCommonBadRequestAndUnknown
     fun getPostsByUserId(
         @Parameter(description = "조회 대상 사용자 ID") userId: UUID,
         @Parameter(description = "이전 응답의 nextCursor (첫 페이지는 생략)") cursor: String?,
