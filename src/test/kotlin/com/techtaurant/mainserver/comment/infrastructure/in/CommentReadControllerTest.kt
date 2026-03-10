@@ -10,8 +10,8 @@ import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
-import com.techtaurant.mainserver.user.entity.UserBan
 import com.techtaurant.mainserver.user.entity.User
+import com.techtaurant.mainserver.user.entity.UserBan
 import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserBanRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository

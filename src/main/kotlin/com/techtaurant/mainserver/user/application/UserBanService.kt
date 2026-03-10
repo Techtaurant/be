@@ -24,7 +24,7 @@ class UserBanService(
     ): UserBanResponse {
         validateNotSelfBan(userId, targetUserId)
 
-        if (userBanRepository.existsByUser_IdAndBannedUser_Id(userId, targetUserId)) {
+        if (userBanRepository.existsByUserIdAndBannedUserId(userId, targetUserId)) {
             throw ApiException(UserStatus.USER_ALREADY_BANNED)
         }
 
@@ -49,7 +49,7 @@ class UserBanService(
     }
 
     fun getBannedUsers(userId: UUID): List<UserBanListItemResponse> {
-        return userBanRepository.findAllByUser_IdOrderByCreatedAtDesc(userId)
+        return userBanRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
             .map(UserBanListItemResponse::from)
     }
 
@@ -58,7 +58,7 @@ class UserBanService(
             return emptySet()
         }
 
-        return userBanRepository.findAllByUser_Id(userId)
+        return userBanRepository.findAllByUserId(userId)
             .map { it.bannedUser.id!! }
             .toSet()
     }
@@ -71,7 +71,7 @@ class UserBanService(
         validateNotSelfBan(userId, targetUserId)
 
         val userBan =
-            userBanRepository.findByUser_IdAndBannedUser_Id(userId, targetUserId)
+            userBanRepository.findByUserIdAndBannedUserId(userId, targetUserId)
                 ?: throw ApiException(UserStatus.USER_BAN_NOT_FOUND)
 
         userBanRepository.delete(userBan)

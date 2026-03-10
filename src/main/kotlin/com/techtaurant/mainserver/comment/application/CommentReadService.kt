@@ -8,11 +8,11 @@ import com.techtaurant.mainserver.comment.infrastructure.out.CommentLikeLogRepos
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepositoryCustom
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.common.enums.LikeStatus
+import com.techtaurant.mainserver.user.application.BannedUserMaskingService
+import com.techtaurant.mainserver.user.application.UserBanService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
-import com.techtaurant.mainserver.user.application.BannedUserMaskingService
-import com.techtaurant.mainserver.user.application.UserBanService
 
 /**
  * 댓글 읽기 서비스
