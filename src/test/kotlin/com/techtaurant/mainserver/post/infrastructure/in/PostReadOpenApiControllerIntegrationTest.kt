@@ -6,8 +6,10 @@ import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
+import com.techtaurant.mainserver.user.entity.UserBan
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
+import com.techtaurant.mainserver.user.infrastructure.out.UserBanRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.restassured.RestAssured.given
 import org.hamcrest.Matchers.hasItem
@@ -30,12 +32,16 @@ class PostReadOpenApiControllerIntegrationTest : IntegrationTest() {
     @Autowired
     private lateinit var jwtTokenProvider: JwtTokenProvider
 
+    @Autowired
+    private lateinit var userBanRepository: UserBanRepository
+
     private lateinit var testUser: User
     private lateinit var otherUser: User
     private lateinit var accessToken: String
 
     @BeforeEach
     fun setUpTestData() {
+        userBanRepository.deleteAllInBatch()
         postRepository.deleteAllInBatch()
         userRepository.deleteAllInBatch()
         testUser =
@@ -107,5 +113,64 @@ class PostReadOpenApiControllerIntegrationTest : IntegrationTest() {
             .body("data.content.id", hasItem(myPrivatePost.id.toString()))
             .body("data.content.id", hasItem(myPublishedPost.id.toString()))
             .body("data.content.id", not(hasItem(otherPrivatePost.id.toString())))
+    }
+
+    @Test
+    @DisplayName("로그인 사용자가 차단한 작성자의 게시물은 목록에서 제외된다")
+    fun getPosts_excludesBannedAuthorPosts() {
+        // given
+        val visiblePost =
+            postRepository.save(
+                Post(
+                    title = "보이는 게시물",
+                    content = "보이는 내용",
+                    author = testUser,
+                    status = PostStatusEnum.PUBLISHED,
+                ),
+            )
+        val bannedPost =
+            postRepository.save(
+                Post(
+                    title = "숨겨질 게시물",
+                    content = "숨겨질 내용",
+                    author = otherUser,
+                    status = PostStatusEnum.PUBLISHED,
+                ),
+            )
+        userBanRepository.save(UserBan(user = testUser, bannedUser = otherUser))
+
+        // when & then
+        given()
+            .header("Authorization", "Bearer $accessToken")
+            .`when`()
+            .get("/open-api/posts")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.content.id", hasItem(visiblePost.id.toString()))
+            .body("data.content.id", not(hasItem(bannedPost.id.toString())))
+    }
+
+    @Test
+    @DisplayName("로그인 사용자가 차단한 작성자의 게시물 상세 조회 시 404를 반환한다")
+    fun getPostDetail_bannedAuthor_returnsNotFound() {
+        // given
+        val bannedPost =
+            postRepository.save(
+                Post(
+                    title = "차단된 사용자의 게시물",
+                    content = "숨겨질 내용",
+                    author = otherUser,
+                    status = PostStatusEnum.PUBLISHED,
+                ),
+            )
+        userBanRepository.save(UserBan(user = testUser, bannedUser = otherUser))
+
+        // when & then
+        given()
+            .header("Authorization", "Bearer $accessToken")
+            .`when`()
+            .get("/open-api/posts/${bannedPost.id}")
+            .then()
+            .statusCode(HttpStatus.NOT_FOUND.value())
     }
 }

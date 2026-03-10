@@ -11,6 +11,8 @@ import com.techtaurant.mainserver.common.enums.LikeStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
+import com.techtaurant.mainserver.user.application.BannedUserMaskingService
+import com.techtaurant.mainserver.user.application.UserBanService
 
 /**
  * 댓글 읽기 서비스
@@ -21,6 +23,8 @@ import java.util.UUID
 class CommentReadService(
     private val commentRepository: CommentRepositoryCustom,
     private val commentLikeLogRepository: CommentLikeLogRepository,
+    private val userBanService: UserBanService,
+    private val bannedUserMaskingService: BannedUserMaskingService,
 ) {
     /**
      * 부모 댓글 목록을 커서 기반 페이지네이션으로 조회합니다.
@@ -139,19 +143,38 @@ class CommentReadService(
         comments: List<Comment>,
         userId: UUID?,
     ): List<CommentListResponse> {
-        if (userId == null || comments.isEmpty()) {
-            return comments.map { CommentListResponse.from(it) }
+        if (comments.isEmpty()) {
+            return emptyList()
         }
 
-        val commentIds = comments.map { it.id!! }
-        val likeLogs = commentLikeLogRepository.findByCommentIdInAndUserId(commentIds, userId)
+        val bannedUserIds = userBanService.getBannedUserIds(userId)
+
         val likeStatusMap =
-            likeLogs.associate { log ->
-                log.comment.id!! to if (log.isLiked) LikeStatus.LIKE else LikeStatus.DISLIKE
+            if (userId == null) {
+                emptyMap()
+            } else {
+                val commentIds = comments.map { it.id!! }
+                commentLikeLogRepository.findByCommentIdInAndUserId(commentIds, userId)
+                    .associate { log ->
+                        log.comment.id!! to if (log.isLiked) LikeStatus.LIKE else LikeStatus.DISLIKE
+                    }
             }
 
         return comments.map { comment ->
-            CommentListResponse.from(comment, likeStatusMap[comment.id!!] ?: LikeStatus.NONE)
+            val isBanned = bannedUserIds.contains(comment.author.id)
+            if (!isBanned) {
+                CommentListResponse.from(comment, likeStatusMap[comment.id!!] ?: LikeStatus.NONE)
+            } else {
+                CommentListResponse.from(
+                    comment = comment,
+                    likeStatus = likeStatusMap[comment.id!!] ?: LikeStatus.NONE,
+                    isBanned = true,
+                    authorId = bannedUserMaskingService.maskAuthorId(comment.author.id!!),
+                    authorName = bannedUserMaskingService.maskAuthorName(comment.author.id!!),
+                    authorProfileImageUrl = null,
+                    content = bannedUserMaskingService.maskCommentContent(comment.id!!),
+                )
+            }
         }
     }
 }

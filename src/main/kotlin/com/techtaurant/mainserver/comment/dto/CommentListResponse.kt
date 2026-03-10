@@ -32,6 +32,8 @@ data class CommentListResponse(
     val replyCount: Long,
     @field:Schema(description = "현재 사용자의 좋아요 상태")
     val likeStatus: LikeStatus,
+    @field:Schema(description = "현재 사용자가 차단한 작성자의 댓글인지 여부")
+    val isBanned: Boolean,
     @field:Schema(description = "생성 시각")
     val createdAt: Date,
     @field:Schema(description = "수정 시각")
@@ -41,19 +43,25 @@ data class CommentListResponse(
         fun from(
             comment: Comment,
             likeStatus: LikeStatus = LikeStatus.NONE,
+            isBanned: Boolean = false,
+            authorId: UUID = comment.author.id!!,
+            authorName: String = comment.author.name,
+            authorProfileImageUrl: String? = comment.author.profileImageUrl,
+            content: String = comment.content,
         ): CommentListResponse {
             return CommentListResponse(
                 id = comment.id!!,
-                content = comment.content,
+                content = content,
                 postId = comment.post.id!!,
-                authorId = comment.author.id!!,
-                authorName = comment.author.name,
-                authorProfileImageUrl = comment.author.profileImageUrl,
+                authorId = authorId,
+                authorName = authorName,
+                authorProfileImageUrl = authorProfileImageUrl,
                 parentId = comment.parent?.id,
                 depth = comment.depth,
                 likeCount = comment.likeCount,
                 replyCount = comment.replyCount,
                 likeStatus = likeStatus,
+                isBanned = isBanned,
                 createdAt = comment.createdAt,
                 updatedAt = comment.updatedAt,
             )

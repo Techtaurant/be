@@ -33,5 +33,6 @@ interface PostRepositoryCustom {
         statuses: List<PostStatusEnum>? = null,
         categoryId: UUID? = null,
         visibleToUserId: UUID? = null,
+        excludedAuthorIds: Set<UUID> = emptySet(),
     ): List<Post>
 }

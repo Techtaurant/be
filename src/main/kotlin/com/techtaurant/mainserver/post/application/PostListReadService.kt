@@ -14,6 +14,7 @@ import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
+import com.techtaurant.mainserver.user.application.UserBanService
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -30,6 +31,7 @@ class PostListReadService(
     private val postRepository: PostRepository,
     private val postReadLogRepository: PostReadLogRepository,
     private val attachmentService: AttachmentService,
+    private val userBanService: UserBanService,
     @param:Value("\${app.default-post-thumbnail-url}")
     private val defaultThumbnailUrl: String,
     @param:Value("\${swagger.base-url}")
@@ -64,6 +66,7 @@ class PostListReadService(
         categoryId: UUID? = null,
     ): CursorPageResponse<PostListItemResponse> {
         val postCursor = cursor?.let { PostCursor.decode(it) }
+        val bannedUserIds = userBanService.getBannedUserIds(currentUserId)
 
         if (cursor != null && postCursor == null) {
             return CursorPageResponse(
@@ -90,6 +93,7 @@ class PostListReadService(
                     authorId = authorId,
                     statuses = statuses,
                     categoryId = categoryId,
+                    excludedAuthorIds = bannedUserIds,
                 )
             } else {
                 postRepository.findPostsWithConditions(
@@ -98,6 +102,7 @@ class PostListReadService(
                     period = period,
                     sortType = sortType,
                     visibleToUserId = currentUserId,
+                    excludedAuthorIds = bannedUserIds,
                 )
             }
 

@@ -46,6 +46,7 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         statuses: List<PostStatusEnum>?,
         categoryId: UUID?,
         visibleToUserId: UUID?,
+        excludedAuthorIds: Set<UUID>,
     ): List<Post> {
         val cb = entityManager.criteriaBuilder
         val cq = cb.createQuery(Post::class.java)
@@ -68,6 +69,9 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
 
         authorId?.let { predicates.add(cb.equal(root.get(Post_.author).get(EntityBase_.id), it)) }
         categoryId?.let { predicates.add(cb.equal(root.get(Post_.category).get(EntityBase_.id), it)) }
+        if (excludedAuthorIds.isNotEmpty()) {
+            predicates.add(cb.not(root.get(Post_.author).get(EntityBase_.id).`in`(excludedAuthorIds)))
+        }
 
         addPeriodCondition(cb, root, period, predicates)
         addCursorCondition(cb, root, cursor, sortType, predicates)
