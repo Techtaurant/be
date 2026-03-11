@@ -43,25 +43,45 @@ data class CommentListResponse(
         fun from(
             comment: Comment,
             likeStatus: LikeStatus = LikeStatus.NONE,
-            isBanned: Boolean = false,
-            authorId: UUID = comment.author.id!!,
-            authorName: String = comment.author.name,
-            authorProfileImageUrl: String? = comment.author.profileImageUrl,
-            content: String = comment.content,
         ): CommentListResponse {
             return CommentListResponse(
                 id = comment.id!!,
-                content = content,
+                content = comment.content,
                 postId = comment.post.id!!,
-                authorId = authorId,
-                authorName = authorName,
-                authorProfileImageUrl = authorProfileImageUrl,
+                authorId = comment.author.id!!,
+                authorName = comment.author.name,
+                authorProfileImageUrl = comment.author.profileImageUrl,
                 parentId = comment.parent?.id,
                 depth = comment.depth,
                 likeCount = comment.likeCount,
                 replyCount = comment.replyCount,
                 likeStatus = likeStatus,
-                isBanned = isBanned,
+                isBanned = false,
+                createdAt = comment.createdAt,
+                updatedAt = comment.updatedAt,
+            )
+        }
+
+        fun fromMasked(
+            comment: Comment,
+            likeStatus: LikeStatus,
+            maskedAuthorId: UUID,
+            maskedAuthorName: String,
+            maskedContent: String,
+        ): CommentListResponse {
+            return CommentListResponse(
+                id = comment.id!!,
+                content = maskedContent,
+                postId = comment.post.id!!,
+                authorId = maskedAuthorId,
+                authorName = maskedAuthorName,
+                authorProfileImageUrl = null,
+                parentId = comment.parent?.id,
+                depth = comment.depth,
+                likeCount = comment.likeCount,
+                replyCount = comment.replyCount,
+                likeStatus = likeStatus,
+                isBanned = true,
                 createdAt = comment.createdAt,
                 updatedAt = comment.updatedAt,
             )

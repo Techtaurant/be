@@ -8,8 +8,6 @@ import com.techtaurant.mainserver.comment.infrastructure.out.CommentLikeLogRepos
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepositoryCustom
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.common.enums.LikeStatus
-import com.techtaurant.mainserver.user.application.BannedUserMaskingService
-import com.techtaurant.mainserver.user.application.UserBanService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -23,8 +21,7 @@ import java.util.UUID
 class CommentReadService(
     private val commentRepository: CommentRepositoryCustom,
     private val commentLikeLogRepository: CommentLikeLogRepository,
-    private val userBanService: UserBanService,
-    private val bannedUserMaskingService: BannedUserMaskingService,
+    private val commentResponseAssembler: CommentResponseAssembler,
 ) {
     /**
      * 부모 댓글 목록을 커서 기반 페이지네이션으로 조회합니다.
@@ -147,8 +144,6 @@ class CommentReadService(
             return emptyList()
         }
 
-        val bannedUserIds = userBanService.getBannedUserIds(userId)
-
         val likeStatusMap =
             if (userId == null) {
                 emptyMap()
@@ -160,21 +155,6 @@ class CommentReadService(
                     }
             }
 
-        return comments.map { comment ->
-            val isBanned = bannedUserIds.contains(comment.author.id)
-            if (!isBanned) {
-                CommentListResponse.from(comment, likeStatusMap[comment.id!!] ?: LikeStatus.NONE)
-            } else {
-                CommentListResponse.from(
-                    comment = comment,
-                    likeStatus = likeStatusMap[comment.id!!] ?: LikeStatus.NONE,
-                    isBanned = true,
-                    authorId = bannedUserMaskingService.maskAuthorId(comment.author.id!!),
-                    authorName = bannedUserMaskingService.maskAuthorName(comment.author.id!!),
-                    authorProfileImageUrl = null,
-                    content = bannedUserMaskingService.maskCommentContent(comment.id!!),
-                )
-            }
-        }
+        return commentResponseAssembler.assemble(comments, likeStatusMap, userId)
     }
 }

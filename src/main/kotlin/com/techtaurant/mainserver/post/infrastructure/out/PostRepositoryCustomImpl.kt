@@ -11,6 +11,7 @@ import com.techtaurant.mainserver.post.entity.Tag
 import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.user.entity.User
+import com.techtaurant.mainserver.user.entity.UserBan
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
 import jakarta.persistence.criteria.CriteriaBuilder
@@ -46,11 +47,12 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         statuses: List<PostStatusEnum>?,
         categoryId: UUID?,
         visibleToUserId: UUID?,
-        excludedAuthorIds: Set<UUID>,
+        viewerId: UUID?,
     ): List<Post> {
         val cb = entityManager.criteriaBuilder
         val cq = cb.createQuery(Post::class.java)
         val root = cq.from(Post::class.java)
+        cq.distinct(true)
 
         root.fetch<Post, User>(Post_.AUTHOR)
         root.fetch<Post, Tag>(Post_.TAGS, JoinType.LEFT)
@@ -69,9 +71,7 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
 
         authorId?.let { predicates.add(cb.equal(root.get(Post_.author).get(EntityBase_.id), it)) }
         categoryId?.let { predicates.add(cb.equal(root.get(Post_.category).get(EntityBase_.id), it)) }
-        if (excludedAuthorIds.isNotEmpty()) {
-            predicates.add(cb.not(root.get(Post_.author).get(EntityBase_.id).`in`(excludedAuthorIds)))
-        }
+        addViewerBanCondition(cb, cq, root, viewerId, predicates)
 
         addPeriodCondition(cb, root, period, predicates)
         addCursorCondition(cb, root, cursor, sortType, predicates)
@@ -86,6 +86,30 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
             .setMaxResults(size)
             .resultList
             .distinctBy { it.id }
+    }
+
+    override fun findVisiblePostDetailById(
+        postId: UUID,
+        viewerId: UUID?,
+    ): Post? {
+        val cb = entityManager.criteriaBuilder
+        val cq = cb.createQuery(Post::class.java)
+        val root = cq.from(Post::class.java)
+        cq.distinct(true)
+
+        root.fetch<Post, User>(Post_.AUTHOR)
+        root.fetch<Post, Tag>(Post_.TAGS, JoinType.LEFT)
+        root.fetch<Post, Any>(Post_.CATEGORY, JoinType.LEFT)
+
+        val predicates =
+            mutableListOf<Predicate>(
+                cb.equal(root.get(EntityBase_.id), postId),
+            )
+
+        addViewerBanCondition(cb, cq, root, viewerId, predicates)
+        cq.where(*predicates.toTypedArray())
+
+        return entityManager.createQuery(cq).resultList.firstOrNull()
     }
 
     /**
@@ -128,6 +152,32 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
                 else -> buildCountCursorCondition(cb, root, cursor, sortType)
             }
         predicates.add(cursorPredicate)
+    }
+
+    private fun addViewerBanCondition(
+        cb: CriteriaBuilder,
+        cq: CriteriaQuery<Post>,
+        root: Root<Post>,
+        viewerId: UUID?,
+        predicates: MutableList<Predicate>,
+    ) {
+        if (viewerId == null) {
+            return
+        }
+
+        val banSubquery = cq.subquery(Long::class.java)
+        val banRoot = banSubquery.from(UserBan::class.java)
+
+        banSubquery.select(cb.literal(1L))
+        banSubquery.where(
+            cb.equal(banRoot.get<User>("user").get<UUID>(EntityBase_.id), viewerId),
+            cb.equal(
+                banRoot.get<User>("bannedUser").get<UUID>(EntityBase_.id),
+                root.get<User>(Post_.author).get<UUID>(EntityBase_.id),
+            ),
+        )
+
+        predicates.add(cb.not(cb.exists(banSubquery)))
     }
 
     /**

@@ -10,7 +10,6 @@ import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
-import com.techtaurant.mainserver.user.application.UserBanService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -27,7 +26,6 @@ class PostDetailReadService(
     private val postLikeLogRepository: PostLikeLogRepository,
     private val postReadLogRepository: PostReadLogRepository,
     private val attachmentService: AttachmentService,
-    private val userBanService: UserBanService,
 ) {
     /**
      * 게시물 상세 정보를 조회합니다.
@@ -49,13 +47,8 @@ class PostDetailReadService(
         userAgent: String?,
     ): PostDetailResponse {
         val post =
-            postRepository.findPostDetailById(postId)
+            postRepository.findVisiblePostDetailById(postId, userId)
                 ?: throw ApiException(PostStatus.POST_NOT_FOUND)
-        val bannedUserIds = userBanService.getBannedUserIds(userId)
-
-        if (bannedUserIds.contains(post.author.id)) {
-            throw ApiException(PostStatus.POST_NOT_FOUND)
-        }
 
         if (post.status != PostStatusEnum.PUBLISHED) {
             if (userId == null || post.author.id != userId) {

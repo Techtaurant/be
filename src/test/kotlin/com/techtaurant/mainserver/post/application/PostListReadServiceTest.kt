@@ -10,7 +10,6 @@ import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
-import com.techtaurant.mainserver.user.application.UserBanService
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
 import io.mockk.every
@@ -27,7 +26,6 @@ class PostListReadServiceTest {
     private val postRepository: PostRepository = mockk()
     private val postReadLogRepository: PostReadLogRepository = mockk()
     private val attachmentService: AttachmentService = mockk()
-    private val userBanService: UserBanService = mockk()
     private val defaultThumbnailUrl = "/static/images/post-thumbnail.png"
     private val baseUrl = "http://localhost:8080"
 
@@ -36,7 +34,6 @@ class PostListReadServiceTest {
             postRepository = postRepository,
             postReadLogRepository = postReadLogRepository,
             attachmentService = attachmentService,
-            userBanService = userBanService,
             defaultThumbnailUrl = defaultThumbnailUrl,
             baseUrl = baseUrl,
         )
@@ -46,8 +43,6 @@ class PostListReadServiceTest {
 
     @BeforeEach
     fun setUp() {
-        every { userBanService.getBannedUserIds(any()) } returns emptySet()
-
         testUser =
             User(
                 name = "테스트 사용자",
@@ -102,7 +97,7 @@ class PostListReadServiceTest {
                     period = PostPeriod.ALL,
                     sortType = PostSortType.LATEST,
                     visibleToUserId = testUser.id!!,
-                    excludedAuthorIds = emptySet(),
+                    viewerId = testUser.id!!,
                 )
             } returns posts
             every {
@@ -120,7 +115,7 @@ class PostListReadServiceTest {
                     period = PostPeriod.ALL,
                     sortType = PostSortType.LATEST,
                     visibleToUserId = testUser.id!!,
-                    excludedAuthorIds = emptySet(),
+                    viewerId = testUser.id!!,
                 )
             }
         }
@@ -137,7 +132,7 @@ class PostListReadServiceTest {
                     period = PostPeriod.ALL,
                     sortType = PostSortType.LATEST,
                     visibleToUserId = null,
-                    excludedAuthorIds = emptySet(),
+                    viewerId = null,
                 )
             } returns posts
 
@@ -152,7 +147,7 @@ class PostListReadServiceTest {
                     period = PostPeriod.ALL,
                     sortType = PostSortType.LATEST,
                     visibleToUserId = null,
-                    excludedAuthorIds = emptySet(),
+                    viewerId = null,
                 )
             }
         }
@@ -182,7 +177,7 @@ class PostListReadServiceTest {
                     authorId = testUser.id!!,
                     statuses = PostStatusEnum.entries,
                     categoryId = null,
-                    excludedAuthorIds = emptySet(),
+                    viewerId = testUser.id!!,
                 )
             } returns posts
             every {
@@ -207,7 +202,7 @@ class PostListReadServiceTest {
                     authorId = testUser.id!!,
                     statuses = PostStatusEnum.entries,
                     categoryId = null,
-                    excludedAuthorIds = emptySet(),
+                    viewerId = testUser.id!!,
                 )
             }
         }
@@ -226,7 +221,7 @@ class PostListReadServiceTest {
                     authorId = otherUser.id!!,
                     statuses = listOf(PostStatusEnum.PUBLISHED),
                     categoryId = null,
-                    excludedAuthorIds = emptySet(),
+                    viewerId = testUser.id!!,
                 )
             } returns posts
             every {
@@ -251,7 +246,7 @@ class PostListReadServiceTest {
                     authorId = otherUser.id!!,
                     statuses = listOf(PostStatusEnum.PUBLISHED),
                     categoryId = null,
-                    excludedAuthorIds = emptySet(),
+                    viewerId = testUser.id!!,
                 )
             }
         }
@@ -270,7 +265,7 @@ class PostListReadServiceTest {
                     authorId = otherUser.id!!,
                     statuses = listOf(PostStatusEnum.PUBLISHED),
                     categoryId = null,
-                    excludedAuthorIds = emptySet(),
+                    viewerId = null,
                 )
             } returns posts
 
@@ -293,7 +288,7 @@ class PostListReadServiceTest {
                     authorId = otherUser.id!!,
                     statuses = listOf(PostStatusEnum.PUBLISHED),
                     categoryId = null,
-                    excludedAuthorIds = emptySet(),
+                    viewerId = null,
                 )
             }
             assertThat(result.content).allSatisfy { assertThat(it.isRead).isFalse() }
@@ -332,7 +327,7 @@ class PostListReadServiceTest {
                     authorId = testUser.id!!,
                     statuses = PostStatusEnum.entries,
                     categoryId = null,
-                    excludedAuthorIds = emptySet(),
+                    viewerId = testUser.id!!,
                 )
             } returns posts
             every {
@@ -368,7 +363,7 @@ class PostListReadServiceTest {
                     authorId = testUser.id!!,
                     statuses = PostStatusEnum.entries,
                     categoryId = null,
-                    excludedAuthorIds = emptySet(),
+                    viewerId = testUser.id!!,
                 )
             } returns posts
             every {
@@ -408,7 +403,7 @@ class PostListReadServiceTest {
                     authorId = otherUser.id!!,
                     statuses = listOf(PostStatusEnum.PUBLISHED),
                     categoryId = null,
-                    excludedAuthorIds = emptySet(),
+                    viewerId = testUser.id!!,
                 )
             } returns posts
             every {
