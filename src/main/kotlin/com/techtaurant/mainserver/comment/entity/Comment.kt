@@ -4,10 +4,13 @@ import com.techtaurant.mainserver.common.base.EntityBase
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.user.entity.User
 import jakarta.persistence.*
+import org.hibernate.annotations.SQLDelete
+import java.util.Date
 
 /**
  * 댓글 엔티티
  * 게시물에 대한 댓글을 표현하며, 댓글에 대한 대댓글까지 지원합니다(최대 1depth).
+ * 삭제 시 실제 DELETE 대신 is_deleted=true, 내용 블라인드 처리로 soft delete됩니다.
  *
  * @property content 댓글 내용
  * @property post 댓글이 달린 게시물
@@ -17,9 +20,14 @@ import jakarta.persistence.*
  * @property likeCount 좋아요 수
  * @property replyCount 대댓글 수 (depth=0인 댓글에만 의미 있음)
  * @property children 자식 댓글 (대댓글들)
+ * @property isDeleted 삭제 여부
+ * @property deletedAt 삭제 시각
  */
 @Entity
 @Table(name = "comments")
+@SQLDelete(
+    sql = "UPDATE comments SET is_deleted = true, deleted_at = NOW(), content = '삭제된 댓글입니다.' WHERE id = ?",
+)
 class Comment(
     @Column(nullable = false, columnDefinition = "TEXT")
     var content: String,
@@ -40,4 +48,12 @@ class Comment(
     var replyCount: Long = 0,
     @OneToMany(mappedBy = "parent", cascade = [CascadeType.ALL], orphanRemoval = true)
     var children: MutableList<Comment> = mutableListOf(),
-) : EntityBase()
+    @Column(nullable = false)
+    var isDeleted: Boolean = false,
+    @Column(nullable = true)
+    var deletedAt: Date? = null,
+) : EntityBase() {
+    companion object {
+        const val DELETED_CONTENT = "삭제된 댓글입니다."
+    }
+}

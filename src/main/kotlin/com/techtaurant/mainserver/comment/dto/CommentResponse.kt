@@ -28,6 +28,8 @@ data class CommentResponse(
     val createdAt: Date,
     @field:Schema(description = "수정 시각")
     val updatedAt: Date,
+    @field:Schema(description = "삭제 여부")
+    val isDeleted: Boolean,
 ) {
     companion object {
         fun from(comment: Comment): CommentResponse {
@@ -41,6 +43,7 @@ data class CommentResponse(
                 depth = comment.depth,
                 createdAt = comment.createdAt,
                 updatedAt = comment.updatedAt,
+                isDeleted = comment.isDeleted,
             )
         }
     }
