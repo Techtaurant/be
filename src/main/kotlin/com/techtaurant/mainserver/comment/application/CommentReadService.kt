@@ -21,6 +21,7 @@ import java.util.UUID
 class CommentReadService(
     private val commentRepository: CommentRepositoryCustom,
     private val commentLikeLogRepository: CommentLikeLogRepository,
+    private val commentResponseAssembler: CommentResponseAssembler,
 ) {
     /**
      * 부모 댓글 목록을 커서 기반 페이지네이션으로 조회합니다.
@@ -139,19 +140,21 @@ class CommentReadService(
         comments: List<Comment>,
         userId: UUID?,
     ): List<CommentListResponse> {
-        if (userId == null || comments.isEmpty()) {
-            return comments.map { CommentListResponse.from(it) }
+        if (comments.isEmpty()) {
+            return emptyList()
         }
 
-        val commentIds = comments.map { it.id!! }
-        val likeLogs = commentLikeLogRepository.findByCommentIdInAndUserId(commentIds, userId)
         val likeStatusMap =
-            likeLogs.associate { log ->
-                log.comment.id!! to if (log.isLiked) LikeStatus.LIKE else LikeStatus.DISLIKE
+            if (userId == null) {
+                emptyMap()
+            } else {
+                val commentIds = comments.map { it.id!! }
+                commentLikeLogRepository.findByCommentIdInAndUserId(commentIds, userId)
+                    .associate { log ->
+                        log.comment.id!! to if (log.isLiked) LikeStatus.LIKE else LikeStatus.DISLIKE
+                    }
             }
 
-        return comments.map { comment ->
-            CommentListResponse.from(comment, likeStatusMap[comment.id!!] ?: LikeStatus.NONE)
-        }
+        return commentResponseAssembler.assemble(comments, likeStatusMap, userId)
     }
 }

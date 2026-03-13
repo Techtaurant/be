@@ -8,7 +8,9 @@ import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.user.entity.User
+import com.techtaurant.mainserver.user.entity.UserBan
 import com.techtaurant.mainserver.user.enums.UserRole
+import com.techtaurant.mainserver.user.infrastructure.out.UserBanRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -30,6 +32,9 @@ class PostRepositoryCustomImplTest : IntegrationTest() {
     private lateinit var userRepository: UserRepository
 
     @Autowired
+    private lateinit var userBanRepository: UserBanRepository
+
+    @Autowired
     private lateinit var categoryRepository: CategoryRepository
 
     private lateinit var userA: User
@@ -39,6 +44,7 @@ class PostRepositoryCustomImplTest : IntegrationTest() {
     @BeforeEach
     fun setUpTestData() {
         postRepository.deleteAll()
+        userBanRepository.deleteAllInBatch()
 
         userA =
             userRepository.save(
@@ -372,6 +378,29 @@ class PostRepositoryCustomImplTest : IntegrationTest() {
                 draftByA.id,
                 publishedByB.id,
             )
+        }
+
+        @Test
+        @DisplayName("viewerId 지정 시 차단한 작성자의 게시물은 제외한다")
+        fun findPostsWithConditions_withViewerId_excludesBannedAuthorPosts() {
+            // given
+            val visiblePost = createPost(userA, PostStatusEnum.PUBLISHED)
+            createPost(userB, PostStatusEnum.PUBLISHED)
+            userBanRepository.save(UserBan(user = userA, bannedUser = userB))
+
+            // when
+            val result =
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 10,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.LATEST,
+                    visibleToUserId = userA.id!!,
+                    viewerId = userA.id!!,
+                )
+
+            // then
+            assertThat(result).extracting("id").containsExactly(visiblePost.id)
         }
     }
 }

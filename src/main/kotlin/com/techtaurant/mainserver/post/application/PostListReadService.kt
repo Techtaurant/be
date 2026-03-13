@@ -90,6 +90,7 @@ class PostListReadService(
                     authorId = authorId,
                     statuses = statuses,
                     categoryId = categoryId,
+                    viewerId = currentUserId,
                 )
             } else {
                 postRepository.findPostsWithConditions(
@@ -98,6 +99,7 @@ class PostListReadService(
                     period = period,
                     sortType = sortType,
                     visibleToUserId = currentUserId,
+                    viewerId = currentUserId,
                 )
             }
 

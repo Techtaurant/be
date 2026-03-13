@@ -33,5 +33,11 @@ interface PostRepositoryCustom {
         statuses: List<PostStatusEnum>? = null,
         categoryId: UUID? = null,
         visibleToUserId: UUID? = null,
+        viewerId: UUID? = null,
     ): List<Post>
+
+    fun findVisiblePostDetailById(
+        postId: UUID,
+        viewerId: UUID?,
+    ): Post?
 }

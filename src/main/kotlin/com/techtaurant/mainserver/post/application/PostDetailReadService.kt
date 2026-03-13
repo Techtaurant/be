@@ -47,7 +47,7 @@ class PostDetailReadService(
         userAgent: String?,
     ): PostDetailResponse {
         val post =
-            postRepository.findPostDetailById(postId)
+            postRepository.findVisiblePostDetailById(postId, userId)
                 ?: throw ApiException(PostStatus.POST_NOT_FOUND)
 
         if (post.status != PostStatusEnum.PUBLISHED) {

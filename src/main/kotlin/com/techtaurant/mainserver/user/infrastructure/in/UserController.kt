@@ -1,14 +1,20 @@
 package com.techtaurant.mainserver.user.infrastructure.`in`
 
 import com.techtaurant.mainserver.common.dto.ApiResponse
-import com.techtaurant.mainserver.common.swagger.ApiErrorResponses
 import com.techtaurant.mainserver.security.SecurityConstants
+import com.techtaurant.mainserver.user.application.UserBanService
 import com.techtaurant.mainserver.user.application.UserReadService
+import com.techtaurant.mainserver.user.dto.UserBanListItemResponse
+import com.techtaurant.mainserver.user.dto.UserBanResponse
 import com.techtaurant.mainserver.user.dto.UserResponse
-import com.techtaurant.mainserver.user.enums.UserStatus
+import org.springframework.http.HttpStatus
 import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
@@ -16,12 +22,37 @@ import java.util.UUID
 @RequestMapping("${SecurityConstants.API_PREFIX}/users")
 class UserController(
     private val userReadService: UserReadService,
+    private val userBanService: UserBanService,
 ) : UserControllerDocs {
-    @ApiErrorResponses(users = [UserStatus.ID_NOT_FOUND], includeAuthenticationErrors = true)
     @GetMapping("/me")
     override fun getMe(
         @AuthenticationPrincipal userId: UUID,
     ): ApiResponse<UserResponse> {
         return ApiResponse.ok(userReadService.getMe(userId))
+    }
+
+    @PostMapping("/{targetUserId}/ban")
+    @ResponseStatus(HttpStatus.CREATED)
+    override fun banUser(
+        @AuthenticationPrincipal userId: UUID,
+        @PathVariable targetUserId: UUID,
+    ): ApiResponse<UserBanResponse> {
+        return ApiResponse.created(userBanService.banUser(userId, targetUserId))
+    }
+
+    @GetMapping("/me/bans")
+    override fun getMyBannedUsers(
+        @AuthenticationPrincipal userId: UUID,
+    ): ApiResponse<List<UserBanListItemResponse>> {
+        return ApiResponse.ok(userBanService.getBannedUsers(userId))
+    }
+
+    @DeleteMapping("/{targetUserId}/ban")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    override fun unbanUser(
+        @AuthenticationPrincipal userId: UUID,
+        @PathVariable targetUserId: UUID,
+    ) {
+        userBanService.unbanUser(userId, targetUserId)
     }
 }
