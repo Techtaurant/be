@@ -34,6 +34,8 @@ data class PostListItemResponse(
     val status: PostStatusEnum,
     @field:Schema(description = "작성일")
     val createdAt: Date,
+    @field:Schema(description = "최종 수정일")
+    val updatedAt: Date,
 ) {
     companion object {
         /**
@@ -59,6 +61,7 @@ data class PostListItemResponse(
                 commentCount = post.commentCount,
                 status = post.status,
                 createdAt = post.createdAt,
+                updatedAt = post.updatedAt,
             )
     }
 }

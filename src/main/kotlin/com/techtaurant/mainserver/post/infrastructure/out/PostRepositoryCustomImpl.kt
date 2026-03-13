@@ -107,7 +107,7 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
     /**
      * 정렬 타입에 따른 커서 조건 추가
      *
-     * 최신순은 createdAt + id 기준, 그 외(조회/추천/댓글순)는 해당 count + createdAt + id 기준
+     * 최신순은 updatedAt + id 기준, 그 외(조회/추천/댓글순)는 해당 count + createdAt + id 기준
      */
     private fun addCursorCondition(
         cb: CriteriaBuilder,
@@ -129,21 +129,21 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
     /**
      * 최신순 커서 조건 생성
      *
-     * 동일 시간대 게시물 구분을 위해 id를 보조 키로 사용
-     * 조건: (createdAt < cursor) OR (createdAt = cursor AND id < cursorId)
+     * 최신순은 updatedAt 기준으로 정렬되며, 동일 시간대 게시물 구분을 위해 id를 보조 키로 사용합니다.
+     * 조건: (updatedAt < cursor) OR (updatedAt = cursor AND id < cursorId)
      */
     private fun buildLatestCursorCondition(
         cb: CriteriaBuilder,
         root: Root<Post>,
         cursor: PostCursor,
     ): Predicate {
-        val createdAtLess = cb.lessThan(root.get(EntityBase_.createdAt), cursor.createdAt)
-        val createdAtEqualAndIdLess =
+        val updatedAtLess = cb.lessThan(root.get(EntityBase_.updatedAt), cursor.createdAt)
+        val updatedAtEqualAndIdLess =
             cb.and(
-                cb.equal(root.get(EntityBase_.createdAt), cursor.createdAt),
+                cb.equal(root.get(EntityBase_.updatedAt), cursor.createdAt),
                 cb.lessThan(root.get(EntityBase_.id), cursor.id),
             )
-        return cb.or(createdAtLess, createdAtEqualAndIdLess)
+        return cb.or(updatedAtLess, updatedAtEqualAndIdLess)
     }
 
     /**
@@ -184,7 +184,9 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
     /**
      * 정렬 타입에 따른 ORDER BY 절 적용
      *
-     * 모든 정렬은 DESC이며 동점자 처리를 위해 createdAt, id를 보조 정렬 키로 추가
+     * 모든 정렬은 DESC이며 동점자 처리를 위해 createdAt, id를 보조 정렬 키로 추가합니다.
+     * 최신순(LATEST)은 updatedAt 기준입니다. createdAt을 기준으로 하면 한 번 생성된 게시물이
+     * 영구히 낮은 순위에 머물 수 있으므로, 수정된 게시물도 상단에 노출될 수 있도록 updatedAt을 사용합니다.
      */
     private fun applyOrdering(
         cb: CriteriaBuilder,
@@ -196,7 +198,7 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
             when (sortType) {
                 PostSortType.LATEST ->
                     listOf(
-                        cb.desc(root.get(EntityBase_.createdAt)),
+                        cb.desc(root.get(EntityBase_.updatedAt)),
                         cb.desc(root.get(EntityBase_.id)),
                     )
                 PostSortType.VIEW ->
