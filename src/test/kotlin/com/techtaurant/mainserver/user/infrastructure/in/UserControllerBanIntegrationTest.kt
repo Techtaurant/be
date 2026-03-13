@@ -4,6 +4,7 @@ import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.entity.User
+import com.techtaurant.mainserver.user.entity.UserBan
 import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserBanRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
@@ -62,9 +63,9 @@ class UserControllerBanIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("사용자 차단 후 목록 조회와 차단 해제가 정상 동작한다")
-    fun banListAndUnban_success() {
-        // When - 차단 요청
+    @DisplayName("사용자 차단이 성공한다")
+    fun ban_success() {
+        // When & Then
         given()
             .header("Authorization", "Bearer $accessToken")
             .`when`()
@@ -73,8 +74,15 @@ class UserControllerBanIntegrationTest : IntegrationTest() {
             .statusCode(HttpStatus.CREATED.value())
             .body("data.userId", equalTo(targetUser.id.toString()))
             .body("data.name", equalTo(targetUser.name))
+    }
 
-        // Then - 차단 목록 조회
+    @Test
+    @DisplayName("차단 목록 조회가 성공한다")
+    fun getBannedUsers_success() {
+        // Given
+        userBanRepository.save(UserBan(user = testUser, bannedUser = targetUser))
+
+        // When & Then
         given()
             .header("Authorization", "Bearer $accessToken")
             .`when`()
@@ -83,16 +91,35 @@ class UserControllerBanIntegrationTest : IntegrationTest() {
             .statusCode(HttpStatus.OK.value())
             .body("data", hasSize<Any>(1))
             .body("data[0].userId", equalTo(targetUser.id.toString()))
+    }
 
-        // When - 차단 해제
+    @Test
+    @DisplayName("차단 해제가 성공한다")
+    fun unban_success() {
+        // Given
+        userBanRepository.save(UserBan(user = testUser, bannedUser = targetUser))
+
+        // When & Then
         given()
             .header("Authorization", "Bearer $accessToken")
             .`when`()
             .delete("/api/users/${targetUser.id}/ban")
             .then()
             .statusCode(HttpStatus.NO_CONTENT.value())
+    }
 
-        // Then - 차단 목록 비어 있음
+    @Test
+    @DisplayName("차단 해제 후 목록이 비어있다")
+    fun getBannedUsers_afterUnban_returnsEmpty() {
+        // Given
+        userBanRepository.save(UserBan(user = testUser, bannedUser = targetUser))
+
+        given()
+            .header("Authorization", "Bearer $accessToken")
+            .`when`()
+            .delete("/api/users/${targetUser.id}/ban")
+
+        // When & Then
         given()
             .header("Authorization", "Bearer $accessToken")
             .`when`()
