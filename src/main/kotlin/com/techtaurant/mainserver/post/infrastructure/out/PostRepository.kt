@@ -9,6 +9,19 @@ import java.util.Date
 import java.util.UUID
 
 interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
+    @Query(
+        value = """
+            SELECT p.category_id as categoryId, COUNT(p.id) as postCount
+            FROM posts p
+            WHERE p.category_id IN (:categoryIds)
+            GROUP BY p.category_id
+        """,
+        nativeQuery = true,
+    )
+    fun countByCategoryIds(
+        @Param("categoryIds") categoryIds: List<UUID>,
+    ): List<CategoryPostCountProjection>
+
     /**
      * 게시물 상세 조회
      * author, tags, pictures, category를 JOIN FETCH하여 N+1 문제 방지

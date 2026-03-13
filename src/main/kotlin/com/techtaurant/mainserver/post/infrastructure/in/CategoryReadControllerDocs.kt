@@ -15,7 +15,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 interface CategoryReadControllerDocs {
     @Operation(
         summary = "카테고리 path prefix 검색",
-        description = "특정 유저의 카테고리를 path prefix로 검색합니다. 해당 경로로 시작하는 모든 카테고리를 반환합니다. path가 없으면 전체 카테고리를 반환합니다.",
+        description =
+            "특정 유저의 카테고리를 path prefix로 검색합니다. " +
+                "해당 경로로 시작하는 모든 카테고리를 반환하며, " +
+                "각 카테고리의 직접 연결 게시물 개수도 함께 제공합니다. " +
+                "path가 없으면 전체 카테고리를 반환합니다.",
     )
     @SwaggerApiResponse(
         responseCode = "200",

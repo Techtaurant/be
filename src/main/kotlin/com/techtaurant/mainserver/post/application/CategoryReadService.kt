@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.post.dto.CategoryResponse
 import com.techtaurant.mainserver.post.infrastructure.out.CategoryRepository
+import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -13,6 +14,7 @@ import java.util.UUID
 @Transactional(readOnly = true)
 class CategoryReadService(
     private val categoryRepository: CategoryRepository,
+    private val postRepository: PostRepository,
 ) {
     /**
      * 카테고리 path prefix 검색
@@ -31,6 +33,20 @@ class CategoryReadService(
             } else {
                 categoryRepository.findByUserIdAndPathPrefix(userId, pathPrefix)
             }
-        return categories.map { CategoryResponse.from(it) }
+        val postCountByCategoryId =
+            if (categories.isEmpty()) {
+                emptyMap()
+            } else {
+                postRepository.countByCategoryIds(categories.mapNotNull { it.id }).associate {
+                    it.getCategoryId() to it.getPostCount()
+                }
+            }
+
+        return categories.map { category ->
+            CategoryResponse.from(
+                category = category,
+                postCount = postCountByCategoryId[category.id] ?: 0L,
+            )
+        }
     }
 }
