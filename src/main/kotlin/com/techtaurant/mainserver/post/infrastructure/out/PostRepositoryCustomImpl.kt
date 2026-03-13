@@ -12,6 +12,7 @@ import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.entity.UserBan
+import com.techtaurant.mainserver.user.entity.UserBan_
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
 import jakarta.persistence.criteria.CriteriaBuilder
@@ -170,10 +171,10 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
 
         banSubquery.select(cb.literal(1L))
         banSubquery.where(
-            cb.equal(banRoot.get<User>("user").get<UUID>(EntityBase_.id), viewerId),
+            cb.equal(banRoot.get(UserBan_.user).get(EntityBase_.id), viewerId),
             cb.equal(
-                banRoot.get<User>("bannedUser").get<UUID>(EntityBase_.id),
-                root.get<User>(Post_.author).get<UUID>(EntityBase_.id),
+                banRoot.get(UserBan_.bannedUser).get(EntityBase_.id),
+                root.get(Post_.author).get(EntityBase_.id),
             ),
         )
 

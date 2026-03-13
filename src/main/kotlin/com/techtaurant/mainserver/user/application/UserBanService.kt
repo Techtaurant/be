@@ -7,6 +7,7 @@ import com.techtaurant.mainserver.user.entity.UserBan
 import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserBanRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -24,12 +25,10 @@ class UserBanService(
     ): UserBanResponse {
         validateNotSelfBan(userId, targetUserId)
 
-        if (userBanRepository.existsByUserIdAndBannedUserId(userId, targetUserId)) {
-            throw ApiException(UserStatus.USER_ALREADY_BANNED)
-        }
-
         val user =
             userRepository.findById(userId).orElseThrow {
+                // @AuthenticationPrincipal로 주입된 userId는 이미 인증된 사용자이므로
+                // 정상 플로우에서는 도달 불가. 토큰 유효 기간 내 사용자가 탈퇴한 경우에만 발생.
                 ApiException(UserStatus.ID_NOT_FOUND)
             }
         val targetUser =
@@ -37,13 +36,23 @@ class UserBanService(
                 ApiException(UserStatus.USER_NOT_FOUND)
             }
 
+        // 이미 차단한 경우 기존 차단 정보를 그대로 반환 (idempotent)
+        userBanRepository.findByUserIdAndBannedUserId(userId, targetUserId)?.let {
+            return UserBanResponse.from(it)
+        }
+
         val userBan =
-            userBanRepository.save(
-                UserBan(
-                    user = user,
-                    bannedUser = targetUser,
-                ),
-            )
+            try {
+                userBanRepository.save(
+                    UserBan(
+                        user = user,
+                        bannedUser = targetUser,
+                    ),
+                )
+            } catch (e: DataIntegrityViolationException) {
+                // 동시 요청으로 인한 유니크 제약 위반 시 기존 차단 정보를 반환 (idempotent)
+                userBanRepository.findByUserIdAndBannedUserId(userId, targetUserId)!!
+            }
 
         return UserBanResponse.from(userBan)
     }
@@ -58,9 +67,7 @@ class UserBanService(
             return emptySet()
         }
 
-        return userBanRepository.findAllByUserId(userId)
-            .map { it.bannedUser.id!! }
-            .toSet()
+        return userBanRepository.findBannedUserIdsByUserId(userId).toHashSet()
     }
 
     @Transactional
