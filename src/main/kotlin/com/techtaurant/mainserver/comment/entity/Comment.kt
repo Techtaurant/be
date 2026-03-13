@@ -4,13 +4,12 @@ import com.techtaurant.mainserver.common.base.EntityBase
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.user.entity.User
 import jakarta.persistence.*
-import org.hibernate.annotations.SQLDelete
 import java.util.Date
 
 /**
  * 댓글 엔티티
  * 게시물에 대한 댓글을 표현하며, 댓글에 대한 대댓글까지 지원합니다(최대 1depth).
- * 삭제 시 실제 DELETE 대신 is_deleted=true, 내용 블라인드 처리로 soft delete됩니다.
+ * 삭제 시 실제 DELETE 대신 삭제 상태와 삭제 시각을 기록하고, 내용은 서비스 레이어에서 해시 문자열로 치환합니다.
  *
  * @property content 댓글 내용
  * @property post 댓글이 달린 게시물
@@ -25,9 +24,6 @@ import java.util.Date
  */
 @Entity
 @Table(name = "comments")
-@SQLDelete(
-    sql = "UPDATE comments SET is_deleted = true, deleted_at = NOW(), content = '삭제된 댓글입니다.' WHERE id = ?",
-)
 class Comment(
     @Column(nullable = false, columnDefinition = "TEXT")
     var content: String,
@@ -52,8 +48,4 @@ class Comment(
     var isDeleted: Boolean = false,
     @Column(nullable = true)
     var deletedAt: Date? = null,
-) : EntityBase() {
-    companion object {
-        const val DELETED_CONTENT = "삭제된 댓글입니다."
-    }
-}
+) : EntityBase()
