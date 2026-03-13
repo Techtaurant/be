@@ -21,8 +21,8 @@ import jakarta.persistence.UniqueConstraint
 class UserBan(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    var user: User,
+    val user: User,
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "banned_user_id", nullable = false)
-    var bannedUser: User,
+    val bannedUser: User,
 ) : EntityBase()
