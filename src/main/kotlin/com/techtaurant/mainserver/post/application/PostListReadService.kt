@@ -255,6 +255,7 @@ class PostListReadService(
             commentCount = post.commentCount,
             status = post.status,
             createdAt = post.createdAt,
+            updatedAt = post.updatedAt,
         )
     }
 }
