@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
+import java.util.UUID
 
 @Transactional
 @ActiveProfiles("test")
@@ -34,6 +35,20 @@ class PostRepositoryTest : IntegrationTest() {
     private lateinit var testUser: User
     private lateinit var testCategory: Category
     private lateinit var testPost: Post
+
+    private fun createPost(
+        title: String = "테스트 게시물",
+        category: Category? = testCategory,
+    ): Post =
+        postRepository.save(
+            Post(
+                title = title,
+                content = "테스트 내용",
+                author = testUser,
+                category = category,
+                commentCount = 0,
+            ),
+        )
 
     @BeforeEach
     fun setUpTestData() {
@@ -60,15 +75,7 @@ class PostRepositoryTest : IntegrationTest() {
             )
 
         testPost =
-            postRepository.save(
-                Post(
-                    title = "테스트 게시물",
-                    content = "테스트 내용",
-                    author = testUser,
-                    category = testCategory,
-                    commentCount = 0,
-                ),
-            )
+            createPost()
     }
 
     @Test
@@ -160,7 +167,7 @@ class PostRepositoryTest : IntegrationTest() {
     fun incrementCommentCount_withNonExistentPostId_doesNothing() {
         // Given
         val allPostsBefore = postRepository.findAll()
-        val nonExistentPostId = java.util.UUID.randomUUID()
+        val nonExistentPostId = UUID.randomUUID()
 
         // When
         postRepository.incrementCommentCount(nonExistentPostId)
