@@ -368,10 +368,11 @@ class CommentReadControllerTest : IntegrationTest() {
         @DisplayName("삭제된 부모 댓글도 목록 조회 결과에 포함되어야 한다")
         fun whenGetParentComments_thenDeletedCommentIncluded() {
             // given
-            val deletedComment = parentComments[0].apply {
-                content = sha256(content)
-                deletedAt = Date()
-            }
+            val deletedComment =
+                parentComments[0].apply {
+                    content = sha256(content)
+                    deletedAt = Date()
+                }
             commentRepository.save(deletedComment)
 
             // when
@@ -400,10 +401,11 @@ class CommentReadControllerTest : IntegrationTest() {
             // given
             val parentComment = parentComments[0]
             val replies = createTestReplies(parentComment)
-            val deletedReply = replies[0].apply {
-                content = sha256(content)
-                deletedAt = Date()
-            }
+            val deletedReply =
+                replies[0].apply {
+                    content = sha256(content)
+                    deletedAt = Date()
+                }
             commentRepository.save(deletedReply)
 
             // when

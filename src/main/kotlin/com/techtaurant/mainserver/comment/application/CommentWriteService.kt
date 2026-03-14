@@ -88,7 +88,7 @@ class CommentWriteService(
                 ApiException(CommentStatus.COMMENT_NOT_FOUND)
             }
 
-        if (comment.isDeleted) {
+        if (comment.deletedAt != null) {
             throw ApiException(CommentStatus.COMMENT_ALREADY_DELETED)
         }
 

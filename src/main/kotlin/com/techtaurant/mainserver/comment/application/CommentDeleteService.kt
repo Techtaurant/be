@@ -36,7 +36,7 @@ class CommentDeleteService(
                 ApiException(CommentStatus.COMMENT_NOT_FOUND)
             }
 
-        if (comment.isDeleted) {
+        if (comment.deletedAt != null) {
             throw ApiException(CommentStatus.COMMENT_ALREADY_DELETED)
         }
 
@@ -45,7 +45,6 @@ class CommentDeleteService(
         }
 
         comment.content = hashContent(comment.content)
-        comment.isDeleted = true
         comment.deletedAt = Date()
 
         commentRepository.save(comment)

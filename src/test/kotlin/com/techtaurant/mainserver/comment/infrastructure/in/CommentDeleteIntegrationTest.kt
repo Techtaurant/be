@@ -92,9 +92,9 @@ class CommentDeleteIntegrationTest : IntegrationTest() {
 
         // then
         val deletedComment = commentRepository.findById(comment.id!!).orElseThrow()
-        assertThat(deletedComment.isDeleted).isTrue()
         assertThat(deletedComment.deletedAt).isNotNull()
         assertThat(deletedComment.content).isEqualTo(sha256(originalContent))
+        assertThat(commentRepository.findByPostIdOrderByCreatedAtAsc(post.id!!)).isEmpty()
     }
 
     @Test
@@ -115,7 +115,6 @@ class CommentDeleteIntegrationTest : IntegrationTest() {
 
         // then
         val persistedComment = commentRepository.findById(comment.id!!).orElseThrow()
-        assertThat(persistedComment.isDeleted).isFalse()
         assertThat(persistedComment.deletedAt).isNull()
         assertThat(persistedComment.content).isEqualTo("작성자만 삭제할 수 있는 댓글")
     }
