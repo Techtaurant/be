@@ -1,15 +1,12 @@
 package com.techtaurant.mainserver.post.application
 
-import com.techtaurant.mainserver.post.entity.Category
-import com.techtaurant.mainserver.post.infrastructure.out.CategoryPostCountProjection
 import com.techtaurant.mainserver.post.infrastructure.out.CategoryRepository
-import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
+import com.techtaurant.mainserver.post.infrastructure.out.CategoryWithPostCountProjection
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -18,12 +15,10 @@ import java.util.UUID
 
 class CategoryReadServiceTest {
     private val categoryRepository: CategoryRepository = mockk()
-    private val postRepository: PostRepository = mockk()
 
     private val categoryReadService =
         CategoryReadService(
             categoryRepository = categoryRepository,
-            postRepository = postRepository,
         )
 
     private val user =
@@ -38,28 +33,24 @@ class CategoryReadServiceTest {
             id = UUID.randomUUID()
         }
 
-    private fun createCategory(
+    private fun createProjection(
+        id: UUID,
         name: String,
         path: String,
         depth: Int,
-        parent: Category? = null,
-    ): Category =
-        Category(
-            user = user,
-            name = name,
-            path = path,
-            depth = depth,
-            parent = parent,
-        ).apply {
-            id = UUID.randomUUID()
-        }
-
-    private fun createCategoryPostCountProjection(
-        categoryId: UUID,
+        parentId: UUID?,
         postCount: Long,
-    ): CategoryPostCountProjection =
-        object : CategoryPostCountProjection {
-            override fun getCategoryId(): UUID = categoryId
+    ): CategoryWithPostCountProjection =
+        object : CategoryWithPostCountProjection {
+            override fun getId(): UUID = id
+
+            override fun getName(): String = name
+
+            override fun getPath(): String = path
+
+            override fun getDepth(): Int = depth
+
+            override fun getParentId(): UUID? = parentId
 
             override fun getPostCount(): Long = postCount
         }
@@ -71,15 +62,12 @@ class CategoryReadServiceTest {
         @DisplayName("카테고리별 게시물 개수를 함께 반환한다")
         fun searchByPath_returnsCategoriesWithPostCounts() {
             // given
-            val rootCategory = createCategory(name = "java", path = "java", depth = 1)
-            val childCategory = createCategory(name = "spring", path = "java/spring", depth = 2, parent = rootCategory)
-
-            every { categoryRepository.findByUserIdAndPathPrefix(user.id!!, "java") } returns
-                listOf(rootCategory, childCategory)
-            every { postRepository.countByCategoryIds(listOf(rootCategory.id!!, childCategory.id!!)) } returns
+            val rootId = UUID.randomUUID()
+            val childId = UUID.randomUUID()
+            every { categoryRepository.findByUserIdAndPathPrefixWithPostCount(user.id!!, "java") } returns
                 listOf(
-                    createCategoryPostCountProjection(rootCategory.id!!, 2L),
-                    createCategoryPostCountProjection(childCategory.id!!, 5L),
+                    createProjection(rootId, "java", "java", 1, null, 2L),
+                    createProjection(childId, "spring", "java/spring", 2, rootId, 5L),
                 )
 
             // when
@@ -87,10 +75,10 @@ class CategoryReadServiceTest {
 
             // then
             assertThat(result).hasSize(2)
-            assertThat(result[0].id).isEqualTo(rootCategory.id)
+            assertThat(result[0].id).isEqualTo(rootId)
             assertThat(result[0].postCount).isEqualTo(2L)
-            assertThat(result[1].id).isEqualTo(childCategory.id)
-            assertThat(result[1].parentId).isEqualTo(rootCategory.id)
+            assertThat(result[1].id).isEqualTo(childId)
+            assertThat(result[1].parentId).isEqualTo(rootId)
             assertThat(result[1].postCount).isEqualTo(5L)
         }
 
@@ -98,10 +86,9 @@ class CategoryReadServiceTest {
         @DisplayName("게시물이 없는 카테고리는 게시물 개수를 0으로 반환한다")
         fun searchByPath_returnsZeroWhenCategoryHasNoPosts() {
             // given
-            val category = createCategory(name = "kotlin", path = "kotlin", depth = 1)
-
-            every { categoryRepository.findByUserId(user.id!!) } returns listOf(category)
-            every { postRepository.countByCategoryIds(listOf(category.id!!)) } returns emptyList()
+            val categoryId = UUID.randomUUID()
+            every { categoryRepository.findByUserIdWithPostCount(user.id!!) } returns
+                listOf(createProjection(categoryId, "kotlin", "kotlin", 1, null, 0L))
 
             // when
             val result = categoryReadService.searchByPath(user.id!!, null)
@@ -112,17 +99,16 @@ class CategoryReadServiceTest {
         }
 
         @Test
-        @DisplayName("카테고리가 없으면 게시물 집계 조회를 수행하지 않는다")
-        fun searchByPath_skipsPostCountQueryWhenNoCategories() {
+        @DisplayName("카테고리가 없으면 빈 목록을 반환한다")
+        fun searchByPath_returnsEmptyWhenNoCategories() {
             // given
-            every { categoryRepository.findByUserId(user.id!!) } returns emptyList()
+            every { categoryRepository.findByUserIdWithPostCount(user.id!!) } returns emptyList()
 
             // when
             val result = categoryReadService.searchByPath(user.id!!, null)
 
             // then
             assertThat(result).isEmpty()
-            verify(exactly = 0) { postRepository.countByCategoryIds(any()) }
         }
     }
 }

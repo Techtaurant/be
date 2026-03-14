@@ -11,7 +11,6 @@ import jakarta.persistence.EntityManager
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ActiveProfiles
@@ -77,76 +76,6 @@ class PostRepositoryTest : IntegrationTest() {
 
         testPost =
             createPost()
-    }
-
-    @Nested
-    @DisplayName("countByCategoryIds")
-    inner class CountByCategoryIds {
-        @Test
-        @DisplayName("요청한 카테고리별 게시물 수를 집계한다")
-        fun countByCategoryIds_returnsPostCountsForRequestedCategories() {
-            // given
-            val secondCategory =
-                categoryRepository.save(
-                    Category(
-                        user = testUser,
-                        name = "두번째 카테고리",
-                        path = "두번째카테고리",
-                        depth = 1,
-                    ),
-                )
-            createPost(title = "첫번째 카테고리 추가 게시물")
-            createPost(title = "두번째 카테고리 게시물 1", category = secondCategory)
-            createPost(title = "두번째 카테고리 게시물 2", category = secondCategory)
-            postRepository.flush()
-            entityManager.clear()
-
-            // when
-            val result =
-                postRepository.countByCategoryIds(listOf(testCategory.id!!, secondCategory.id!!))
-                    .associate { it.getCategoryId() to it.getPostCount() }
-
-            // then
-            assertThat(result[testCategory.id!!]).isEqualTo(2L)
-            assertThat(result[secondCategory.id!!]).isEqualTo(2L)
-        }
-
-        @Test
-        @DisplayName("요청하지 않은 카테고리와 미분류 게시물은 집계에서 제외한다")
-        fun countByCategoryIds_excludesUnrequestedCategoriesAndUncategorizedPosts() {
-            // given
-            val requestedCategory =
-                categoryRepository.save(
-                    Category(
-                        user = testUser,
-                        name = "요청 카테고리",
-                        path = "요청카테고리",
-                        depth = 1,
-                    ),
-                )
-            val unrequestedCategory =
-                categoryRepository.save(
-                    Category(
-                        user = testUser,
-                        name = "미요청 카테고리",
-                        path = "미요청카테고리",
-                        depth = 1,
-                    ),
-                )
-            createPost(title = "요청 카테고리 게시물", category = requestedCategory)
-            createPost(title = "미요청 카테고리 게시물", category = unrequestedCategory)
-            createPost(title = "미분류 게시물", category = null)
-            postRepository.flush()
-            entityManager.clear()
-
-            // when
-            val result = postRepository.countByCategoryIds(listOf(requestedCategory.id!!))
-
-            // then
-            assertThat(result).hasSize(1)
-            assertThat(result[0].getCategoryId()).isEqualTo(requestedCategory.id)
-            assertThat(result[0].getPostCount()).isEqualTo(1L)
-        }
     }
 
     @Test
