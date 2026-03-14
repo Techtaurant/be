@@ -1,6 +1,7 @@
 package com.techtaurant.mainserver.post.dto
 
 import com.techtaurant.mainserver.post.entity.Category
+import com.techtaurant.mainserver.post.infrastructure.out.CategoryWithPostCountProjection
 import io.swagger.v3.oas.annotations.media.Schema
 import java.util.UUID
 
@@ -41,5 +42,15 @@ data class CategoryResponse(
             parentId = category.parent?.id,
             postCount = postCount,
         )
+
+        fun from(projection: CategoryWithPostCountProjection) =
+            CategoryResponse(
+                id = projection.getId(),
+                name = projection.getName(),
+                path = projection.getPath(),
+                depth = projection.getDepth(),
+                parentId = projection.getParentId(),
+                postCount = projection.getPostCount(),
+            )
     }
 }
