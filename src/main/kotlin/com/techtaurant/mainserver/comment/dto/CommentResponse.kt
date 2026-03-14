@@ -24,12 +24,12 @@ data class CommentResponse(
     val parentId: UUID?,
     @field:Schema(description = "댓글 깊이 (0: 댓글, 1: 대댓글)")
     val depth: Int,
+    @field:Schema(description = "삭제 여부")
+    val isDeleted: Boolean,
     @field:Schema(description = "생성 시각")
     val createdAt: Date,
     @field:Schema(description = "수정 시각")
     val updatedAt: Date,
-    @field:Schema(description = "삭제 여부")
-    val isDeleted: Boolean,
 ) {
     companion object {
         fun from(comment: Comment): CommentResponse {
@@ -41,9 +41,9 @@ data class CommentResponse(
                 authorName = comment.author.name,
                 parentId = comment.parent?.id,
                 depth = comment.depth,
+                isDeleted = comment.deletedAt != null,
                 createdAt = comment.createdAt,
                 updatedAt = comment.updatedAt,
-                isDeleted = comment.isDeleted,
             )
         }
     }
