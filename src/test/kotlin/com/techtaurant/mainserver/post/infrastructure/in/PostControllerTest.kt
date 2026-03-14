@@ -335,6 +335,36 @@ class PostControllerTest : IntegrationTest() {
                 assertTrue(post.commentCount >= 0, "댓글수는 음수가 아니어야 함")
             }
         }
+
+        @Test
+        @DisplayName("게시물 내용이 최대 2000자로 함께 로딩되어야 한다")
+        fun whenGetPosts_thenContentLoadedWithMaxLength2000() {
+            // Given - 길이가 다른 게시물 본문이 준비되어 있음
+
+            // When - 게시물 목록 조회
+            val response =
+                RestAssured
+                    .given()
+                    .queryParam("size", 10)
+                    .`when`()
+                    .get("/open-api/posts")
+                    .then()
+                    .statusCode(200)
+                    .extract()
+                    .`as`(object : TypeRef<ApiResponse<CursorPageResponse<PostListItemResponse>>>() {})
+
+            // Then - 짧은 본문은 원문 그대로, 긴 본문은 2000자로 잘려야 함
+            val contentById = response.data!!.content.associateBy { it.id }
+            val shortContentPost = contentById[testPosts[1].id]
+            val longContentPost = contentById[testPosts[2].id]
+
+            assertNotNull(shortContentPost)
+            assertEquals("짧은 본문", shortContentPost.content)
+
+            assertNotNull(longContentPost)
+            assertEquals(2000, longContentPost.content.length)
+            assertEquals("가".repeat(2000), longContentPost.content)
+        }
     }
 
     @Nested
@@ -497,7 +527,7 @@ class PostControllerTest : IntegrationTest() {
         val post2 =
             Post(
                 title = "Post 2 - 5 days ago",
-                content = "Content 2",
+                content = "짧은 본문",
                 author = testUser,
                 viewCount = 50,
                 likeCount = 25,
@@ -518,7 +548,7 @@ class PostControllerTest : IntegrationTest() {
         val post3 =
             Post(
                 title = "Post 3 - 1 day ago",
-                content = "Content 3",
+                content = "가".repeat(2105),
                 author = testUser,
                 viewCount = 100,
                 likeCount = 50,

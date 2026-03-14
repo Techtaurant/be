@@ -37,6 +37,7 @@ class PostListReadService(
 ) {
     companion object {
         private const val STALE_DRAFT_DAYS = 14
+        private const val POST_LIST_CONTENT_MAX_LENGTH = 2000
     }
 
     /**
@@ -246,6 +247,7 @@ class PostListReadService(
         return PostListItemResponse(
             id = post.id!!,
             title = post.title,
+            content = post.content.take(POST_LIST_CONTENT_MAX_LENGTH),
             authorId = post.author.id!!,
             authorName = post.author.name,
             authorProfileImageUrl = post.author.profileImageUrl,
