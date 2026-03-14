@@ -19,7 +19,7 @@ class CategoryReadService(
      *
      * @param userId 검색 대상 유저 ID
      * @param pathPrefix 카테고리 경로 prefix (null이면 전체 조회)
-     * @return 해당 prefix로 시작하는 카테고리 목록
+     * @return 해당 prefix로 시작하는 카테고리 목록 (게시물 수 포함)
      */
     fun searchByPath(
         userId: UUID,
@@ -27,9 +27,9 @@ class CategoryReadService(
     ): List<CategoryResponse> {
         val categories =
             if (pathPrefix.isNullOrBlank()) {
-                categoryRepository.findByUserId(userId)
+                categoryRepository.findByUserIdWithPostCount(userId)
             } else {
-                categoryRepository.findByUserIdAndPathPrefix(userId, pathPrefix)
+                categoryRepository.findByUserIdAndPathPrefixWithPostCount(userId, pathPrefix)
             }
         return categories.map { CategoryResponse.from(it) }
     }

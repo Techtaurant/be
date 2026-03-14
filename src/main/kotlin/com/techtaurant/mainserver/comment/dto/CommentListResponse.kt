@@ -34,6 +34,8 @@ data class CommentListResponse(
     val likeStatus: LikeStatus,
     @field:Schema(description = "삭제 여부")
     val isDeleted: Boolean,
+    @field:Schema(description = "현재 사용자가 차단한 작성자의 댓글인지 여부")
+    val isBanned: Boolean,
     @field:Schema(description = "생성 시각")
     val createdAt: Date,
     @field:Schema(description = "수정 시각")
@@ -57,6 +59,33 @@ data class CommentListResponse(
                 replyCount = comment.replyCount,
                 likeStatus = likeStatus,
                 isDeleted = comment.deletedAt != null,
+                isBanned = false,
+                createdAt = comment.createdAt,
+                updatedAt = comment.updatedAt,
+            )
+        }
+
+        fun fromMasked(
+            comment: Comment,
+            likeStatus: LikeStatus,
+            maskedAuthorId: UUID,
+            maskedAuthorName: String,
+            maskedContent: String,
+        ): CommentListResponse {
+            return CommentListResponse(
+                id = comment.id!!,
+                content = maskedContent,
+                postId = comment.post.id!!,
+                authorId = maskedAuthorId,
+                authorName = maskedAuthorName,
+                authorProfileImageUrl = null,
+                parentId = comment.parent?.id,
+                depth = comment.depth,
+                likeCount = comment.likeCount,
+                replyCount = comment.replyCount,
+                likeStatus = likeStatus,
+                isDeleted = comment.deletedAt != null,
+                isBanned = true,
                 createdAt = comment.createdAt,
                 updatedAt = comment.updatedAt,
             )

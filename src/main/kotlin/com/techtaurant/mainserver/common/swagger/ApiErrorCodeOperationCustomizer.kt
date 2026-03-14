@@ -5,9 +5,14 @@ import com.techtaurant.mainserver.common.dto.ValidationErrorResponse
 import com.techtaurant.mainserver.common.status.DefaultStatus
 import com.techtaurant.mainserver.common.status.StatusIfs
 import io.swagger.v3.oas.models.Operation
+import io.swagger.v3.oas.models.media.ComposedSchema
 import io.swagger.v3.oas.models.media.Content
+import io.swagger.v3.oas.models.media.IntegerSchema
+import io.swagger.v3.oas.models.media.MapSchema
 import io.swagger.v3.oas.models.media.MediaType
+import io.swagger.v3.oas.models.media.ObjectSchema
 import io.swagger.v3.oas.models.media.Schema
+import io.swagger.v3.oas.models.media.StringSchema
 import io.swagger.v3.oas.models.responses.ApiResponses
 import org.springdoc.core.customizers.OperationCustomizer
 import org.springframework.core.annotation.AnnotatedElementUtils
@@ -93,13 +98,6 @@ class ApiErrorCodeOperationCustomizer : OperationCustomizer {
         val content = response.content ?: Content()
         val mediaType = content["application/json"] ?: MediaType()
 
-        if (mediaType.schema == null) {
-            mediaType.schema =
-                Schema<Any>().apply {
-                    `$ref` = "#/components/schemas/ApiResponse"
-                }
-        }
-
         statuses.forEach { status ->
             val example =
                 SwaggerExample().apply {
@@ -109,14 +107,55 @@ class ApiErrorCodeOperationCustomizer : OperationCustomizer {
             mediaType.addExamples(resolveExampleName(status), example)
         }
 
-        if (httpStatusCode == "400") {
+        val hasValidationError = httpStatusCode == "400"
+        if (hasValidationError) {
             addValidationErrorExample(mediaType)
+        }
+
+        if (mediaType.schema == null) {
+            mediaType.schema =
+                if (hasValidationError) {
+                    ComposedSchema()
+                        .addOneOfItem(businessErrorSchema())
+                        .addOneOfItem(validationErrorSchema())
+                } else {
+                    businessErrorSchema()
+                }
         }
 
         content.addMediaType("application/json", mediaType)
         response.content = content
         operation.responses.addApiResponse(httpStatusCode, response)
     }
+
+    private fun businessErrorSchema(): Schema<*> =
+        ObjectSchema()
+            .addProperty("status", IntegerSchema().description("커스텀 상태 코드").example(3001))
+            .addProperty(
+                "data",
+                Schema<Any>().apply {
+                    description = "에러 상세 데이터"
+                    nullable = true
+                },
+            )
+            .addProperty("message", StringSchema().description("에러 메시지").example("게시물을 찾을 수 없습니다"))
+
+    private fun validationErrorSchema(): Schema<*> =
+        ObjectSchema()
+            .addProperty("status", IntegerSchema().description("커스텀 상태 코드").example(400))
+            .addProperty(
+                "data",
+                ObjectSchema()
+                    .description("검증 오류 상세 정보")
+                    .addProperty(
+                        "errors",
+                        MapSchema()
+                            .description("필드별 검증 오류")
+                            .additionalProperties(StringSchema())
+                            .example(mapOf("field" to "유효하지 않은 값입니다")),
+                    ),
+            )
+            .addProperty("message", StringSchema().description("에러 메시지").example("Wrong Request"))
 
     private fun buildErrorExampleValue(status: StatusIfs): Map<String, Any?> {
         val errorResponse = ApiResponse.error<Any>(status)

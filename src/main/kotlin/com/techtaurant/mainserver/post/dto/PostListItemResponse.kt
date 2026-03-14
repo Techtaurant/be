@@ -12,6 +12,8 @@ data class PostListItemResponse(
     val id: UUID,
     @field:Schema(description = "게시물 제목")
     val title: String,
+    @field:Schema(description = "게시물 내용 일부 (최대 2000자)")
+    val content: String,
     @field:Schema(description = "작성자 ID")
     val authorId: UUID,
     @field:Schema(description = "작성자 이름")
@@ -34,6 +36,8 @@ data class PostListItemResponse(
     val status: PostStatusEnum,
     @field:Schema(description = "작성일")
     val createdAt: Date,
+    @field:Schema(description = "최종 수정일")
+    val updatedAt: Date,
 ) {
     companion object {
         /**
@@ -48,6 +52,7 @@ data class PostListItemResponse(
             PostListItemResponse(
                 id = post.id!!,
                 title = post.title,
+                content = post.content.take(2000),
                 authorId = post.author.id!!,
                 authorName = post.author.name,
                 authorProfileImageUrl = post.author.profileImageUrl,
@@ -59,6 +64,7 @@ data class PostListItemResponse(
                 commentCount = post.commentCount,
                 status = post.status,
                 createdAt = post.createdAt,
+                updatedAt = post.updatedAt,
             )
     }
 }

@@ -9,8 +9,11 @@ import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
+import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.entity.User
+import com.techtaurant.mainserver.user.entity.UserBan
 import com.techtaurant.mainserver.user.enums.UserRole
+import com.techtaurant.mainserver.user.infrastructure.out.UserBanRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.restassured.RestAssured
 import io.restassured.common.mapper.TypeRef
@@ -39,12 +42,21 @@ class CommentReadControllerTest : IntegrationTest() {
     @Autowired
     private lateinit var userRepository: UserRepository
 
+    @Autowired
+    private lateinit var userBanRepository: UserBanRepository
+
+    @Autowired
+    private lateinit var jwtTokenProvider: JwtTokenProvider
+
     private lateinit var testUser: User
+    private lateinit var blockedUser: User
     private lateinit var testPost: Post
     private lateinit var parentComments: List<Comment>
+    private lateinit var accessToken: String
 
     @BeforeEach
     fun setup() {
+        userBanRepository.deleteAllInBatch()
         testUser =
             userRepository.save(
                 User(
@@ -56,6 +68,18 @@ class CommentReadControllerTest : IntegrationTest() {
                     profileImageUrl = "https://example.com/profile.jpg",
                 ),
             )
+        blockedUser =
+            userRepository.save(
+                User(
+                    name = "Blocked User",
+                    email = "blocked@example.com",
+                    provider = OAuthProvider.GOOGLE,
+                    identifier = "blocked-id-${UUID.randomUUID()}",
+                    role = UserRole.USER,
+                    profileImageUrl = "https://example.com/blocked-profile.jpg",
+                ),
+            )
+        accessToken = jwtTokenProvider.createAccessToken(testUser.id!!, testUser.role)
 
         // Given: 테스트 게시물 생성
         testPost =
@@ -309,6 +333,47 @@ class CommentReadControllerTest : IntegrationTest() {
             assertEquals(1, secondPageResponse.data!!.size)
             assertTrue(firstPageCommentId != secondPageCommentId, "다음 페이지의 댓글이 달라야 함")
         }
+    }
+
+    @Test
+    @DisplayName("로그인 사용자가 차단한 작성자의 댓글은 마스킹되고 isBanned=true로 반환된다")
+    fun getParentComments_masksBannedAuthorComment() {
+        // Given
+        val blockedComment =
+            commentRepository.save(
+                Comment(
+                    content = "차단된 댓글 내용",
+                    post = testPost,
+                    author = blockedUser,
+                    parent = null,
+                    depth = 0,
+                ),
+            )
+        userBanRepository.save(UserBan(user = testUser, bannedUser = blockedUser))
+
+        // When
+        val response =
+            RestAssured
+                .given()
+                .header("Authorization", "Bearer $accessToken")
+                .queryParam("sort", "LATEST")
+                .queryParam("size", 10)
+                .`when`()
+                .get("/open-api/comments/posts/${testPost.id}")
+                .then()
+                .statusCode(200)
+                .extract()
+                .`as`(object : TypeRef<ApiResponse<CursorPageResponse<CommentListResponse>>>() {})
+
+        // Then
+        val maskedComment = response.data!!.content.first { it.id == blockedComment.id }
+        assertTrue(maskedComment.isBanned)
+        assertTrue(maskedComment.authorName.startsWith("banned_"))
+        assertEquals(13, maskedComment.authorName.length)
+        assertTrue(maskedComment.content.startsWith("banned_"))
+        assertEquals(13, maskedComment.content.length)
+        assertEquals(null, maskedComment.authorProfileImageUrl)
+        assertTrue(maskedComment.authorId != blockedUser.id)
     }
 
     @Nested

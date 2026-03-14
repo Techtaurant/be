@@ -97,6 +97,7 @@ class PostListReadServiceTest {
                     period = PostPeriod.ALL,
                     sortType = PostSortType.LATEST,
                     visibleToUserId = testUser.id!!,
+                    viewerId = testUser.id!!,
                 )
             } returns posts
             every {
@@ -114,6 +115,7 @@ class PostListReadServiceTest {
                     period = PostPeriod.ALL,
                     sortType = PostSortType.LATEST,
                     visibleToUserId = testUser.id!!,
+                    viewerId = testUser.id!!,
                 )
             }
         }
@@ -130,6 +132,7 @@ class PostListReadServiceTest {
                     period = PostPeriod.ALL,
                     sortType = PostSortType.LATEST,
                     visibleToUserId = null,
+                    viewerId = null,
                 )
             } returns posts
 
@@ -144,6 +147,7 @@ class PostListReadServiceTest {
                     period = PostPeriod.ALL,
                     sortType = PostSortType.LATEST,
                     visibleToUserId = null,
+                    viewerId = null,
                 )
             }
         }
@@ -173,6 +177,7 @@ class PostListReadServiceTest {
                     authorId = testUser.id!!,
                     statuses = PostStatusEnum.entries,
                     categoryId = null,
+                    viewerId = testUser.id!!,
                 )
             } returns posts
             every {
@@ -197,6 +202,7 @@ class PostListReadServiceTest {
                     authorId = testUser.id!!,
                     statuses = PostStatusEnum.entries,
                     categoryId = null,
+                    viewerId = testUser.id!!,
                 )
             }
         }
@@ -215,6 +221,7 @@ class PostListReadServiceTest {
                     authorId = otherUser.id!!,
                     statuses = listOf(PostStatusEnum.PUBLISHED),
                     categoryId = null,
+                    viewerId = testUser.id!!,
                 )
             } returns posts
             every {
@@ -239,6 +246,7 @@ class PostListReadServiceTest {
                     authorId = otherUser.id!!,
                     statuses = listOf(PostStatusEnum.PUBLISHED),
                     categoryId = null,
+                    viewerId = testUser.id!!,
                 )
             }
         }
@@ -257,6 +265,7 @@ class PostListReadServiceTest {
                     authorId = otherUser.id!!,
                     statuses = listOf(PostStatusEnum.PUBLISHED),
                     categoryId = null,
+                    viewerId = null,
                 )
             } returns posts
 
@@ -279,6 +288,7 @@ class PostListReadServiceTest {
                     authorId = otherUser.id!!,
                     statuses = listOf(PostStatusEnum.PUBLISHED),
                     categoryId = null,
+                    viewerId = null,
                 )
             }
             assertThat(result.content).allSatisfy { assertThat(it.isRead).isFalse() }
@@ -317,6 +327,7 @@ class PostListReadServiceTest {
                     authorId = testUser.id!!,
                     statuses = PostStatusEnum.entries,
                     categoryId = null,
+                    viewerId = testUser.id!!,
                 )
             } returns posts
             every {
@@ -352,6 +363,7 @@ class PostListReadServiceTest {
                     authorId = testUser.id!!,
                     statuses = PostStatusEnum.entries,
                     categoryId = null,
+                    viewerId = testUser.id!!,
                 )
             } returns posts
             every {
@@ -391,6 +403,7 @@ class PostListReadServiceTest {
                     authorId = otherUser.id!!,
                     statuses = listOf(PostStatusEnum.PUBLISHED),
                     categoryId = null,
+                    viewerId = testUser.id!!,
                 )
             } returns posts
             every {
