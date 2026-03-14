@@ -392,6 +392,7 @@ class CommentReadControllerTest : IntegrationTest() {
             assertEquals(3, content.size)
             val foundDeletedComment = content.find { it.id == deletedComment.id }
             assertNotNull(foundDeletedComment, "삭제된 댓글도 조회 결과에 포함되어야 함")
+            assertTrue(foundDeletedComment.isDeleted, "삭제된 댓글은 isDeleted=true여야 함")
             assertEquals(deletedComment.content, foundDeletedComment.content)
         }
 
@@ -425,6 +426,7 @@ class CommentReadControllerTest : IntegrationTest() {
             assertEquals(3, content.size)
             val foundDeletedReply = content.find { it.id == deletedReply.id }
             assertNotNull(foundDeletedReply, "삭제된 대댓글도 조회 결과에 포함되어야 함")
+            assertTrue(foundDeletedReply.isDeleted, "삭제된 대댓글은 isDeleted=true여야 함")
             assertEquals(deletedReply.content, foundDeletedReply.content)
         }
     }

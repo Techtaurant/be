@@ -32,6 +32,8 @@ data class CommentListResponse(
     val replyCount: Long,
     @field:Schema(description = "현재 사용자의 좋아요 상태")
     val likeStatus: LikeStatus,
+    @field:Schema(description = "삭제 여부")
+    val isDeleted: Boolean,
     @field:Schema(description = "생성 시각")
     val createdAt: Date,
     @field:Schema(description = "수정 시각")
@@ -54,6 +56,7 @@ data class CommentListResponse(
                 likeCount = comment.likeCount,
                 replyCount = comment.replyCount,
                 likeStatus = likeStatus,
+                isDeleted = comment.deletedAt != null,
                 createdAt = comment.createdAt,
                 updatedAt = comment.updatedAt,
             )

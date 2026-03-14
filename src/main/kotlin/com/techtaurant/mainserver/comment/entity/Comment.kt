@@ -8,7 +8,7 @@ import org.hibernate.annotations.Filter
 import org.hibernate.annotations.FilterDef
 import java.util.Date
 
-private const val ACTIVE_COMMENT_FILTER_NAME = "activeCommentFilter"
+const val ACTIVE_COMMENT_FILTER_NAME = "activeCommentFilter"
 
 /**
  * 댓글 엔티티
