@@ -4,10 +4,16 @@ import com.techtaurant.mainserver.common.base.EntityBase
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.user.entity.User
 import jakarta.persistence.*
+import org.hibernate.annotations.Filter
+import org.hibernate.annotations.FilterDef
+import java.util.Date
+
+const val ACTIVE_COMMENT_FILTER_NAME = "activeCommentFilter"
 
 /**
  * 댓글 엔티티
  * 게시물에 대한 댓글을 표현하며, 댓글에 대한 대댓글까지 지원합니다(최대 1depth).
+ * 삭제 시 실제 DELETE 대신 삭제 시각을 기록하고, 내용은 서비스 레이어에서 해시 문자열로 치환합니다.
  *
  * @property content 댓글 내용
  * @property post 댓글이 달린 게시물
@@ -17,9 +23,16 @@ import jakarta.persistence.*
  * @property likeCount 좋아요 수
  * @property replyCount 대댓글 수 (depth=0인 댓글에만 의미 있음)
  * @property children 자식 댓글 (대댓글들)
+ * @property deletedAt 삭제 시각
  */
 @Entity
 @Table(name = "comments")
+@FilterDef(
+    name = ACTIVE_COMMENT_FILTER_NAME,
+    defaultCondition = "deleted_at IS NULL",
+    autoEnabled = true,
+)
+@Filter(name = ACTIVE_COMMENT_FILTER_NAME)
 class Comment(
     @Column(nullable = false, columnDefinition = "TEXT")
     var content: String,
@@ -40,4 +53,6 @@ class Comment(
     var replyCount: Long = 0,
     @OneToMany(mappedBy = "parent", cascade = [CascadeType.ALL], orphanRemoval = true)
     var children: MutableList<Comment> = mutableListOf(),
+    @Column(name = "deleted_at")
+    var deletedAt: Date? = null,
 ) : EntityBase()

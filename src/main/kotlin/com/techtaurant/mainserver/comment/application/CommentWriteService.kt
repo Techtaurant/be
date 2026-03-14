@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.comment.application
 
 import com.techtaurant.mainserver.comment.dto.CommentResponse
 import com.techtaurant.mainserver.comment.dto.CreateCommentRequest
+import com.techtaurant.mainserver.comment.dto.UpdateCommentRequest
 import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.enums.CommentStatus
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
@@ -62,6 +63,41 @@ class CommentWriteService(
 
         postRepository.incrementCommentCount(request.postId)
         postDailyStatsService.incrementCommentCount(request.postId)
+
+        return CommentResponse.from(savedComment)
+    }
+
+    /**
+     * 댓글 내용을 수정합니다.
+     * 본인 댓글만 수정 가능하며, 삭제된 댓글은 수정할 수 없습니다.
+     *
+     * @param commentId 수정할 댓글 ID
+     * @param userId 요청 사용자 ID
+     * @param request 댓글 수정 요청
+     * @return 수정된 댓글 응답
+     * @throws ApiException 댓글 없음(COMMENT_NOT_FOUND), 이미 삭제됨(COMMENT_ALREADY_DELETED), 권한 없음(COMMENT_AUTHOR_MISMATCH)
+     */
+    @Transactional
+    fun updateComment(
+        commentId: UUID,
+        userId: UUID,
+        request: UpdateCommentRequest,
+    ): CommentResponse {
+        val comment =
+            commentRepository.findById(commentId).orElseThrow {
+                ApiException(CommentStatus.COMMENT_NOT_FOUND)
+            }
+
+        if (comment.deletedAt != null) {
+            throw ApiException(CommentStatus.COMMENT_ALREADY_DELETED)
+        }
+
+        if (comment.author.id != userId) {
+            throw ApiException(CommentStatus.COMMENT_AUTHOR_MISMATCH)
+        }
+
+        comment.content = HtmlSanitizer.sanitizeContent(request.content)
+        val savedComment = commentRepository.save(comment)
 
         return CommentResponse.from(savedComment)
     }

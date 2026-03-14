@@ -42,6 +42,10 @@ class CommentLikeLogService(
                 ApiException(CommentStatus.COMMENT_NOT_FOUND)
             }
 
+        if (comment.deletedAt != null) {
+            throw ApiException(CommentStatus.COMMENT_ALREADY_DELETED)
+        }
+
         val user =
             userRepository.findById(userId).orElseThrow {
                 ApiException(UserStatus.ID_NOT_FOUND)

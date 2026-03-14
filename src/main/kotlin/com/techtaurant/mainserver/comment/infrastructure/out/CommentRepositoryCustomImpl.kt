@@ -1,6 +1,7 @@
 package com.techtaurant.mainserver.comment.infrastructure.out
 
 import com.techtaurant.mainserver.comment.dto.CommentCursor
+import com.techtaurant.mainserver.comment.entity.ACTIVE_COMMENT_FILTER_NAME
 import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.entity.Comment_
 import com.techtaurant.mainserver.comment.enums.CommentSortType
@@ -14,6 +15,7 @@ import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.JoinType
 import jakarta.persistence.criteria.Predicate
 import jakarta.persistence.criteria.Root
+import org.hibernate.Session
 import org.springframework.stereotype.Repository
 import java.util.UUID
 
@@ -38,26 +40,28 @@ class CommentRepositoryCustomImpl : CommentRepositoryCustom {
         size: Int,
         sortType: CommentSortType,
     ): List<Comment> {
-        val cb = entityManager.criteriaBuilder
-        val cq = cb.createQuery(Comment::class.java)
-        val root = cq.from(Comment::class.java)
+        return runWithoutActiveCommentFilter {
+            val cb = entityManager.criteriaBuilder
+            val cq = cb.createQuery(Comment::class.java)
+            val root = cq.from(Comment::class.java)
 
-        root.fetch<Comment, User>(Comment_.AUTHOR)
-        root.fetch<Comment, Post>(Comment_.POST, JoinType.LEFT)
+            root.fetch<Comment, User>(Comment_.AUTHOR)
+            root.fetch<Comment, Post>(Comment_.POST, JoinType.LEFT)
 
-        val predicates = mutableListOf<Predicate>()
+            val predicates = mutableListOf<Predicate>()
 
-        predicates.add(cb.equal(root.get(Comment_.post).get(EntityBase_.id), postId))
-        predicates.add(cb.equal(root.get(Comment_.depth), 0))
+            predicates.add(cb.equal(root.get(Comment_.post).get(EntityBase_.id), postId))
+            predicates.add(cb.equal(root.get(Comment_.depth), 0))
 
-        addCursorCondition(cb, root, cursor, sortType, predicates)
+            addCursorCondition(cb, root, cursor, sortType, predicates)
 
-        cq.where(*predicates.toTypedArray())
-        applyOrdering(cb, cq, root, sortType)
+            cq.where(*predicates.toTypedArray())
+            applyOrdering(cb, cq, root, sortType)
 
-        return entityManager.createQuery(cq)
-            .setMaxResults(size)
-            .resultList
+            entityManager.createQuery(cq)
+                .setMaxResults(size)
+                .resultList
+        }
     }
 
     /**
@@ -71,26 +75,45 @@ class CommentRepositoryCustomImpl : CommentRepositoryCustom {
         size: Int,
         sortType: CommentSortType,
     ): List<Comment> {
-        val cb = entityManager.criteriaBuilder
-        val cq = cb.createQuery(Comment::class.java)
-        val root = cq.from(Comment::class.java)
+        return runWithoutActiveCommentFilter {
+            val cb = entityManager.criteriaBuilder
+            val cq = cb.createQuery(Comment::class.java)
+            val root = cq.from(Comment::class.java)
 
-        root.fetch<Comment, User>(Comment_.AUTHOR)
-        root.fetch<Comment, Post>(Comment_.POST, JoinType.LEFT)
+            root.fetch<Comment, User>(Comment_.AUTHOR)
+            root.fetch<Comment, Post>(Comment_.POST, JoinType.LEFT)
 
-        val predicates = mutableListOf<Predicate>()
+            val predicates = mutableListOf<Predicate>()
 
-        predicates.add(cb.equal(root.get(Comment_.parent).get(EntityBase_.id), parentId))
-        predicates.add(cb.equal(root.get(Comment_.depth), 1))
+            predicates.add(cb.equal(root.get(Comment_.parent).get(EntityBase_.id), parentId))
+            predicates.add(cb.equal(root.get(Comment_.depth), 1))
 
-        addCursorCondition(cb, root, cursor, sortType, predicates)
+            addCursorCondition(cb, root, cursor, sortType, predicates)
 
-        cq.where(*predicates.toTypedArray())
-        applyOrdering(cb, cq, root, sortType)
+            cq.where(*predicates.toTypedArray())
+            applyOrdering(cb, cq, root, sortType)
 
-        return entityManager.createQuery(cq)
-            .setMaxResults(size)
-            .resultList
+            entityManager.createQuery(cq)
+                .setMaxResults(size)
+                .resultList
+        }
+    }
+
+    private fun <T> runWithoutActiveCommentFilter(action: () -> T): T {
+        val session = entityManager.unwrap(Session::class.java)
+        val filterWasEnabled = session.getEnabledFilter(ACTIVE_COMMENT_FILTER_NAME) != null
+
+        if (filterWasEnabled) {
+            session.disableFilter(ACTIVE_COMMENT_FILTER_NAME)
+        }
+
+        return try {
+            action()
+        } finally {
+            if (filterWasEnabled) {
+                session.enableFilter(ACTIVE_COMMENT_FILTER_NAME)
+            }
+        }
     }
 
     /**

@@ -22,7 +22,10 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import java.util.Calendar
+import java.util.Date
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -425,6 +428,72 @@ class CommentReadControllerTest : IntegrationTest() {
                 assertTrue(comment.replyCount >= 0, "답글수는 음수가 아니어야 함")
             }
         }
+
+        @Test
+        @DisplayName("삭제된 부모 댓글도 목록 조회 결과에 포함되어야 한다")
+        fun whenGetParentComments_thenDeletedCommentIncluded() {
+            // given
+            val deletedComment =
+                parentComments[0].apply {
+                    content = sha256(content)
+                    deletedAt = Date()
+                }
+            commentRepository.save(deletedComment)
+
+            // when
+            val response =
+                RestAssured
+                    .given()
+                    .queryParam("size", 10)
+                    .`when`()
+                    .get("/open-api/comments/posts/${testPost.id}")
+                    .then()
+                    .statusCode(200)
+                    .extract()
+                    .`as`(object : TypeRef<ApiResponse<CursorPageResponse<CommentListResponse>>>() {})
+
+            // then
+            val content = response.data!!.content
+            assertEquals(3, content.size)
+            val foundDeletedComment = content.find { it.id == deletedComment.id }
+            assertNotNull(foundDeletedComment, "삭제된 댓글도 조회 결과에 포함되어야 함")
+            assertTrue(foundDeletedComment.isDeleted, "삭제된 댓글은 isDeleted=true여야 함")
+            assertEquals(deletedComment.content, foundDeletedComment.content)
+        }
+
+        @Test
+        @DisplayName("삭제된 대댓글도 목록 조회 결과에 포함되어야 한다")
+        fun whenGetReplies_thenDeletedReplyIncluded() {
+            // given
+            val parentComment = parentComments[0]
+            val replies = createTestReplies(parentComment)
+            val deletedReply =
+                replies[0].apply {
+                    content = sha256(content)
+                    deletedAt = Date()
+                }
+            commentRepository.save(deletedReply)
+
+            // when
+            val response =
+                RestAssured
+                    .given()
+                    .queryParam("size", 10)
+                    .`when`()
+                    .get("/open-api/comments/${parentComment.id}/replies")
+                    .then()
+                    .statusCode(200)
+                    .extract()
+                    .`as`(object : TypeRef<ApiResponse<CursorPageResponse<CommentListResponse>>>() {})
+
+            // then
+            val content = response.data!!.content
+            assertEquals(3, content.size)
+            val foundDeletedReply = content.find { it.id == deletedReply.id }
+            assertNotNull(foundDeletedReply, "삭제된 대댓글도 조회 결과에 포함되어야 함")
+            assertTrue(foundDeletedReply.isDeleted, "삭제된 대댓글은 isDeleted=true여야 함")
+            assertEquals(deletedReply.content, foundDeletedReply.content)
+        }
     }
 
     /**
@@ -554,5 +623,11 @@ class CommentReadControllerTest : IntegrationTest() {
             }
 
         return commentRepository.saveAll(listOf(reply1, reply2, reply3))
+    }
+
+    private fun sha256(content: String): String {
+        return MessageDigest.getInstance("SHA-256")
+            .digest(content.toByteArray(StandardCharsets.UTF_8))
+            .joinToString("") { byte -> "%02x".format(byte) }
     }
 }
