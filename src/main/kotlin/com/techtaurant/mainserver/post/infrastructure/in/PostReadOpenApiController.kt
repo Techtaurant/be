@@ -39,6 +39,7 @@ class PostReadOpenApiController(
         @RequestParam(defaultValue = "LATEST") sort: PostSortType,
         @RequestParam(required = false) authorId: UUID?,
         @RequestParam(required = false) categoryId: UUID?,
+        @RequestParam(required = false) tagIds: List<UUID>?,
         @AuthenticationPrincipal currentUserId: UUID?,
     ): ApiResponse<CursorPageResponse<PostListItemResponse>> {
         return ApiResponse.ok(
@@ -50,6 +51,7 @@ class PostReadOpenApiController(
                 currentUserId = currentUserId,
                 authorId = authorId,
                 categoryId = categoryId,
+                tagIds = tagIds,
             ),
         )
     }

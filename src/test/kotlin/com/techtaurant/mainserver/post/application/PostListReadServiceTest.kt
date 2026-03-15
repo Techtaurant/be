@@ -97,6 +97,7 @@ class PostListReadServiceTest {
                     period = PostPeriod.ALL,
                     sortType = PostSortType.LATEST,
                     visibleToUserId = testUser.id!!,
+                    tagIds = null,
                     viewerId = testUser.id!!,
                 )
             } returns posts
@@ -115,6 +116,7 @@ class PostListReadServiceTest {
                     period = PostPeriod.ALL,
                     sortType = PostSortType.LATEST,
                     visibleToUserId = testUser.id!!,
+                    tagIds = null,
                     viewerId = testUser.id!!,
                 )
             }
@@ -132,6 +134,7 @@ class PostListReadServiceTest {
                     period = PostPeriod.ALL,
                     sortType = PostSortType.LATEST,
                     visibleToUserId = null,
+                    tagIds = null,
                     viewerId = null,
                 )
             } returns posts
@@ -147,6 +150,48 @@ class PostListReadServiceTest {
                     period = PostPeriod.ALL,
                     sortType = PostSortType.LATEST,
                     visibleToUserId = null,
+                    tagIds = null,
+                    viewerId = null,
+                )
+            }
+        }
+
+        @Test
+        @DisplayName("태그 ID 필터 전달 시 중복 제거된 UUID 목록으로 Repository를 호출한다")
+        fun getPosts_withTagIds_passesDistinctTagIds() {
+            // given
+            val posts = listOf(createPost(otherUser))
+            val firstTagId = UUID.randomUUID()
+            val secondTagId = UUID.randomUUID()
+            every {
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 21,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.LATEST,
+                    visibleToUserId = null,
+                    tagIds = listOf(firstTagId, secondTagId),
+                    viewerId = null,
+                )
+            } returns posts
+
+            // when
+            postListReadService.getPosts(
+                cursor = null,
+                size = 20,
+                currentUserId = null,
+                tagIds = listOf(firstTagId, secondTagId, firstTagId),
+            )
+
+            // then
+            verify {
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 21,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.LATEST,
+                    visibleToUserId = null,
+                    tagIds = listOf(firstTagId, secondTagId),
                     viewerId = null,
                 )
             }
@@ -177,6 +222,7 @@ class PostListReadServiceTest {
                     authorId = testUser.id!!,
                     statuses = PostStatusEnum.entries,
                     categoryId = null,
+                    tagIds = null,
                     viewerId = testUser.id!!,
                 )
             } returns posts
@@ -202,6 +248,7 @@ class PostListReadServiceTest {
                     authorId = testUser.id!!,
                     statuses = PostStatusEnum.entries,
                     categoryId = null,
+                    tagIds = null,
                     viewerId = testUser.id!!,
                 )
             }
@@ -221,6 +268,7 @@ class PostListReadServiceTest {
                     authorId = otherUser.id!!,
                     statuses = listOf(PostStatusEnum.PUBLISHED),
                     categoryId = null,
+                    tagIds = null,
                     viewerId = testUser.id!!,
                 )
             } returns posts
@@ -246,6 +294,7 @@ class PostListReadServiceTest {
                     authorId = otherUser.id!!,
                     statuses = listOf(PostStatusEnum.PUBLISHED),
                     categoryId = null,
+                    tagIds = null,
                     viewerId = testUser.id!!,
                 )
             }
@@ -265,6 +314,7 @@ class PostListReadServiceTest {
                     authorId = otherUser.id!!,
                     statuses = listOf(PostStatusEnum.PUBLISHED),
                     categoryId = null,
+                    tagIds = null,
                     viewerId = null,
                 )
             } returns posts
@@ -288,6 +338,7 @@ class PostListReadServiceTest {
                     authorId = otherUser.id!!,
                     statuses = listOf(PostStatusEnum.PUBLISHED),
                     categoryId = null,
+                    tagIds = null,
                     viewerId = null,
                 )
             }
@@ -327,6 +378,7 @@ class PostListReadServiceTest {
                     authorId = testUser.id!!,
                     statuses = PostStatusEnum.entries,
                     categoryId = null,
+                    tagIds = null,
                     viewerId = testUser.id!!,
                 )
             } returns posts
@@ -363,6 +415,7 @@ class PostListReadServiceTest {
                     authorId = testUser.id!!,
                     statuses = PostStatusEnum.entries,
                     categoryId = null,
+                    tagIds = null,
                     viewerId = testUser.id!!,
                 )
             } returns posts
@@ -403,6 +456,7 @@ class PostListReadServiceTest {
                     authorId = otherUser.id!!,
                     statuses = listOf(PostStatusEnum.PUBLISHED),
                     categoryId = null,
+                    tagIds = null,
                     viewerId = testUser.id!!,
                 )
             } returns posts
