@@ -17,6 +17,7 @@ import java.util.UUID
 class UserBanService(
     private val userRepository: UserRepository,
     private val userBanRepository: UserBanRepository,
+    private val userFollowService: UserFollowService,
 ) {
     @Transactional
     fun banUser(
@@ -38,6 +39,7 @@ class UserBanService(
 
         // 이미 차단한 경우 기존 차단 정보를 그대로 반환 (idempotent)
         userBanRepository.findByUserIdAndBannedUserId(userId, targetUserId)?.let {
+            userFollowService.deleteMutualFollows(userId, targetUserId)
             return UserBanResponse.from(it)
         }
 
@@ -53,6 +55,8 @@ class UserBanService(
                 // 동시 요청으로 인한 유니크 제약 위반 시 기존 차단 정보를 반환 (idempotent)
                 userBanRepository.findByUserIdAndBannedUserId(userId, targetUserId)!!
             }
+
+        userFollowService.deleteMutualFollows(userId, targetUserId)
 
         return UserBanResponse.from(userBan)
     }

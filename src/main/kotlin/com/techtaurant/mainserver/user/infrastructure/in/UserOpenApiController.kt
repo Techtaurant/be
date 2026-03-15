@@ -8,7 +8,10 @@ import com.techtaurant.mainserver.post.dto.PostListItemResponse
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.security.SecurityConstants
+import com.techtaurant.mainserver.user.application.UserFollowService
 import com.techtaurant.mainserver.user.application.UserReadService
+import com.techtaurant.mainserver.user.dto.UserFollowCountResponse
+import com.techtaurant.mainserver.user.dto.UserFollowListItemResponse
 import com.techtaurant.mainserver.user.dto.UserResponse
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
@@ -27,6 +30,7 @@ import java.util.UUID
 @Validated
 class UserOpenApiController(
     private val userReadService: UserReadService,
+    private val userFollowService: UserFollowService,
     private val postListReadService: PostListReadService,
 ) : UserOpenApiControllerDocs {
     @ApiErrorResponses(includeValidationError = true)
@@ -36,6 +40,27 @@ class UserOpenApiController(
         @RequestParam name: String,
     ): ApiResponse<List<UserResponse>> {
         return ApiResponse.ok(userReadService.searchByName(name))
+    }
+
+    @GetMapping("/{userId}/follow-counts")
+    override fun getFollowCounts(
+        @PathVariable userId: UUID,
+    ): ApiResponse<UserFollowCountResponse> {
+        return ApiResponse.ok(userFollowService.getFollowCounts(userId))
+    }
+
+    @GetMapping("/{userId}/followings")
+    override fun getFollowings(
+        @PathVariable userId: UUID,
+    ): ApiResponse<List<UserFollowListItemResponse>> {
+        return ApiResponse.ok(userFollowService.getFollowings(userId))
+    }
+
+    @GetMapping("/{userId}/followers")
+    override fun getFollowers(
+        @PathVariable userId: UUID,
+    ): ApiResponse<List<UserFollowListItemResponse>> {
+        return ApiResponse.ok(userFollowService.getFollowers(userId))
     }
 
     @GetMapping("/{userId}/posts")
