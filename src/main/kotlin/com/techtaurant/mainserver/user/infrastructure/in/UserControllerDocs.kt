@@ -7,6 +7,7 @@ import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponses
 import com.techtaurant.mainserver.security.jwt.JwtStatus
 import com.techtaurant.mainserver.user.dto.UserBanListItemResponse
 import com.techtaurant.mainserver.user.dto.UserBanResponse
+import com.techtaurant.mainserver.user.dto.UserFollowResponse
 import com.techtaurant.mainserver.user.dto.UserResponse
 import com.techtaurant.mainserver.user.enums.UserStatus
 import io.swagger.v3.oas.annotations.Operation
@@ -47,6 +48,23 @@ interface UserControllerDocs {
         targetUserId: UUID,
     ): ApiResponse<UserBanResponse>
 
+    @Operation(summary = "사용자 팔로우", description = "현재 로그인한 사용자가 특정 사용자를 팔로우합니다")
+    @SwaggerApiResponse(
+        responseCode = "201",
+        description = "팔로우 성공",
+    )
+    @ApiErrorCodeResponses(
+        [
+            ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED"]),
+            ApiErrorCodeResponse(UserStatus::class, ["USER_NOT_FOUND", "CANNOT_FOLLOW_SELF"]),
+            ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
+        ],
+    )
+    fun followUser(
+        userId: UUID,
+        targetUserId: UUID,
+    ): ApiResponse<UserFollowResponse>
+
     @Operation(summary = "내가 차단한 사용자 목록 조회", description = "현재 로그인한 사용자가 차단한 사용자 목록을 최신순으로 조회합니다")
     @SwaggerApiResponse(
         responseCode = "200",
@@ -73,6 +91,23 @@ interface UserControllerDocs {
         ],
     )
     fun unbanUser(
+        userId: UUID,
+        targetUserId: UUID,
+    )
+
+    @Operation(summary = "사용자 팔로우 취소", description = "현재 로그인한 사용자가 특정 사용자 팔로우를 취소합니다")
+    @SwaggerApiResponse(
+        responseCode = "204",
+        description = "팔로우 취소 성공",
+    )
+    @ApiErrorCodeResponses(
+        [
+            ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED"]),
+            ApiErrorCodeResponse(UserStatus::class, ["CANNOT_FOLLOW_SELF", "USER_FOLLOW_NOT_FOUND"]),
+            ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
+        ],
+    )
+    fun unfollowUser(
         userId: UUID,
         targetUserId: UUID,
     )

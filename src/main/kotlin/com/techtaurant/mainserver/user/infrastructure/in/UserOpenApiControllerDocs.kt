@@ -9,7 +9,10 @@ import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponses
 import com.techtaurant.mainserver.post.dto.PostListItemResponse
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
+import com.techtaurant.mainserver.user.dto.UserFollowCountResponse
+import com.techtaurant.mainserver.user.dto.UserFollowListItemResponse
 import com.techtaurant.mainserver.user.dto.UserResponse
+import com.techtaurant.mainserver.user.enums.UserStatus
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -37,6 +40,51 @@ interface UserOpenApiControllerDocs {
         @NotBlank
         name: String,
     ): ApiResponse<List<UserResponse>>
+
+    @Operation(summary = "사용자 팔로워 수/팔로우 수 조회", description = "특정 사용자의 팔로워 수와 팔로우 수를 조회합니다")
+    @SwaggerApiResponse(
+        responseCode = "200",
+        description = "조회 성공",
+    )
+    @ApiErrorCodeResponses(
+        [
+            ApiErrorCodeResponse(UserStatus::class, ["USER_NOT_FOUND"]),
+            ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
+        ],
+    )
+    fun getFollowCounts(
+        @Parameter(description = "조회 대상 사용자 ID") userId: UUID,
+    ): ApiResponse<UserFollowCountResponse>
+
+    @Operation(summary = "사용자 팔로잉 목록 조회", description = "특정 사용자가 팔로우한 사용자 목록을 최신순으로 조회합니다")
+    @SwaggerApiResponse(
+        responseCode = "200",
+        description = "조회 성공",
+    )
+    @ApiErrorCodeResponses(
+        [
+            ApiErrorCodeResponse(UserStatus::class, ["USER_NOT_FOUND"]),
+            ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
+        ],
+    )
+    fun getFollowings(
+        @Parameter(description = "조회 대상 사용자 ID") userId: UUID,
+    ): ApiResponse<List<UserFollowListItemResponse>>
+
+    @Operation(summary = "사용자 팔로워 목록 조회", description = "특정 사용자를 팔로우하는 사용자 목록을 최신순으로 조회합니다")
+    @SwaggerApiResponse(
+        responseCode = "200",
+        description = "조회 성공",
+    )
+    @ApiErrorCodeResponses(
+        [
+            ApiErrorCodeResponse(UserStatus::class, ["USER_NOT_FOUND"]),
+            ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
+        ],
+    )
+    fun getFollowers(
+        @Parameter(description = "조회 대상 사용자 ID") userId: UUID,
+    ): ApiResponse<List<UserFollowListItemResponse>>
 
     @Operation(
         summary = "사용자 게시물 목록 조회",

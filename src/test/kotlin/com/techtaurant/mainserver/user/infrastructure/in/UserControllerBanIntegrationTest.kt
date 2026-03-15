@@ -5,8 +5,10 @@ import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.entity.UserBan
+import com.techtaurant.mainserver.user.entity.UserFollow
 import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserBanRepository
+import com.techtaurant.mainserver.user.infrastructure.out.UserFollowRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.restassured.RestAssured.given
 import org.hamcrest.Matchers.equalTo
@@ -27,6 +29,9 @@ class UserControllerBanIntegrationTest : IntegrationTest() {
     private lateinit var userBanRepository: UserBanRepository
 
     @Autowired
+    private lateinit var userFollowRepository: UserFollowRepository
+
+    @Autowired
     private lateinit var jwtTokenProvider: JwtTokenProvider
 
     private lateinit var testUser: User
@@ -36,6 +41,7 @@ class UserControllerBanIntegrationTest : IntegrationTest() {
     @BeforeEach
     fun setUpTestData() {
         userBanRepository.deleteAllInBatch()
+        userFollowRepository.deleteAllInBatch()
 
         testUser =
             userRepository.save(
@@ -127,5 +133,22 @@ class UserControllerBanIntegrationTest : IntegrationTest() {
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("data", hasSize<Any>(0))
+    }
+
+    @Test
+    @DisplayName("사용자 차단 시 양방향 팔로우 관계가 자동으로 해제된다")
+    fun ban_removesMutualFollows() {
+        userFollowRepository.save(UserFollow(follower = testUser, following = targetUser))
+        userFollowRepository.save(UserFollow(follower = targetUser, following = testUser))
+
+        given()
+            .header("Authorization", "Bearer $accessToken")
+            .`when`()
+            .post("/api/users/${targetUser.id}/ban")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+
+        kotlin.test.assertNull(userFollowRepository.findByFollowerIdAndFollowingId(testUser.id!!, targetUser.id!!))
+        kotlin.test.assertNull(userFollowRepository.findByFollowerIdAndFollowingId(targetUser.id!!, testUser.id!!))
     }
 }
