@@ -48,6 +48,7 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         statuses: List<PostStatusEnum>?,
         categoryId: UUID?,
         visibleToUserId: UUID?,
+        tagIds: List<UUID>?,
         viewerId: UUID?,
     ): List<Post> {
         val cb = entityManager.criteriaBuilder
@@ -72,6 +73,10 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
 
         authorId?.let { predicates.add(cb.equal(root.get(Post_.author).get(EntityBase_.id), it)) }
         categoryId?.let { predicates.add(cb.equal(root.get(Post_.category).get(EntityBase_.id), it)) }
+        tagIds?.let { ids ->
+            val tagJoin = root.join<Post, Tag>(Post_.TAGS, JoinType.LEFT)
+            predicates.add(tagJoin.get<UUID>("id").`in`(ids))
+        }
         addViewerBanCondition(cb, cq, root, viewerId, predicates)
 
         addPeriodCondition(cb, root, period, predicates)

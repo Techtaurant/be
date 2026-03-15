@@ -454,6 +454,32 @@ class PostControllerTest : IntegrationTest() {
     @DisplayName("필터 조합 검증")
     inner class CombinedFilterTest {
         @Test
+        @DisplayName("태그 ID를 여러 개 전달하면 OR 조건으로 게시물이 조회되어야 한다")
+        fun whenFilterByMultipleTagIds_thenPostsMatchingAnyTagLoaded() {
+            // Given: 각 게시물은 서로 다른 태그를 가진다
+            val firstTagId = testPosts[0].tags.first().id
+            val thirdTagId = testPosts[2].tags.first().id
+
+            // When: 두 태그 ID를 함께 전달해 목록 조회
+            val response =
+                RestAssured
+                    .given()
+                    .queryParam("tagIds", firstTagId, thirdTagId)
+                    .queryParam("size", 10)
+                    .`when`()
+                    .get("/open-api/posts")
+                    .then()
+                    .statusCode(200)
+                    .extract()
+                    .`as`(object : TypeRef<ApiResponse<CursorPageResponse<PostListItemResponse>>>() {})
+
+            // Then: 두 태그 중 하나라도 가진 게시물만 반환되어야 함
+            val returnedIds = response.data!!.content.map { it.id }.toSet()
+            assertEquals(setOf(testPosts[0].id, testPosts[2].id), returnedIds)
+            assertTrue(response.data!!.content.none { it.id == testPosts[1].id })
+        }
+
+        @Test
         @DisplayName("기간 필터와 정렬을 함께 적용하면 올바르게 로딩되어야 한다")
         fun whenApplyBothPeriodAndSort_thenCorrectPostsLoaded() {
             // When: 최근 7일의 게시물을 조회수 기준으로 정렬해서 조회

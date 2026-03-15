@@ -53,6 +53,7 @@ class PostListReadService(
      * @param currentUserId 현재 로그인 사용자 ID (비회원이면 null)
      * @param authorId 작성자 필터 (null이면 전체 조회)
      * @param categoryId 카테고리 필터 (null이면 전체, authorId 지정 시에만 적용)
+     * @param tagIds 태그 UUID 필터 (여러 개 전달 시 OR 조건)
      * @return 커서 기반 페이지 응답
      */
     fun getPosts(
@@ -63,8 +64,10 @@ class PostListReadService(
         currentUserId: UUID? = null,
         authorId: UUID? = null,
         categoryId: UUID? = null,
+        tagIds: List<UUID>? = null,
     ): CursorPageResponse<PostListItemResponse> {
         val postCursor = cursor?.let { PostCursor.decode(it) }
+        val normalizedTagIds = normalizeTagIds(tagIds)
 
         if (cursor != null && postCursor == null) {
             return CursorPageResponse(
@@ -91,6 +94,7 @@ class PostListReadService(
                     authorId = authorId,
                     statuses = statuses,
                     categoryId = categoryId,
+                    tagIds = normalizedTagIds,
                     viewerId = currentUserId,
                 )
             } else {
@@ -100,6 +104,7 @@ class PostListReadService(
                     period = period,
                     sortType = sortType,
                     visibleToUserId = currentUserId,
+                    tagIds = normalizedTagIds,
                     viewerId = currentUserId,
                 )
             }
@@ -145,6 +150,12 @@ class PostListReadService(
             hasNext = hasNext,
             size = content.size,
         )
+    }
+
+    private fun normalizeTagIds(tagIds: List<UUID>?): List<UUID>? {
+        val normalizedTagIds = tagIds?.distinct()
+
+        return normalizedTagIds?.takeIf { it.isNotEmpty() }
     }
 
     /**
