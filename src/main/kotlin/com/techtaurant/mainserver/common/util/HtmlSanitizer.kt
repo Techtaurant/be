@@ -98,5 +98,4 @@ object HtmlSanitizer {
     fun sanitizeTitle(text: String): String {
         return Jsoup.clean(text, Safelist.none())
     }
-
 }

@@ -278,5 +278,4 @@ class PostWriteService(
 
         return existingTags + newTags
     }
-
 }

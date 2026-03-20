@@ -131,10 +131,10 @@ class AttachmentServiceTest {
         fun confirmAttachmentsByIds_emptyIds_skipsS3Calls() {
             // given & when
             attachmentService.confirmAttachmentsByIds(
-                    referenceId = postId,
-                    referenceType = AttachmentReferenceType.POST,
-                    attachmentIds = emptyList(),
-                )
+                referenceId = postId,
+                referenceType = AttachmentReferenceType.POST,
+                attachmentIds = emptyList(),
+            )
 
             // then
             verify(exactly = 0) { s3StorageService.copyObject(any(), any()) }
