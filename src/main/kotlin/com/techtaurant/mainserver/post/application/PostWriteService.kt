@@ -92,20 +92,11 @@ class PostWriteService(
         val savedPost = postRepository.save(post)
 
         if (status != PostStatusEnum.DRAFT) {
-            val allObjectKeys = HtmlSanitizer.extractTmpObjectKeys(savedPost.content)
-
-            if (allObjectKeys.isNotEmpty()) {
-                val keyMap =
-                    attachmentService.confirmAttachments(
-                        referenceId = savedPost.id!!,
-                        referenceType = AttachmentReferenceType.POST,
-                        objectKeys = allObjectKeys,
-                    )
-                if (keyMap.isNotEmpty()) {
-                    savedPost.content = replaceObjectKeys(savedPost.content, keyMap)
-                    postRepository.save(savedPost)
-                }
-            }
+            attachmentService.confirmAttachmentsByIds(
+                referenceId = savedPost.id!!,
+                referenceType = AttachmentReferenceType.POST,
+                attachmentIds = request.attachmentIds.orEmpty().distinct(),
+            )
         }
 
         return PostResponse.from(savedPost)
@@ -153,52 +144,23 @@ class PostWriteService(
 
         val newStatus = request.status ?: post.status
         if (newStatus != PostStatusEnum.DRAFT) {
-            val allObjectKeys = HtmlSanitizer.extractTmpObjectKeys(savedPost.content)
-            val tmpKeys = allObjectKeys.filter { it.startsWith("tmp/") }
+            request.attachmentIds?.let { attachmentIds ->
+                val distinctAttachmentIds = attachmentIds.distinct()
+                attachmentService.confirmAttachmentsByIds(
+                    referenceId = postId,
+                    referenceType = AttachmentReferenceType.POST,
+                    attachmentIds = distinctAttachmentIds,
+                )
 
-            if (tmpKeys.isNotEmpty()) {
-                val keyMap =
-                    attachmentService.confirmAttachments(
-                        referenceId = postId,
-                        referenceType = AttachmentReferenceType.POST,
-                        objectKeys = tmpKeys,
-                    )
-                if (keyMap.isNotEmpty()) {
-                    savedPost.content = replaceObjectKeys(savedPost.content, keyMap)
-                    postRepository.save(savedPost)
-                }
+                attachmentService.deleteOrphanedAttachmentsByIds(
+                    referenceId = postId,
+                    referenceType = AttachmentReferenceType.POST,
+                    keepAttachmentIds = distinctAttachmentIds,
+                )
             }
-
-            // 수정 후 본문에 남아있는 모든 objectKey (posts/ 경로 포함)를 유지 목록으로 사용
-            val finalKeys = extractAllObjectKeys(savedPost.content)
-            attachmentService.deleteOrphanedAttachments(postId, AttachmentReferenceType.POST, finalKeys)
         }
 
         return PostResponse.from(savedPost)
-    }
-
-    /**
-     * content에서 모든 S3 objectKey를 추출합니다. (tmp/ 및 posts/ 경로 포함)
-     */
-    private fun extractAllObjectKeys(content: String): List<String> {
-        val keys = mutableSetOf<String>()
-
-        // 1. HTML 추출
-        val doc = org.jsoup.Jsoup.parseBodyFragment(content)
-        doc.select("img[src]").forEach { keys.add(it.attr("src")) }
-        doc.select("a[href]").forEach { keys.add(it.attr("href")) }
-
-        // 2. Markdown 추출
-        val markdownRegex = Regex("""!?\[[^\]]*\]\(([^)]+)\)""")
-        markdownRegex.findAll(content).forEach { matchResult ->
-            val key = matchResult.groupValues[1]
-            // 외부 URL인 경우 제외 (http, https 등)
-            if (!key.contains("://")) {
-                keys.add(key)
-            }
-        }
-
-        return keys.toList()
     }
 
     /**
@@ -317,22 +279,4 @@ class PostWriteService(
         return existingTags + newTags
     }
 
-    /**
-     * content 내의 이전 objectKey를 새 objectKey로 일괄 교체합니다.
-     * markdown 이미지(`![...](key)`)와 img 태그(`src="key"`) 패턴 모두 처리합니다.
-     *
-     * @param content 게시물 본문
-     * @param keyMap 이전 objectKey → 새 objectKey 매핑
-     * @return objectKey가 교체된 content
-     */
-    private fun replaceObjectKeys(
-        content: String,
-        keyMap: Map<String, String>,
-    ): String {
-        var result = content
-        keyMap.forEach { (oldKey, newKey) ->
-            result = result.replace(oldKey, newKey)
-        }
-        return result
-    }
 }
