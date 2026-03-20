@@ -3,9 +3,11 @@ package com.techtaurant.mainserver.comment.infrastructure.`in`
 import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
+import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.infrastructure.out.CategoryRepository
+import com.techtaurant.mainserver.post.infrastructure.out.PostDailyStatsRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
@@ -40,6 +42,9 @@ class CommentDeleteIntegrationTest : IntegrationTest() {
     @Autowired
     private lateinit var jwtTokenProvider: JwtTokenProvider
 
+    @Autowired
+    private lateinit var postDailyStatsRepository: PostDailyStatsRepository
+
     private lateinit var author: User
     private lateinit var otherUser: User
     private lateinit var post: Post
@@ -68,6 +73,7 @@ class CommentDeleteIntegrationTest : IntegrationTest() {
                     content = "테스트 게시물 내용",
                     author = author,
                     category = category,
+                    commentCount = 1,
                 ),
             )
 
@@ -92,9 +98,40 @@ class CommentDeleteIntegrationTest : IntegrationTest() {
 
         // then
         val deletedComment = commentRepository.findById(comment.id!!).orElseThrow()
+        val updatedPost = postRepository.findById(post.id!!).orElseThrow()
         assertThat(deletedComment.deletedAt).isNotNull()
         assertThat(deletedComment.content).isEqualTo(sha256(originalContent))
+        assertThat(updatedPost.commentCount).isZero()
         assertThat(commentRepository.findByPostIdOrderByCreatedAtAsc(post.id!!)).isEmpty()
+    }
+
+    @Test
+    @DisplayName("대댓글 삭제 성공 - 부모 댓글 replyCount와 게시물 댓글수 및 일별 댓글 통계가 함께 감소한다")
+    fun deleteReply_shouldDecreaseParentReplyCountAndDailyCommentCount() {
+        // given
+        val parentComment = createComment(author, "부모 댓글", replyCount = 1)
+        val replyComment = createComment(author, "대댓글", parent = parentComment)
+        val statDate = DateUtils.toUtcDate(replyComment.createdAt)
+        post.commentCount = 2
+        postRepository.save(post)
+
+        // when
+        given()
+            .header("Authorization", "Bearer $authorAccessToken")
+            .`when`()
+            .delete("/api/comments/${replyComment.id}")
+            .then()
+            .statusCode(HttpStatus.NO_CONTENT.value())
+
+        // then
+        val updatedParent = commentRepository.findById(parentComment.id!!).orElseThrow()
+        val updatedPost = postRepository.findById(post.id!!).orElseThrow()
+        val dailyStats =
+            postDailyStatsRepository.findAll()
+                .single { it.post.id == post.id && it.statDate.toString() == statDate.toString() }
+        assertThat(updatedParent.replyCount).isZero()
+        assertThat(updatedPost.commentCount).isEqualTo(1)
+        assertThat(dailyStats.commentCount).isEqualTo(-1)
     }
 
     @Test
@@ -176,12 +213,17 @@ class CommentDeleteIntegrationTest : IntegrationTest() {
     private fun createComment(
         author: User,
         content: String,
+        parent: Comment? = null,
+        replyCount: Long = 0,
     ): Comment {
         return commentRepository.save(
             Comment(
                 content = content,
                 post = post,
                 author = author,
+                parent = parent,
+                depth = if (parent == null) 0 else 1,
+                replyCount = replyCount,
             ),
         )
     }

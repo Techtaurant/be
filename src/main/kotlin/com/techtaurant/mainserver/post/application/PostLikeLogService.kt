@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.post.entity.PostLikeLog
 import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
@@ -49,6 +50,7 @@ class PostLikeLogService(
             }
 
         val existingLog = postLikeLogRepository.findByPostIdAndUserId(postId, userId)
+        val statDate = DateUtils.today()
 
         if (existingLog != null) {
             val previousIsLiked = existingLog.isLiked
@@ -57,15 +59,15 @@ class PostLikeLogService(
                 LikeStatus.NONE -> {
                     // 좋아요/싫어요 취소 → 로그 삭제, 카운트 복원
                     postLikeLogRepository.delete(existingLog)
-                    updateLikeCount(postId, !previousIsLiked)
+                    updateLikeCount(postId, !previousIsLiked, statDate)
                 }
                 LikeStatus.LIKE -> {
                     if (!previousIsLiked) {
                         // DISLIKE → LIKE: +2
                         existingLog.isLiked = true
                         postLikeLogRepository.save(existingLog)
-                        updateLikeCount(postId, true)
-                        updateLikeCount(postId, true)
+                        updateLikeCount(postId, true, statDate)
+                        updateLikeCount(postId, true, statDate)
                     }
                 }
                 LikeStatus.DISLIKE -> {
@@ -73,8 +75,8 @@ class PostLikeLogService(
                         // LIKE → DISLIKE: -2
                         existingLog.isLiked = false
                         postLikeLogRepository.save(existingLog)
-                        updateLikeCount(postId, false)
-                        updateLikeCount(postId, false)
+                        updateLikeCount(postId, false, statDate)
+                        updateLikeCount(postId, false, statDate)
                     }
                 }
             }
@@ -83,11 +85,11 @@ class PostLikeLogService(
                 LikeStatus.NONE -> { /* 이미 중립 상태, 무시 */ }
                 LikeStatus.LIKE -> {
                     postLikeLogRepository.save(PostLikeLog(post = post, user = user, isLiked = true))
-                    updateLikeCount(postId, true)
+                    updateLikeCount(postId, true, statDate)
                 }
                 LikeStatus.DISLIKE -> {
                     postLikeLogRepository.save(PostLikeLog(post = post, user = user, isLiked = false))
-                    updateLikeCount(postId, false)
+                    updateLikeCount(postId, false, statDate)
                 }
             }
         }
@@ -102,13 +104,14 @@ class PostLikeLogService(
     private fun updateLikeCount(
         postId: UUID,
         increment: Boolean,
+        statDate: java.sql.Date,
     ) {
         if (increment) {
             postRepository.incrementLikeCount(postId)
-            postDailyStatsService.incrementLikeCount(postId)
+            postDailyStatsService.incrementLikeCount(postId, statDate)
         } else {
             postRepository.decrementLikeCount(postId)
-            postDailyStatsService.decrementLikeCount(postId)
+            postDailyStatsService.decrementLikeCount(postId, statDate)
         }
     }
 }

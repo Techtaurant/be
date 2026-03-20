@@ -1,13 +1,12 @@
 package com.techtaurant.mainserver.post.application
 
-import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.post.entity.PostDailyStats
 import com.techtaurant.mainserver.post.infrastructure.out.PostDailyStatsRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import org.slf4j.LoggerFactory
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
-import java.time.LocalDate
+import java.sql.Date
 import java.util.UUID
 
 /**
@@ -27,14 +26,11 @@ class PostDailyStatsService(
      *
      * @param postId 게시물 ID
      */
-    fun incrementViewCount(postId: UUID) {
-        val today = DateUtils.today()
-        val updatedRows = postDailyStatsRepository.incrementViewCount(postId, today)
-        if (updatedRows == 0) {
-            createDailyStatsAndIncrement(postId, today) { id, date ->
-                postDailyStatsRepository.incrementViewCount(id, date)
-            }
-        }
+    fun incrementViewCount(
+        postId: UUID,
+        statDate: Date,
+    ) {
+        applyDailyStatsChange(postId, statDate, postDailyStatsRepository::incrementViewCount)
     }
 
     /**
@@ -42,14 +38,11 @@ class PostDailyStatsService(
      *
      * @param postId 게시물 ID
      */
-    fun incrementLikeCount(postId: UUID) {
-        val today = DateUtils.today()
-        val updatedRows = postDailyStatsRepository.incrementLikeCount(postId, today)
-        if (updatedRows == 0) {
-            createDailyStatsAndIncrement(postId, today) { id, date ->
-                postDailyStatsRepository.incrementLikeCount(id, date)
-            }
-        }
+    fun incrementLikeCount(
+        postId: UUID,
+        statDate: Date,
+    ) {
+        applyDailyStatsChange(postId, statDate, postDailyStatsRepository::incrementLikeCount)
     }
 
     /**
@@ -58,14 +51,11 @@ class PostDailyStatsService(
      *
      * @param postId 게시물 ID
      */
-    fun decrementLikeCount(postId: UUID) {
-        val today = DateUtils.today()
-        val updatedRows = postDailyStatsRepository.decrementLikeCount(postId, today)
-        if (updatedRows == 0) {
-            createDailyStatsAndIncrement(postId, today) { id, date ->
-                postDailyStatsRepository.decrementLikeCount(id, date)
-            }
-        }
+    fun decrementLikeCount(
+        postId: UUID,
+        statDate: Date,
+    ) {
+        applyDailyStatsChange(postId, statDate, postDailyStatsRepository::decrementLikeCount)
     }
 
     /**
@@ -73,31 +63,52 @@ class PostDailyStatsService(
      *
      * @param postId 게시물 ID
      */
-    fun incrementCommentCount(postId: UUID) {
-        val today = DateUtils.today()
-        val updatedRows = postDailyStatsRepository.incrementCommentCount(postId, today)
-        if (updatedRows == 0) {
-            createDailyStatsAndIncrement(postId, today) { id, date ->
-                postDailyStatsRepository.incrementCommentCount(id, date)
-            }
+    fun incrementCommentCount(
+        postId: UUID,
+        statDate: Date,
+    ) {
+        applyDailyStatsChange(postId, statDate, postDailyStatsRepository::incrementCommentCount)
+    }
+
+    /**
+     * 지정한 일자의 댓글수를 원자적으로 1 감소시킵니다.
+     * 레코드가 없으면 생성 후 감소를 재시도하여 음수 값을 가질 수 있습니다.
+     *
+     * @param postId 게시물 ID
+     * @param statDate 통계 일자
+     */
+    fun decrementCommentCount(
+        postId: UUID,
+        statDate: Date,
+    ) {
+        applyDailyStatsChange(postId, statDate, postDailyStatsRepository::decrementCommentCount)
+    }
+
+    private fun applyDailyStatsChange(
+        postId: UUID,
+        statDate: Date,
+        changeFn: (UUID, Date) -> Int,
+    ) {
+        if (changeFn(postId, statDate) == 0) {
+            retryDailyStatsChangeAfterCreate(postId, statDate, changeFn)
         }
     }
 
     /**
-     * DailyStats 레코드를 생성하고 증분 쿼리를 재실행합니다.
-     * Unique Constraint 위반 시 (동시 insert) 증분 쿼리만 재실행합니다.
+     * DailyStats 레코드가 없으면 생성한 뒤 변경 쿼리를 다시 실행합니다.
+     * Unique Constraint 위반 시에는 레코드 생성만 건너뛰고 변경 쿼리만 재시도합니다.
      */
-    private fun createDailyStatsAndIncrement(
+    private fun retryDailyStatsChangeAfterCreate(
         postId: UUID,
-        statDate: LocalDate,
-        incrementFn: (UUID, LocalDate) -> Int,
+        statDate: Date,
+        changeFn: (UUID, Date) -> Int,
     ) {
         try {
             createDailyStats(postId, statDate)
         } catch (e: DataIntegrityViolationException) {
-            logger.debug("DailyStats 동시 생성 감지, 증분 재시도: postId={}", postId)
+            logger.debug("DailyStats 동시 생성 감지, 변경 쿼리 재시도: postId={}", postId)
         }
-        incrementFn(postId, statDate)
+        changeFn(postId, statDate)
     }
 
     /**
@@ -105,7 +116,7 @@ class PostDailyStatsService(
      */
     private fun createDailyStats(
         postId: UUID,
-        statDate: LocalDate,
+        statDate: Date,
     ) {
         val post = postRepository.getReferenceById(postId)
         val dailyStats = PostDailyStats(post = post, statDate = statDate)

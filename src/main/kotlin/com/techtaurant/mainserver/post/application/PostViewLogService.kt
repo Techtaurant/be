@@ -1,6 +1,7 @@
 package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.post.entity.PostViewLog
 import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
@@ -56,9 +57,9 @@ class PostViewLogService(
                 userAgent = userAgent,
             )
 
-        postViewLogRepository.save(viewLog)
+        val savedViewLog = postViewLogRepository.save(viewLog)
 
         postRepository.incrementViewCount(postId)
-        postDailyStatsService.incrementViewCount(postId)
+        postDailyStatsService.incrementViewCount(postId, DateUtils.toUtcDate(savedViewLog.createdAt))
     }
 }

@@ -2,16 +2,16 @@ package com.techtaurant.mainserver.post.entity
 
 import com.techtaurant.mainserver.common.base.EntityBase
 import jakarta.persistence.*
-import java.time.LocalDate
+import java.sql.Date
 
 /**
- * 일별 게시물 통계 엔티티 (이벤트 로그)
+ * 일별 게시물 통계 엔티티
  *
  * @property post 대상 게시물
  * @property statDate 통계 집계 일자
  * @property viewCount 해당 일자 조회 증분
- * @property likeCount 해당 일자 좋아요 증분
- * @property commentCount 해당 일자 댓글 증분
+ * @property likeCount 해당 일자 좋아요 증감
+ * @property commentCount 해당 일자 댓글 증감
  */
 @Entity
 @Table(
@@ -23,7 +23,7 @@ class PostDailyStats(
     @JoinColumn(name = "post_id", nullable = false)
     var post: Post,
     @Column(name = "stat_date", nullable = false)
-    var statDate: LocalDate,
+    var statDate: Date,
     @Column(name = "view_count", nullable = false)
     var viewCount: Long = 0,
     @Column(name = "like_count", nullable = false)

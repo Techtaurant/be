@@ -7,6 +7,7 @@ import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.enums.CommentStatus
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.common.util.HtmlSanitizer
 import com.techtaurant.mainserver.post.application.PostDailyStatsService
 import com.techtaurant.mainserver.post.entity.Post
@@ -60,9 +61,11 @@ class CommentWriteService(
             )
 
         val savedComment = commentRepository.save(comment)
+        val statDate = DateUtils.toUtcDate(savedComment.createdAt)
 
+        parent?.id?.let(commentRepository::incrementReplyCount)
         postRepository.incrementCommentCount(request.postId)
-        postDailyStatsService.incrementCommentCount(request.postId)
+        postDailyStatsService.incrementCommentCount(request.postId, statDate)
 
         return CommentResponse.from(savedComment)
     }
