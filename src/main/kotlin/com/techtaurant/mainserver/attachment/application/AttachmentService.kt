@@ -62,26 +62,31 @@ class AttachmentService(
     }
 
     /**
-     * objectKeys에 해당하는 TMP Attachment를 CONFIRMED 상태로 전환합니다.
+     * attachmentId에 해당하는 TMP Attachment를 CONFIRMED 상태로 전환합니다.
      * S3 파일을 tmp/ 경로에서 posts/{referenceId}/ 경로로 이동합니다.
      *
      * @param referenceId 연관 도메인 PK (게시물 ID 등)
      * @param referenceType 연관 도메인 타입
-     * @param objectKeys 확정할 S3 objectKey 목록 (content에서 파싱한 값)
-     * @return 이동된 새 objectKey 목록 (content URL 교체용)
+     * @param attachmentIds 확정할 Attachment ID 목록
      */
     @Transactional
-    fun confirmAttachments(
+    fun confirmAttachmentsByIds(
         referenceId: UUID,
         referenceType: AttachmentReferenceType,
-        objectKeys: List<String>,
-    ): Map<String, String> {
-        if (objectKeys.isEmpty()) return emptyMap()
+        attachmentIds: List<UUID>,
+    ) {
+        if (attachmentIds.isEmpty()) return
 
-        val tmpObjectKeyToNewKey = mutableMapOf<String, String>()
+        val tmpAttachments =
+            attachmentRepository.findAllById(attachmentIds.distinct())
+                .filter { attachment ->
+                    attachment.status == AttachmentStatus.TMP && attachment.referenceType == referenceType
+                }
 
-        objectKeys.forEach { tmpObjectKey ->
-            // S3에 실제로 파일이 있는지 확인하여 NoSuchKeyException 방지
+        if (tmpAttachments.isEmpty()) return
+
+        tmpAttachments.forEach { attachment ->
+            val tmpObjectKey = attachment.objectKey
             if (!s3StorageService.exists(tmpObjectKey)) {
                 log.warn("S3 object not found for confirmation: $tmpObjectKey. Skipping.")
                 return@forEach
@@ -97,21 +102,13 @@ class AttachmentService(
             )
             s3StorageService.deleteObject(tmpObjectKey)
 
-            tmpObjectKeyToNewKey[tmpObjectKey] = newObjectKey
-        }
-
-        val tmps = attachmentRepository.findAllByObjectKeyInAndStatus(objectKeys, AttachmentStatus.TMP)
-
-        tmps.forEach { attachment ->
-            val newKey = tmpObjectKeyToNewKey[attachment.objectKey] ?: return@forEach
-            attachment.objectKey = newKey
+            attachment.objectKey = newObjectKey
             attachment.status = AttachmentStatus.CONFIRMED
             attachment.referenceId = referenceId
             attachment.referenceType = referenceType
         }
 
-        attachmentRepository.saveAll(tmps)
-        return tmpObjectKeyToNewKey
+        attachmentRepository.saveAll(tmpAttachments)
     }
 
     /**
@@ -133,21 +130,22 @@ class AttachmentService(
     }
 
     /**
-     * keepObjectKeys에 포함되지 않는 첨부파일을 S3와 DB에서 삭제합니다.
+     * keepAttachmentIds에 포함되지 않는 첨부파일을 S3와 DB에서 삭제합니다.
      * 게시물 수정 시 content에서 제거된 이미지 정리에 사용됩니다.
      *
      * @param referenceId 연관 도메인 PK
      * @param referenceType 연관 도메인 타입
-     * @param keepObjectKeys 유지할 objectKey 목록
+     * @param keepAttachmentIds 유지할 attachmentId 목록
      */
     @Transactional
-    fun deleteOrphanedAttachments(
+    fun deleteOrphanedAttachmentsByIds(
         referenceId: UUID,
         referenceType: AttachmentReferenceType,
-        keepObjectKeys: List<String>,
+        keepAttachmentIds: List<UUID>,
     ) {
         val attachments = attachmentRepository.findAllByReferenceIdAndReferenceType(referenceId, referenceType)
-        val orphaned = attachments.filter { it.objectKey !in keepObjectKeys }
+        val keepAttachmentIdSet = keepAttachmentIds.toSet()
+        val orphaned = attachments.filter { attachment -> attachment.id !in keepAttachmentIdSet }
         if (orphaned.isEmpty()) return
 
         s3StorageService.deleteObjects(orphaned.map { it.objectKey })
@@ -182,9 +180,7 @@ class AttachmentService(
         referenceId: UUID,
         referenceType: AttachmentReferenceType,
     ): Map<String, String> {
-        val attachments =
-            attachmentRepository.findAllByReferenceIdAndReferenceType(referenceId, referenceType)
-                .filter { it.status == AttachmentStatus.CONFIRMED }
+        val attachments = getConfirmedAttachments(referenceId, referenceType)
 
         return attachments.associate { attachment ->
             attachment.objectKey to
@@ -193,6 +189,29 @@ class AttachmentService(
                     expireMinutes = presignedUrlExpireMinutes,
                 )
         }
+    }
+
+    /**
+     * referenceId에 연결된 CONFIRMED 첨부파일의 attachmentId → presigned GET URL 맵을 반환합니다.
+     * content 내 attachmentId를 접근 가능한 URL로 교체할 때 사용합니다.
+     *
+     * @param referenceId 연관 도메인 PK
+     * @param referenceType 연관 도메인 타입
+     * @return attachmentId → presigned GET URL 맵
+     */
+    @Transactional(readOnly = true)
+    fun generatePresignedDownloadUrlMapByReference(
+        referenceId: UUID,
+        referenceType: AttachmentReferenceType,
+    ): Map<UUID, String> {
+        return getConfirmedAttachments(referenceId, referenceType)
+            .associate { attachment ->
+                attachment.id!! to
+                    s3StorageService.generatePresignedDownloadUrl(
+                        objectKey = attachment.objectKey,
+                        expireMinutes = presignedUrlExpireMinutes,
+                    )
+            }
     }
 
     /**

@@ -3,6 +3,7 @@ package com.techtaurant.mainserver.post.dto
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.Size
+import java.util.UUID
 
 /**
  * 게시물 생성 요청 DTO
@@ -24,6 +25,8 @@ data class CreatePostRequest(
     val categoryPath: String? = null,
     @field:Schema(description = "태그 목록", example = "[\"spring\", \"backend\", \"tutorial\"]")
     val tags: List<String>? = null,
+    @field:Schema(description = "게시물에 연결할 attachment ID 목록", example = "[\"01234567-89ab-cdef-0123-456789abcdef\"]")
+    val attachmentIds: List<UUID>? = null,
     @field:Schema(description = "게시물 상태 (DRAFT/PUBLISHED/PRIVATE, 기본값: PUBLISHED)", example = "PUBLISHED")
     val status: PostStatusEnum? = null,
 )

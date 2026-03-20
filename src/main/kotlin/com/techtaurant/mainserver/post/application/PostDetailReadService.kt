@@ -78,13 +78,12 @@ class PostDetailReadService(
                 postReadLogRepository.existsByPostIdAndUserId(postId, it)
             } ?: false
 
-        val presignedUrlMap =
-            attachmentService.generatePresignedDownloadUrlMap(postId, AttachmentReferenceType.POST)
-
         val contentWithPresignedUrls =
-            presignedUrlMap.entries.fold(post.content) { acc, (objectKey, presignedUrl) ->
-                acc.replace(objectKey, presignedUrl)
-            }
+            attachmentService.generatePresignedDownloadUrlMapByReference(postId, AttachmentReferenceType.POST)
+                .entries
+                .fold(post.content) { acc, (attachmentId, presignedUrl) ->
+                    acc.replace(attachmentId.toString(), presignedUrl)
+                }
 
         return PostDetailResponse.from(post, likeStatus, isRead, contentWithPresignedUrls)
     }

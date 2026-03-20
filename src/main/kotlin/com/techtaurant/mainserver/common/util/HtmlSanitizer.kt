@@ -98,39 +98,4 @@ object HtmlSanitizer {
     fun sanitizeTitle(text: String): String {
         return Jsoup.clean(text, Safelist.none())
     }
-
-    /**
-     * HTML 본문에서 tmp/ 경로로 시작하는 S3 objectKey를 모두 추출합니다.
-     * HTML 태그(img src, a href)와 Markdown 패턴(![...](key), [...](key))을 모두 지원합니다.
-     *
-     * @param html HTML 또는 Markdown 문자열
-     * @return 추출된 tmp/ 경로 리스트
-     */
-    fun extractTmpObjectKeys(html: String): List<String> {
-        val keys = mutableSetOf<String>()
-
-        // 1. HTML 태그 추출 (Jsoup)
-        val doc = Jsoup.parseBodyFragment(html)
-        doc.select("img[src]").forEach { img ->
-            val src = img.attr("src")
-            if (src.startsWith("tmp/")) {
-                keys.add(src)
-            }
-        }
-        doc.select("a[href]").forEach { a ->
-            val href = a.attr("href")
-            if (href.startsWith("tmp/")) {
-                keys.add(href)
-            }
-        }
-
-        // 2. Markdown 패턴 추출 (Regex)
-        // ![alt](tmp/...) 또는 [text](tmp/...) 패턴 매칭
-        val markdownRegex = Regex("""!?\[[^\]]*\]\((tmp/[^)]+)\)""")
-        markdownRegex.findAll(html).forEach { matchResult ->
-            keys.add(matchResult.groupValues[1])
-        }
-
-        return keys.toList()
-    }
 }

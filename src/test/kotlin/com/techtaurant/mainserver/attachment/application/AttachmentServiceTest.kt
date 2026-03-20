@@ -113,9 +113,10 @@ class AttachmentServiceTest {
     }
 
     @Nested
-    @DisplayName("confirmAttachments")
-    inner class ConfirmAttachments {
+    @DisplayName("confirmAttachmentsByIds")
+    inner class ConfirmAttachmentsByIds {
         private val tmpKey = "tmp/${UUID.randomUUID()}/photo.jpg"
+        private val tmpAttachment = makeAttachment(tmpKey, AttachmentStatus.TMP, referenceId = null)
 
         @BeforeEach
         fun setUp() {
@@ -126,42 +127,34 @@ class AttachmentServiceTest {
         }
 
         @Test
-        @DisplayName("빈 objectKeys 목록이면 빈 맵을 반환하고 S3 작업을 수행하지 않는다")
-        fun confirmAttachments_emptyKeys_returnsEmptyMapWithoutS3Calls() {
+        @DisplayName("빈 attachmentId 목록이면 S3 작업을 수행하지 않는다")
+        fun confirmAttachmentsByIds_emptyIds_skipsS3Calls() {
             // given & when
-            val result =
-                attachmentService.confirmAttachments(
-                    referenceId = postId,
-                    referenceType = AttachmentReferenceType.POST,
-                    objectKeys = emptyList(),
-                )
+            attachmentService.confirmAttachmentsByIds(
+                referenceId = postId,
+                referenceType = AttachmentReferenceType.POST,
+                attachmentIds = emptyList(),
+            )
 
             // then
-            assertThat(result).isEmpty()
             verify(exactly = 0) { s3StorageService.copyObject(any(), any()) }
         }
 
         @Test
         @DisplayName("TMP 파일을 posts/{referenceId}/ 경로로 복사하고 원본을 삭제한다")
-        fun confirmAttachments_tmpKey_copiesAndDeletesS3Object() {
+        fun confirmAttachmentsByIds_tmpAttachment_copiesAndDeletesS3Object() {
             // given
-            val tmpAttachment = makeAttachment(tmpKey, AttachmentStatus.TMP, referenceId = null)
-            every {
-                attachmentRepository.findAllByObjectKeyInAndStatus(listOf(tmpKey), AttachmentStatus.TMP)
-            } returns listOf(tmpAttachment)
+            every { attachmentRepository.findAllById(listOf(tmpAttachment.id!!)) } returns listOf(tmpAttachment)
 
             // when
-            val result =
-                attachmentService.confirmAttachments(
-                    referenceId = postId,
-                    referenceType = AttachmentReferenceType.POST,
-                    objectKeys = listOf(tmpKey),
-                )
+            attachmentService.confirmAttachmentsByIds(
+                referenceId = postId,
+                referenceType = AttachmentReferenceType.POST,
+                attachmentIds = listOf(tmpAttachment.id!!),
+            )
 
             // then
-            assertThat(result).hasSize(1)
-            assertThat(result.keys).containsExactly(tmpKey)
-            val newKey = result[tmpKey]!!
+            val newKey = tmpAttachment.objectKey
             assertThat(newKey).startsWith("posts/$postId/")
             assertThat(newKey).endsWith("photo.jpg")
 
@@ -171,18 +164,15 @@ class AttachmentServiceTest {
 
         @Test
         @DisplayName("Attachment의 status를 CONFIRMED로 변경하고 referenceId를 설정한다")
-        fun confirmAttachments_tmpAttachment_updatesStatusAndReferenceId() {
+        fun confirmAttachmentsByIds_tmpAttachment_updatesStatusAndReferenceId() {
             // given
-            val tmpAttachment = makeAttachment(tmpKey, AttachmentStatus.TMP, referenceId = null)
-            every {
-                attachmentRepository.findAllByObjectKeyInAndStatus(listOf(tmpKey), AttachmentStatus.TMP)
-            } returns listOf(tmpAttachment)
+            every { attachmentRepository.findAllById(listOf(tmpAttachment.id!!)) } returns listOf(tmpAttachment)
 
             // when
-            attachmentService.confirmAttachments(
+            attachmentService.confirmAttachmentsByIds(
                 referenceId = postId,
                 referenceType = AttachmentReferenceType.POST,
-                objectKeys = listOf(tmpKey),
+                attachmentIds = listOf(tmpAttachment.id!!),
             )
 
             // then
@@ -241,16 +231,14 @@ class AttachmentServiceTest {
     }
 
     @Nested
-    @DisplayName("deleteOrphanedAttachments")
-    inner class DeleteOrphanedAttachments {
+    @DisplayName("deleteOrphanedAttachmentsByIds")
+    inner class DeleteOrphanedAttachmentsByIds {
         @Test
-        @DisplayName("keepObjectKeys에 없는 첨부파일을 S3와 DB에서 삭제한다")
-        fun deleteOrphanedAttachments_orphanExists_deletesOrphansOnly() {
+        @DisplayName("keepAttachmentIds에 없는 첨부파일을 S3와 DB에서 삭제한다")
+        fun deleteOrphanedAttachmentsByIds_orphanExists_deletesOrphansOnly() {
             // given
-            val keepKey = "posts/$postId/uuid1/keep.jpg"
-            val orphanKey = "posts/$postId/uuid2/orphan.jpg"
-            val keepAttachment = makeAttachment(keepKey)
-            val orphanAttachment = makeAttachment(orphanKey)
+            val keepAttachment = makeAttachment("posts/$postId/uuid1/keep.jpg")
+            val orphanAttachment = makeAttachment("posts/$postId/uuid2/orphan.jpg")
 
             every {
                 attachmentRepository.findAllByReferenceIdAndReferenceType(postId, AttachmentReferenceType.POST)
@@ -259,29 +247,70 @@ class AttachmentServiceTest {
             every { attachmentRepository.deleteAll(any<List<Attachment>>()) } just runs
 
             // when
-            attachmentService.deleteOrphanedAttachments(postId, AttachmentReferenceType.POST, listOf(keepKey))
+            attachmentService.deleteOrphanedAttachmentsByIds(
+                postId,
+                AttachmentReferenceType.POST,
+                listOf(keepAttachment.id!!),
+            )
 
             // then
-            verify { s3StorageService.deleteObjects(listOf(orphanKey)) }
+            verify { s3StorageService.deleteObjects(listOf(orphanAttachment.objectKey)) }
             verify { attachmentRepository.deleteAll(listOf(orphanAttachment)) }
         }
 
         @Test
         @DisplayName("고아 파일이 없으면 S3 삭제를 수행하지 않는다")
-        fun deleteOrphanedAttachments_noOrphans_skipsDeletion() {
+        fun deleteOrphanedAttachmentsByIds_noOrphans_skipsDeletion() {
             // given
-            val keepKey = "posts/$postId/uuid1/keep.jpg"
-            val keepAttachment = makeAttachment(keepKey)
+            val keepAttachment = makeAttachment("posts/$postId/uuid1/keep.jpg")
 
             every {
                 attachmentRepository.findAllByReferenceIdAndReferenceType(postId, AttachmentReferenceType.POST)
             } returns listOf(keepAttachment)
 
             // when
-            attachmentService.deleteOrphanedAttachments(postId, AttachmentReferenceType.POST, listOf(keepKey))
+            attachmentService.deleteOrphanedAttachmentsByIds(
+                postId,
+                AttachmentReferenceType.POST,
+                listOf(keepAttachment.id!!),
+            )
 
             // then
             verify(exactly = 0) { s3StorageService.deleteObjects(any()) }
+        }
+    }
+
+    @Nested
+    @DisplayName("generatePresignedDownloadUrlMapByReference")
+    inner class GeneratePresignedDownloadUrlMapByReference {
+        @Test
+        @DisplayName("연결된 CONFIRMED 첨부파일의 attachmentId → URL 맵을 반환한다")
+        fun generatePresignedDownloadUrlMapByReference_confirmedAttachments_returnsUrlMap() {
+            // given
+            val included = makeAttachment("posts/$postId/uuid1/a.jpg", AttachmentStatus.CONFIRMED)
+            val excluded = makeAttachment("posts/$postId/uuid2/b.jpg", AttachmentStatus.CONFIRMED)
+
+            every {
+                attachmentRepository.findAllByReferenceIdAndReferenceType(postId, AttachmentReferenceType.POST)
+            } returns listOf(included, excluded)
+            every {
+                s3StorageService.generatePresignedDownloadUrl(included.objectKey, presignedUrlExpireMinutes)
+            } returns "https://url1"
+            every {
+                s3StorageService.generatePresignedDownloadUrl(excluded.objectKey, presignedUrlExpireMinutes)
+            } returns "https://url2"
+
+            // when
+            val result =
+                attachmentService.generatePresignedDownloadUrlMapByReference(
+                    postId,
+                    AttachmentReferenceType.POST,
+                )
+
+            // then
+            assertThat(result).containsKeys(included.id!!, excluded.id!!)
+            assertThat(result[included.id!!]).isEqualTo("https://url1")
+            assertThat(result[excluded.id!!]).isEqualTo("https://url2")
         }
     }
 
