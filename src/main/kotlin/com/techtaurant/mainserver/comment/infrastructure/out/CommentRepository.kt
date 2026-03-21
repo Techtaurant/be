@@ -70,7 +70,7 @@ interface CommentRepository : JpaRepository<Comment, UUID> {
      * @param commentId 부모 댓글 ID
      */
     @Modifying(clearAutomatically = false, flushAutomatically = true)
-    @Query("UPDATE Comment c SET c.replyCount = c.replyCount - 1 WHERE c.id = :commentId")
+    @Query("UPDATE Comment c SET c.replyCount = CASE WHEN c.replyCount > 0 THEN c.replyCount - 1 ELSE 0 END WHERE c.id = :commentId")
     fun decrementReplyCount(
         @Param("commentId") commentId: UUID,
     )

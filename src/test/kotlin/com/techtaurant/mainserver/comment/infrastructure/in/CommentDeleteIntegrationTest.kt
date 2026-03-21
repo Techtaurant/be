@@ -135,6 +135,35 @@ class CommentDeleteIntegrationTest : IntegrationTest() {
     }
 
     @Test
+    @DisplayName("대댓글 삭제 시 드리프트가 있어도 부모 replyCount와 게시물 commentCount는 0 미만으로 내려가지 않는다")
+    fun deleteReply_shouldNotMakePublicCountersNegative() {
+        // given
+        val parentComment = createComment(author, "부모 댓글", replyCount = 0)
+        val replyComment = createComment(author, "대댓글", parent = parentComment)
+        val statDate = DateUtils.toUtcDate(replyComment.createdAt)
+        post.commentCount = 0
+        postRepository.save(post)
+
+        // when
+        given()
+            .header("Authorization", "Bearer $authorAccessToken")
+            .`when`()
+            .delete("/api/comments/${replyComment.id}")
+            .then()
+            .statusCode(HttpStatus.NO_CONTENT.value())
+
+        // then
+        val updatedParent = commentRepository.findById(parentComment.id!!).orElseThrow()
+        val updatedPost = postRepository.findById(post.id!!).orElseThrow()
+        val dailyStats =
+            postDailyStatsRepository.findAll()
+                .single { it.post.id == post.id && it.statDate.toString() == statDate.toString() }
+        assertThat(updatedParent.replyCount).isZero()
+        assertThat(updatedPost.commentCount).isZero()
+        assertThat(dailyStats.commentCount).isEqualTo(-1)
+    }
+
+    @Test
     @DisplayName("댓글 삭제 실패 - 작성자가 아니면 403과 COMMENT_AUTHOR_MISMATCH를 반환한다")
     fun deleteComment_withAnotherUser_shouldReturnForbidden() {
         // given

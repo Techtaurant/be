@@ -50,10 +50,10 @@ class PostLikeLogService(
             }
 
         val existingLog = postLikeLogRepository.findByPostIdAndUserId(postId, userId)
-        val statDate = DateUtils.today()
 
         if (existingLog != null) {
             val previousIsLiked = existingLog.isLiked
+            val statDate = toStatDate(existingLog)
 
             when (likeStatus) {
                 LikeStatus.NONE -> {
@@ -65,18 +65,20 @@ class PostLikeLogService(
                     if (!previousIsLiked) {
                         // DISLIKE → LIKE: +2
                         existingLog.isLiked = true
-                        postLikeLogRepository.save(existingLog)
-                        updateLikeCount(postId, true, statDate)
-                        updateLikeCount(postId, true, statDate)
+                        val savedLog = postLikeLogRepository.save(existingLog)
+                        val updatedStatDate = toStatDate(savedLog)
+                        updateLikeCount(postId, true, updatedStatDate)
+                        updateLikeCount(postId, true, updatedStatDate)
                     }
                 }
                 LikeStatus.DISLIKE -> {
                     if (previousIsLiked) {
                         // LIKE → DISLIKE: -2
                         existingLog.isLiked = false
-                        postLikeLogRepository.save(existingLog)
-                        updateLikeCount(postId, false, statDate)
-                        updateLikeCount(postId, false, statDate)
+                        val savedLog = postLikeLogRepository.save(existingLog)
+                        val updatedStatDate = toStatDate(savedLog)
+                        updateLikeCount(postId, false, updatedStatDate)
+                        updateLikeCount(postId, false, updatedStatDate)
                     }
                 }
             }
@@ -84,12 +86,12 @@ class PostLikeLogService(
             when (likeStatus) {
                 LikeStatus.NONE -> { /* 이미 중립 상태, 무시 */ }
                 LikeStatus.LIKE -> {
-                    postLikeLogRepository.save(PostLikeLog(post = post, user = user, isLiked = true))
-                    updateLikeCount(postId, true, statDate)
+                    val savedLog = postLikeLogRepository.save(PostLikeLog(post = post, user = user, isLiked = true))
+                    updateLikeCount(postId, true, toStatDate(savedLog))
                 }
                 LikeStatus.DISLIKE -> {
-                    postLikeLogRepository.save(PostLikeLog(post = post, user = user, isLiked = false))
-                    updateLikeCount(postId, false, statDate)
+                    val savedLog = postLikeLogRepository.save(PostLikeLog(post = post, user = user, isLiked = false))
+                    updateLikeCount(postId, false, toStatDate(savedLog))
                 }
             }
         }
@@ -114,4 +116,6 @@ class PostLikeLogService(
             postDailyStatsService.decrementLikeCount(postId, statDate)
         }
     }
+
+    private fun toStatDate(log: PostLikeLog): java.sql.Date = DateUtils.toUtcDate(log.createdAt)
 }

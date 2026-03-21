@@ -176,7 +176,7 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
      * @param postId 댓글수를 감소시킬 게시물 ID
      */
     @Modifying(clearAutomatically = false, flushAutomatically = true)
-    @Query("UPDATE Post p SET p.commentCount = p.commentCount - 1 WHERE p.id = :postId")
+    @Query("UPDATE Post p SET p.commentCount = CASE WHEN p.commentCount > 0 THEN p.commentCount - 1 ELSE 0 END WHERE p.id = :postId")
     fun decrementCommentCount(
         @Param("postId") postId: UUID,
     )

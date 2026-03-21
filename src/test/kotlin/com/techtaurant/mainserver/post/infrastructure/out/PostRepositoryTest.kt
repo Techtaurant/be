@@ -206,4 +206,20 @@ class PostRepositoryTest : IntegrationTest() {
         val updatedPost = postRepository.findById(testPost.id!!).orElseThrow()
         assertThat(updatedPost.commentCount).isEqualTo(1)
     }
+
+    @Test
+    @DisplayName("decrementCommentCount는 commentCount가 0이어도 음수로 만들지 않는다")
+    fun decrementCommentCount_whenCountIsZero_shouldRemainZero() {
+        // Given
+        assertThat(testPost.commentCount).isZero()
+
+        // When
+        postRepository.decrementCommentCount(testPost.id!!)
+        postRepository.flush()
+        entityManager.clear()
+
+        // Then
+        val updatedPost = postRepository.findById(testPost.id!!).orElseThrow()
+        assertThat(updatedPost.commentCount).isZero()
+    }
 }
