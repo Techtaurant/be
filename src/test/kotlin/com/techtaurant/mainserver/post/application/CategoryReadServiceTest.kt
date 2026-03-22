@@ -59,14 +59,14 @@ class CategoryReadServiceTest {
     @DisplayName("searchByPath")
     inner class SearchByPath {
         @Test
-        @DisplayName("카테고리별 게시물 개수를 함께 반환한다")
+        @DisplayName("카테고리별 누적 게시물 개수를 함께 반환한다")
         fun searchByPath_returnsCategoriesWithPostCounts() {
             // given
             val rootId = UUID.randomUUID()
             val childId = UUID.randomUUID()
             every { categoryRepository.findByUserIdAndPathPrefixWithPostCount(user.id!!, "java") } returns
                 listOf(
-                    createProjection(rootId, "java", "java", 1, null, 2L),
+                    createProjection(rootId, "java", "java", 1, null, 7L),
                     createProjection(childId, "spring", "java/spring", 2, rootId, 5L),
                 )
 
@@ -76,7 +76,7 @@ class CategoryReadServiceTest {
             // then
             assertThat(result).hasSize(2)
             assertThat(result[0].id).isEqualTo(rootId)
-            assertThat(result[0].postCount).isEqualTo(2L)
+            assertThat(result[0].postCount).isEqualTo(7L)
             assertThat(result[1].id).isEqualTo(childId)
             assertThat(result[1].parentId).isEqualTo(rootId)
             assertThat(result[1].postCount).isEqualTo(5L)

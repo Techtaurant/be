@@ -86,13 +86,14 @@ class CategoryRepositoryTest : IntegrationTest() {
     @DisplayName("findByUserIdWithPostCount")
     inner class FindByUserIdWithPostCount {
         @Test
-        @DisplayName("게시물이 있는 카테고리와 없는 카테고리 모두 반환하고 게시물 수를 정확히 집계한다")
+        @DisplayName("게시물이 있는 카테고리와 없는 카테고리 모두 반환하고 하위 카테고리까지 포함해 게시물 수를 집계한다")
         fun findByUserIdWithPostCount_returnsAllCategoriesWithAccuratePostCounts() {
             // given
             val javaCategory = createCategory(testUser, "java", "java", 1)
+            val springCategory = createCategory(testUser, "spring", "java/spring", 2, javaCategory)
             val kotlinCategory = createCategory(testUser, "kotlin", "kotlin", 1)
-            createPost(javaCategory, "java 게시물 1")
-            createPost(javaCategory, "java 게시물 2")
+            createPost(springCategory, "spring 게시물 1")
+            createPost(springCategory, "spring 게시물 2")
             postRepository.flush()
             entityManager.clear()
 
@@ -102,9 +103,10 @@ class CategoryRepositoryTest : IntegrationTest() {
                     .associateBy { it.getId() }
 
             // then
-            assertThat(result).hasSize(2)
+            assertThat(result).hasSize(3)
             assertThat(result[javaCategory.id!!]!!.getPostCount()).isEqualTo(2L)
             assertThat(result[kotlinCategory.id!!]!!.getPostCount()).isZero()
+            assertThat(result[springCategory.id!!]!!.getPostCount()).isEqualTo(2L)
         }
 
         @Test
@@ -219,7 +221,7 @@ class CategoryRepositoryTest : IntegrationTest() {
             // then
             assertThat(result).hasSize(2)
             assertThat(result).containsOnlyKeys(javaCategory.id!!, springCategory.id!!)
-            assertThat(result[javaCategory.id!!]!!.getPostCount()).isEqualTo(1L)
+            assertThat(result[javaCategory.id!!]!!.getPostCount()).isEqualTo(3L)
             assertThat(result[springCategory.id!!]!!.getPostCount()).isEqualTo(2L)
         }
 
@@ -252,6 +254,30 @@ class CategoryRepositoryTest : IntegrationTest() {
             // then
             assertThat(result).hasSize(1)
             assertThat(result[0].getPostCount()).isZero()
+        }
+
+        @Test
+        @DisplayName("상위 카테고리의 게시물 수는 하위 카테고리 게시물까지 포함한다")
+        fun findByUserIdAndPathPrefixWithPostCount_includesDescendantPostsInParentCount() {
+            // given
+            val backendCategory = createCategory(testUser, "backend", "backend", 1)
+            val javaCategory = createCategory(testUser, "java", "backend/java", 2, backendCategory)
+            val springCategory = createCategory(testUser, "spring", "backend/java/spring", 3, javaCategory)
+            createPost(springCategory, "spring 게시물 1")
+            createPost(springCategory, "spring 게시물 2")
+            createPost(javaCategory, "java 게시물 1")
+            postRepository.flush()
+            entityManager.clear()
+
+            // when
+            val result =
+                categoryRepository.findByUserIdAndPathPrefixWithPostCount(testUser.id!!, "backend")
+                    .associateBy { it.getId() }
+
+            // then
+            assertThat(result[backendCategory.id!!]!!.getPostCount()).isEqualTo(3L)
+            assertThat(result[javaCategory.id!!]!!.getPostCount()).isEqualTo(3L)
+            assertThat(result[springCategory.id!!]!!.getPostCount()).isEqualTo(2L)
         }
     }
 }

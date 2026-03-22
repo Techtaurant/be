@@ -13,7 +13,7 @@ import java.util.UUID
  * @property path 전체 경로 (예: "java/spring/deepdive")
  * @property depth 현재 depth (1~5)
  * @property parentId 부모 카테고리 ID (최상위 카테고리인 경우 null)
- * @property postCount 카테고리에 직접 연결된 게시물 개수
+ * @property postCount 카테고리 자신과 하위 카테고리에 속한 게시물 개수
  */
 @Schema(description = "카테고리 응답")
 data class CategoryResponse(
@@ -27,7 +27,7 @@ data class CategoryResponse(
     val depth: Int,
     @Schema(description = "부모 카테고리 ID (최상위인 경우 null)")
     val parentId: UUID?,
-    @Schema(description = "카테고리에 직접 연결된 게시물 개수", example = "3")
+    @Schema(description = "카테고리 자신과 하위 카테고리에 속한 게시물 개수", example = "3")
     val postCount: Long,
 ) {
     companion object {
