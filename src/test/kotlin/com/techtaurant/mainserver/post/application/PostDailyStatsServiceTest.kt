@@ -17,6 +17,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.transaction.annotation.Transactional
+import java.sql.Date
 
 @DisplayName("PostDailyStatsService 통합 테스트")
 @Transactional
@@ -45,14 +46,14 @@ class PostDailyStatsServiceTest : IntegrationTest() {
         val today = DateUtils.today()
 
         // when
-        postDailyStatsService.incrementViewCount(post.id!!)
+        postDailyStatsService.incrementViewCount(post.id!!, today)
         entityManager.flush()
         entityManager.clear()
 
         // then
         val dailyStats =
             postDailyStatsRepository.findAll()
-                .find { it.post.id == post.id && it.statDate == today }
+                .find { it.post.id == post.id && isSameUtcDate(it.statDate, today) }
         assertThat(dailyStats).isNotNull
         assertThat(dailyStats?.viewCount).isEqualTo(1)
     }
@@ -66,14 +67,14 @@ class PostDailyStatsServiceTest : IntegrationTest() {
         val today = DateUtils.today()
 
         // when
-        postDailyStatsService.incrementLikeCount(post.id!!)
+        postDailyStatsService.incrementLikeCount(post.id!!, today)
         entityManager.flush()
         entityManager.clear()
 
         // then
         val dailyStats =
             postDailyStatsRepository.findAll()
-                .find { it.post.id == post.id && it.statDate == today }
+                .find { it.post.id == post.id && isSameUtcDate(it.statDate, today) }
         assertThat(dailyStats).isNotNull
         assertThat(dailyStats?.likeCount).isEqualTo(1)
     }
@@ -87,14 +88,14 @@ class PostDailyStatsServiceTest : IntegrationTest() {
         val today = DateUtils.today()
 
         // when
-        postDailyStatsService.decrementLikeCount(post.id!!)
+        postDailyStatsService.decrementLikeCount(post.id!!, today)
         entityManager.flush()
         entityManager.clear()
 
         // then
         val dailyStats =
             postDailyStatsRepository.findAll()
-                .find { it.post.id == post.id && it.statDate == today }
+                .find { it.post.id == post.id && isSameUtcDate(it.statDate, today) }
         assertThat(dailyStats).isNotNull
         assertThat(dailyStats?.likeCount).isEqualTo(-1)
     }
@@ -109,14 +110,14 @@ class PostDailyStatsServiceTest : IntegrationTest() {
         createDailyStats(post, today, viewCount = 5)
 
         // when
-        postDailyStatsService.incrementViewCount(post.id!!)
+        postDailyStatsService.incrementViewCount(post.id!!, today)
         entityManager.flush()
         entityManager.clear()
 
         // then
         val dailyStats =
             postDailyStatsRepository.findAll()
-                .find { it.post.id == post.id && it.statDate == today }
+                .find { it.post.id == post.id && isSameUtcDate(it.statDate, today) }
         assertThat(dailyStats?.viewCount).isEqualTo(6)
     }
 
@@ -130,14 +131,14 @@ class PostDailyStatsServiceTest : IntegrationTest() {
         createDailyStats(post, today, likeCount = 3)
 
         // when
-        postDailyStatsService.incrementLikeCount(post.id!!)
+        postDailyStatsService.incrementLikeCount(post.id!!, today)
         entityManager.flush()
         entityManager.clear()
 
         // then
         val dailyStats =
             postDailyStatsRepository.findAll()
-                .find { it.post.id == post.id && it.statDate == today }
+                .find { it.post.id == post.id && isSameUtcDate(it.statDate, today) }
         assertThat(dailyStats?.likeCount).isEqualTo(4)
     }
 
@@ -151,14 +152,14 @@ class PostDailyStatsServiceTest : IntegrationTest() {
         createDailyStats(post, today, likeCount = 5)
 
         // when
-        postDailyStatsService.decrementLikeCount(post.id!!)
+        postDailyStatsService.decrementLikeCount(post.id!!, today)
         entityManager.flush()
         entityManager.clear()
 
         // then
         val dailyStats =
             postDailyStatsRepository.findAll()
-                .find { it.post.id == post.id && it.statDate == today }
+                .find { it.post.id == post.id && isSameUtcDate(it.statDate, today) }
         assertThat(dailyStats?.likeCount).isEqualTo(4)
     }
 
@@ -172,14 +173,14 @@ class PostDailyStatsServiceTest : IntegrationTest() {
         createDailyStats(post, today, likeCount = 0)
 
         // when
-        postDailyStatsService.decrementLikeCount(post.id!!)
+        postDailyStatsService.decrementLikeCount(post.id!!, today)
         entityManager.flush()
         entityManager.clear()
 
         // then
         val dailyStats =
             postDailyStatsRepository.findAll()
-                .find { it.post.id == post.id && it.statDate == today }
+                .find { it.post.id == post.id && isSameUtcDate(it.statDate, today) }
         assertThat(dailyStats?.likeCount).isEqualTo(-1)
     }
 
@@ -192,15 +193,78 @@ class PostDailyStatsServiceTest : IntegrationTest() {
         val today = DateUtils.today()
 
         // when
-        postDailyStatsService.incrementCommentCount(post.id!!)
+        postDailyStatsService.incrementCommentCount(post.id!!, today)
         entityManager.flush()
         entityManager.clear()
 
         // then
         val dailyStats =
             postDailyStatsRepository.findAll()
-                .find { it.post.id == post.id && it.statDate == today }
+                .find { it.post.id == post.id && isSameUtcDate(it.statDate, today) }
         assertThat(dailyStats).isNotNull
+        assertThat(dailyStats?.commentCount).isEqualTo(1)
+    }
+
+    @Test
+    @DisplayName("댓글수 감소 시 레코드가 없으면 생성되고 -1이 된다")
+    fun decrementCommentCount_whenNoRecord_shouldCreateRecordWithCountMinus1() {
+        // given
+        val user = createAndSaveUser("comment-decrement-no-record@example.com")
+        val post = createAndSavePost("댓글 감소 테스트 게시글", user)
+        val today = DateUtils.today()
+
+        // when
+        postDailyStatsService.decrementCommentCount(post.id!!, today)
+        entityManager.flush()
+        entityManager.clear()
+
+        // then
+        val dailyStats =
+            postDailyStatsRepository.findAll()
+                .find { it.post.id == post.id && isSameUtcDate(it.statDate, today) }
+        assertThat(dailyStats).isNotNull
+        assertThat(dailyStats?.commentCount).isEqualTo(-1)
+    }
+
+    @Test
+    @DisplayName("댓글수 감소 시 레코드가 있으면 기존 값에서 1이 감소한다")
+    fun decrementCommentCount_whenRecordExists_shouldDecrementExistingValue() {
+        // given
+        val user = createAndSaveUser("comment-decrement-record@example.com")
+        val post = createAndSavePost("댓글 감소 테스트 게시글", user)
+        val today = DateUtils.today()
+        createDailyStats(post, today, commentCount = 3)
+
+        // when
+        postDailyStatsService.decrementCommentCount(post.id!!, today)
+        entityManager.flush()
+        entityManager.clear()
+
+        // then
+        val dailyStats =
+            postDailyStatsRepository.findAll()
+                .find { it.post.id == post.id && isSameUtcDate(it.statDate, today) }
+        assertThat(dailyStats?.commentCount).isEqualTo(2)
+    }
+
+    @Test
+    @DisplayName("댓글수 감소 시 지정한 통계 일자를 기준으로 감소한다")
+    fun decrementCommentCount_withSpecificDate_shouldUseProvidedStatDate() {
+        // given
+        val user = createAndSaveUser("comment-decrement-date@example.com")
+        val post = createAndSavePost("댓글 날짜별 감소 테스트 게시글", user)
+        val statDate = Date.valueOf("2026-03-01")
+        createDailyStats(post, statDate, commentCount = 2)
+
+        // when
+        postDailyStatsService.decrementCommentCount(post.id!!, statDate)
+        entityManager.flush()
+        entityManager.clear()
+
+        // then
+        val dailyStats =
+            postDailyStatsRepository.findAll()
+                .find { it.post.id == post.id && isSameUtcDate(it.statDate, statDate) }
         assertThat(dailyStats?.commentCount).isEqualTo(1)
     }
 
@@ -233,7 +297,7 @@ class PostDailyStatsServiceTest : IntegrationTest() {
 
     private fun createDailyStats(
         post: Post,
-        statDate: java.time.LocalDate,
+        statDate: Date,
         viewCount: Long = 0,
         likeCount: Long = 0,
         commentCount: Long = 0,
@@ -248,4 +312,9 @@ class PostDailyStatsServiceTest : IntegrationTest() {
             )
         return postDailyStatsRepository.save(dailyStats)
     }
+
+    private fun isSameUtcDate(
+        actual: Date,
+        expected: Date,
+    ): Boolean = actual.toString() == expected.toString()
 }

@@ -3,10 +3,12 @@ package com.techtaurant.mainserver.post.application
 import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.infrastructure.out.CategoryRepository
+import com.techtaurant.mainserver.post.infrastructure.out.PostDailyStatsRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
@@ -22,6 +24,9 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.transaction.annotation.Transactional
+import java.sql.Date
+import java.sql.Timestamp
+import java.time.LocalDateTime
 import java.util.UUID
 
 /**
@@ -41,6 +46,9 @@ class PostLikeLogServiceTest : IntegrationTest() {
 
     @Autowired
     private lateinit var postLikeLogRepository: PostLikeLogRepository
+
+    @Autowired
+    private lateinit var postDailyStatsRepository: PostDailyStatsRepository
 
     @Autowired
     private lateinit var userRepository: UserRepository
@@ -293,4 +301,44 @@ class PostLikeLogServiceTest : IntegrationTest() {
         val log2 = postLikeLogRepository.findByPostIdAndUserId(testPost.id!!, anotherUser.id!!)
         assertThat(log2?.isLiked).isFalse()
     }
+
+    @Test
+    @DisplayName("좋아요 취소 시 일별 통계는 기존 로그 createdAt 기준 날짜를 사용한다")
+    fun recordLike_cancelShouldUseExistingLogCreatedAtForDailyStats() {
+        // Given - 좋아요 로그 생성
+        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, LikeStatus.LIKE)
+        entityManager.flush()
+        entityManager.clear()
+
+        val savedLog = postLikeLogRepository.findByPostIdAndUserId(testPost.id!!, testUser.id!!)
+        val targetCreatedAt = Timestamp.valueOf(LocalDateTime.of(2026, 3, 1, 12, 0, 0))
+        updateLogCreatedAt(savedLog!!.id!!, targetCreatedAt)
+        entityManager.clear()
+
+        // When - 중립 상태로 되돌리기
+        postLikeLogService.recordLike(testPost.id!!, testUser.id!!, LikeStatus.NONE)
+        entityManager.flush()
+        entityManager.clear()
+
+        // Then - 취소 통계가 기존 로그 생성일 버킷에 반영됨
+        val targetStatDate = DateUtils.toUtcDate(Date(targetCreatedAt.time))
+        val targetDailyStats = findDailyStats(targetStatDate)
+        assertThat(targetDailyStats).isNotNull
+        assertThat(targetDailyStats?.likeCount).isEqualTo(-1)
+    }
+
+    private fun updateLogCreatedAt(
+        logId: UUID,
+        createdAt: Timestamp,
+    ) {
+        entityManager.createNativeQuery("UPDATE post_like_log SET created_at = :createdAt, updated_at = :createdAt WHERE id = :logId")
+            .setParameter("createdAt", createdAt)
+            .setParameter("logId", logId)
+            .executeUpdate()
+        entityManager.flush()
+    }
+
+    private fun findDailyStats(statDate: Date) =
+        postDailyStatsRepository.findAll()
+            .find { it.post.id == testPost.id && it.statDate.toString() == statDate.toString() }
 }

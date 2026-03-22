@@ -181,4 +181,45 @@ class PostRepositoryTest : IntegrationTest() {
         val unchangedPost = postRepository.findById(testPost.id!!).orElseThrow()
         assertThat(unchangedPost.commentCount).isEqualTo(0)
     }
+
+    @Test
+    @DisplayName("decrementCommentCount는 게시물의 commentCount를 1 감소시킨다")
+    fun decrementCommentCount_decreasesCountByOne() {
+        // Given
+        testPost =
+            postRepository.save(
+                Post(
+                    title = "댓글이 있는 게시물",
+                    content = "이미 댓글이 2개 있음",
+                    author = testUser,
+                    category = testCategory,
+                    commentCount = 2,
+                ),
+            )
+
+        // When
+        postRepository.decrementCommentCount(testPost.id!!)
+        postRepository.flush()
+        entityManager.clear()
+
+        // Then
+        val updatedPost = postRepository.findById(testPost.id!!).orElseThrow()
+        assertThat(updatedPost.commentCount).isEqualTo(1)
+    }
+
+    @Test
+    @DisplayName("decrementCommentCount는 commentCount가 0이어도 음수로 만들지 않는다")
+    fun decrementCommentCount_whenCountIsZero_shouldRemainZero() {
+        // Given
+        assertThat(testPost.commentCount).isZero()
+
+        // When
+        postRepository.decrementCommentCount(testPost.id!!)
+        postRepository.flush()
+        entityManager.clear()
+
+        // Then
+        val updatedPost = postRepository.findById(testPost.id!!).orElseThrow()
+        assertThat(updatedPost.commentCount).isZero()
+    }
 }

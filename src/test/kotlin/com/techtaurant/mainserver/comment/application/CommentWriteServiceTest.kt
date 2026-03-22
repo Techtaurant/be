@@ -10,6 +10,7 @@ import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.infrastructure.out.CategoryRepository
+import com.techtaurant.mainserver.post.infrastructure.out.PostDailyStatsRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.user.entity.User
@@ -48,6 +49,9 @@ class CommentWriteServiceTest : IntegrationTest() {
 
     @Autowired
     private lateinit var entityManager: EntityManager
+
+    @Autowired
+    private lateinit var postDailyStatsRepository: PostDailyStatsRepository
 
     private lateinit var testUser: User
     private lateinit var testPost: Post
@@ -198,8 +202,42 @@ class CommentWriteServiceTest : IntegrationTest() {
 
         // Then
         val savedComment = commentRepository.findById(response.id).orElseThrow()
+        val updatedParentComment = commentRepository.findById(parentComment.id!!).orElseThrow()
         assertThat(savedComment.depth).isEqualTo(1)
         assertThat(savedComment.parent?.id).isEqualTo(parentComment.id)
+        assertThat(updatedParentComment.replyCount).isEqualTo(1)
+    }
+
+    @Test
+    @DisplayName("대댓글 작성 시 게시물 일별 댓글 통계가 1 증가한다")
+    fun createReply_incrementsPostDailyCommentCount() {
+        // Given
+        val parentComment =
+            commentRepository.save(
+                Comment(
+                    content = "부모 댓글",
+                    post = testPost,
+                    author = testUser,
+                    parent = null,
+                    depth = 0,
+                ),
+            )
+        val request =
+            CreateCommentRequest(
+                postId = testPost.id!!,
+                content = "대댓글입니다",
+                parentId = parentComment.id,
+            )
+
+        // When
+        commentWriteService.createComment(testUser.id!!, request)
+        entityManager.flush()
+        entityManager.clear()
+
+        // Then
+        val dailyStats = postDailyStatsRepository.findAll().single()
+        assertThat(dailyStats.post.id).isEqualTo(testPost.id)
+        assertThat(dailyStats.commentCount).isEqualTo(1)
     }
 
     @Test

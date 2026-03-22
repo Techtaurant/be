@@ -171,6 +171,17 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
     )
 
     /**
+     * 게시물의 댓글수를 원자적으로 1 감소시킵니다.
+     *
+     * @param postId 댓글수를 감소시킬 게시물 ID
+     */
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
+    @Query("UPDATE Post p SET p.commentCount = CASE WHEN p.commentCount > 0 THEN p.commentCount - 1 ELSE 0 END WHERE p.id = :postId")
+    fun decrementCommentCount(
+        @Param("postId") postId: UUID,
+    )
+
+    /**
      * 특정 사용자의 2주 이상 경과한 DRAFT 게시물 목록을 조회합니다.
      *
      * @param authorId 작성자 ID

@@ -52,4 +52,26 @@ interface CommentRepository : JpaRepository<Comment, UUID> {
     fun decrementLikeCount(
         @Param("commentId") commentId: UUID,
     )
+
+    /**
+     * 부모 댓글의 대댓글 수를 원자적으로 1 증가시킵니다.
+     *
+     * @param commentId 부모 댓글 ID
+     */
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
+    @Query("UPDATE Comment c SET c.replyCount = c.replyCount + 1 WHERE c.id = :commentId")
+    fun incrementReplyCount(
+        @Param("commentId") commentId: UUID,
+    )
+
+    /**
+     * 부모 댓글의 대댓글 수를 원자적으로 1 감소시킵니다.
+     *
+     * @param commentId 부모 댓글 ID
+     */
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
+    @Query("UPDATE Comment c SET c.replyCount = CASE WHEN c.replyCount > 0 THEN c.replyCount - 1 ELSE 0 END WHERE c.id = :commentId")
+    fun decrementReplyCount(
+        @Param("commentId") commentId: UUID,
+    )
 }
