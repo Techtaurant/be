@@ -41,14 +41,17 @@ interface CategoryRepository : JpaRepository<Category, UUID> {
 
     /**
      * 유저의 전체 카테고리를 게시물 수와 함께 조회
-     * LEFT JOIN으로 단일 쿼리에서 카테고리와 게시물 수를 함께 집계
+     * 각 카테고리 자신과 하위 카테고리에 속한 게시물 수를 함께 집계한다.
      */
     @Query(
         value = """
             SELECT c.id, c.name, c.path, c.depth, c.parent_id as parentId,
-                   COALESCE(COUNT(p.id), 0) as postCount
+                   COALESCE(COUNT(DISTINCT p.id), 0) as postCount
             FROM categories c
-            LEFT JOIN posts p ON p.category_id = c.id
+            LEFT JOIN categories descendant
+                ON descendant.user_id = c.user_id
+               AND (descendant.path = c.path OR descendant.path LIKE c.path || '/%')
+            LEFT JOIN posts p ON p.category_id = descendant.id
             WHERE c.user_id = :userId
             GROUP BY c.id, c.name, c.path, c.depth, c.parent_id
             ORDER BY c.depth ASC, c.name ASC
@@ -61,14 +64,17 @@ interface CategoryRepository : JpaRepository<Category, UUID> {
 
     /**
      * 유저의 특정 path prefix로 시작하는 카테고리를 게시물 수와 함께 조회
-     * LEFT JOIN으로 단일 쿼리에서 카테고리와 게시물 수를 함께 집계
+     * 각 카테고리 자신과 하위 카테고리에 속한 게시물 수를 함께 집계한다.
      */
     @Query(
         value = """
             SELECT c.id, c.name, c.path, c.depth, c.parent_id as parentId,
-                   COALESCE(COUNT(p.id), 0) as postCount
+                   COALESCE(COUNT(DISTINCT p.id), 0) as postCount
             FROM categories c
-            LEFT JOIN posts p ON p.category_id = c.id
+            LEFT JOIN categories descendant
+                ON descendant.user_id = c.user_id
+               AND (descendant.path = c.path OR descendant.path LIKE c.path || '/%')
+            LEFT JOIN posts p ON p.category_id = descendant.id
             WHERE c.user_id = :userId
               AND c.path LIKE :pathPrefix || '%'
             GROUP BY c.id, c.name, c.path, c.depth, c.parent_id
