@@ -92,10 +92,11 @@ class PostWriteService(
         val savedPost = postRepository.save(post)
 
         if (status != PostStatusEnum.DRAFT) {
+            val attachmentIds = filterAttachmentIdsIncludedInContent(savedPost.content, request.attachmentIds)
             attachmentService.confirmAttachmentsByIds(
                 referenceId = savedPost.id!!,
                 referenceType = AttachmentReferenceType.POST,
-                attachmentIds = request.attachmentIds.orEmpty().distinct(),
+                attachmentIds = attachmentIds,
             )
         }
 
@@ -144,20 +145,18 @@ class PostWriteService(
 
         val newStatus = request.status ?: post.status
         if (newStatus != PostStatusEnum.DRAFT) {
-            request.attachmentIds?.let { attachmentIds ->
-                val distinctAttachmentIds = attachmentIds.distinct()
-                attachmentService.confirmAttachmentsByIds(
-                    referenceId = postId,
-                    referenceType = AttachmentReferenceType.POST,
-                    attachmentIds = distinctAttachmentIds,
-                )
+            val attachmentIds = filterAttachmentIdsIncludedInContent(savedPost.content, request.attachmentIds)
+            attachmentService.confirmAttachmentsByIds(
+                referenceId = postId,
+                referenceType = AttachmentReferenceType.POST,
+                attachmentIds = attachmentIds,
+            )
 
-                attachmentService.deleteOrphanedAttachmentsByIds(
-                    referenceId = postId,
-                    referenceType = AttachmentReferenceType.POST,
-                    keepAttachmentIds = distinctAttachmentIds,
-                )
-            }
+            attachmentService.deleteOrphanedAttachmentsByIds(
+                referenceId = postId,
+                referenceType = AttachmentReferenceType.POST,
+                keepAttachmentIds = attachmentIds,
+            )
         }
 
         return PostResponse.from(savedPost)
@@ -193,6 +192,17 @@ class PostWriteService(
             ApiException(UserStatus.ID_NOT_FOUND)
         }
     }
+
+    private fun filterAttachmentIdsIncludedInContent(
+        content: String,
+        requestedAttachmentIds: List<UUID>?,
+    ): List<UUID> =
+        requestedAttachmentIds
+            .orEmpty()
+            .distinct()
+            .filter { attachmentId ->
+                content.contains(attachmentId.toString())
+            }
 
     /**
      * 카테고리 경로를 파싱하여 해당 카테고리를 반환합니다.

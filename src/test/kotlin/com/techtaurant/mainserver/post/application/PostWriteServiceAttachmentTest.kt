@@ -104,6 +104,58 @@ class PostWriteServiceAttachmentTest {
             }
             assertThat(response.content).contains(attachmentId.toString())
         }
+
+        @Test
+        @DisplayName("요청 attachmentIds에만 있고 본문에 없는 첨부는 확정하지 않는다")
+        fun createPost_requestAttachmentIdsOnly_doesNotConfirmMissingContentIds() {
+            // given
+            val attachmentId = UUID.randomUUID()
+            val request =
+                CreatePostRequest(
+                    title = "게시물",
+                    content = "<p>본문</p>",
+                    attachmentIds = listOf(attachmentId),
+                    status = PostStatusEnum.PUBLISHED,
+                )
+
+            // when
+            val response = postWriteService.createPost(author.id!!, request)
+
+            // then
+            verify {
+                attachmentService.confirmAttachmentsByIds(
+                    response.id,
+                    AttachmentReferenceType.POST,
+                    emptyList(),
+                )
+            }
+        }
+
+        @Test
+        @DisplayName("attachmentIds 없이 본문에 ID가 있어도 확정하지 않는다")
+        fun createPost_withoutRequestAttachmentIds_doesNotConfirmFromContentOnly() {
+            // given
+            val attachmentId = UUID.randomUUID()
+            val request =
+                CreatePostRequest(
+                    title = "게시물",
+                    content = "![이미지]($attachmentId)",
+                    status = PostStatusEnum.PUBLISHED,
+                )
+
+            // when
+            val response = postWriteService.createPost(author.id!!, request)
+
+            // then
+            verify {
+                attachmentService.confirmAttachmentsByIds(
+                    response.id,
+                    AttachmentReferenceType.POST,
+                    emptyList(),
+                )
+            }
+            assertThat(response.content).contains(attachmentId.toString())
+        }
     }
 
     @Nested
@@ -151,6 +203,92 @@ class PostWriteServiceAttachmentTest {
                 )
             }
             assertThat(response.content).contains(newAttachmentId.toString())
+        }
+
+        @Test
+        @DisplayName("attachmentIds 없이 본문만 바꾸면 첨부 확정 없이 orphan 정리도 빈 목록 기준으로 한다")
+        fun updatePost_withoutRequestAttachmentIds_usesEmptyAttachmentIds() {
+            // given
+            val postId = UUID.randomUUID()
+            val newAttachmentId = UUID.randomUUID()
+            val post =
+                Post(
+                    title = "기존 제목",
+                    content = "기존 본문",
+                    author = author,
+                    status = PostStatusEnum.PUBLISHED,
+                ).apply { id = postId }
+
+            every { postRepository.findPostByIdWithAuthor(postId) } returns post
+
+            val request =
+                UpdatePostRequest(
+                    content = "<img src=\"$newAttachmentId\" />",
+                    status = PostStatusEnum.PUBLISHED,
+                )
+
+            // when
+            val response = postWriteService.updatePost(postId, request, author.id!!)
+
+            // then
+            verify {
+                attachmentService.confirmAttachmentsByIds(
+                    postId,
+                    AttachmentReferenceType.POST,
+                    emptyList(),
+                )
+            }
+            verify {
+                attachmentService.deleteOrphanedAttachmentsByIds(
+                    postId,
+                    AttachmentReferenceType.POST,
+                    emptyList(),
+                )
+            }
+            assertThat(response.content).contains(newAttachmentId.toString())
+        }
+
+        @Test
+        @DisplayName("수정 시 요청 attachmentIds에만 있는 첨부는 유지 대상으로 보지 않는다")
+        fun updatePost_requestAttachmentIdsOnly_ignoresMissingContentIds() {
+            // given
+            val postId = UUID.randomUUID()
+            val requestOnlyAttachmentId = UUID.randomUUID()
+            val post =
+                Post(
+                    title = "기존 제목",
+                    content = "기존 본문",
+                    author = author,
+                    status = PostStatusEnum.PUBLISHED,
+                ).apply { id = postId }
+
+            every { postRepository.findPostByIdWithAuthor(postId) } returns post
+
+            val request =
+                UpdatePostRequest(
+                    content = "<p>본문만 수정</p>",
+                    attachmentIds = listOf(requestOnlyAttachmentId),
+                    status = PostStatusEnum.PUBLISHED,
+                )
+
+            // when
+            postWriteService.updatePost(postId, request, author.id!!)
+
+            // then
+            verify {
+                attachmentService.confirmAttachmentsByIds(
+                    postId,
+                    AttachmentReferenceType.POST,
+                    emptyList(),
+                )
+            }
+            verify {
+                attachmentService.deleteOrphanedAttachmentsByIds(
+                    postId,
+                    AttachmentReferenceType.POST,
+                    emptyList(),
+                )
+            }
         }
     }
 
