@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """S3 Presigned URL 업로드 플로우 테스트 스크립트.
 
-dev 로그인 API로 accessToken을 자동 발급받은 뒤,
-해당 토큰으로 Presigned URL 발급 API를 호출한다.
+JWT를 직접 받아 Presigned URL 발급 API를 호출한 뒤,
+해당 presigned URL로 S3 업로드까지 검증한다.
 
 사용법:
     uv run test_presigned_upload.py [옵션]
@@ -11,14 +11,14 @@ dev 로그인 API로 accessToken을 자동 발급받은 뒤,
     --file PATH         업로드할 파일 경로 (기본값: 더미 1x1 PNG 자동 생성)
     --type TYPE         참조 타입 POST | PROFILE (기본값: POST)
     --base-url URL      서버 주소 (기본값: http://localhost:8080)
-    --identifier ID     dev 로그인 식별자 (기본값: test-uploader)
+    --jwt TOKEN         Authorization Bearer JWT
 
 예시:
     uv run test_presigned_upload.py
     uv run test_presigned_upload.py --file ~/Downloads/photo.jpg
     uv run test_presigned_upload.py --file ~/image.png --type PROFILE
-    uv run test_presigned_upload.py --base-url http://localhost:9090
-    uv run test_presigned_upload.py --file ~/Downloads/pikachu.webp --type POST --base-url https://dev-api.techtaurant.com
+    TECHTAURANT_JWT=... uv run test_presigned_upload.py --base-url http://localhost:9090
+    uv run test_presigned_upload.py --file ~/Downloads/pikachu.webp --type POST --base-url https://dev-api.techtaurant.com --jwt eyJ...
 """
 
 import argparse
@@ -105,25 +105,13 @@ _DUMMY_PNG = bytes(
 DIVIDER = "═" * 46
 
 
-def _login(base_url: str, identifier: str) -> str:
-    """dev 로그인 API로 accessToken을 발급받아 반환한다."""
-    resp = requests.post(
-        f"{base_url}/open-api/dev/auth/login",
-        json={"identifier": identifier, "password": "dev-password"},
-    )
-
-    if not resp.ok:
-        raise RuntimeError(
-            f"로그인 실패 (HTTP {resp.status_code}). "
-            "서버가 dev 프로파일로 실행 중인지 확인하세요.\n"
-            f"응답: {resp.text}"
-        )
-
-    data = resp.json().get("data") or {}
-    access_token = data.get("accessToken")
+def _resolve_access_token(jwt: str | None) -> str:
+    access_token = jwt or os.getenv("TECHTAURANT_JWT")
 
     if not access_token:
-        raise RuntimeError(f"응답 data에 accessToken이 없습니다: {resp.text}")
+        raise RuntimeError(
+            "JWT가 없습니다. --jwt 옵션 또는 TECHTAURANT_JWT 환경변수를 설정하세요."
+        )
 
     return access_token
 
@@ -185,9 +173,7 @@ def main() -> None:
         "--type", dest="reference_type", default="POST", help="참조 타입 (기본값: POST)"
     )
     parser.add_argument("--base-url", default="http://localhost:8080", help="서버 주소")
-    parser.add_argument(
-        "--identifier", default="test-uploader", help="dev 로그인 식별자"
-    )
+    parser.add_argument("--jwt", help="Authorization Bearer JWT")
     args = parser.parse_args()
 
     # ── 파일 준비 ──────────────────────────────────────────────────────────
@@ -219,9 +205,9 @@ def main() -> None:
     print(DIVIDER)
 
     try:
-        print(f"\n▶ Step 1. Dev 로그인 API 호출 ({args.identifier})...")
-        access_token = _login(args.base_url, args.identifier)
-        print("   ✅ 로그인 성공 (accessToken 획득)")
+        print("\n▶ Step 1. JWT 확인...")
+        access_token = _resolve_access_token(args.jwt)
+        print("   ✅ JWT 확인 완료")
 
         # ── Step 2: Presigned URL 발급 ────────────────────────────────────
         print("\n▶ Step 2. Presigned URL 발급 요청...")
