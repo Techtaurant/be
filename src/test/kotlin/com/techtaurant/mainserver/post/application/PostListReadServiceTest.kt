@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.attachment.application.AttachmentService
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
+import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostReadLog
@@ -67,12 +68,29 @@ class PostListReadServiceTest {
     private fun createPost(
         author: User,
         status: PostStatusEnum = PostStatusEnum.PUBLISHED,
+        category: Category? = null,
     ): Post =
         Post(
             title = "테스트 게시물",
             content = "테스트 내용",
             author = author,
+            category = category,
             status = status,
+        ).apply { id = UUID.randomUUID() }
+
+    private fun createCategory(
+        user: User,
+        name: String = "백엔드",
+        path: String = "backend",
+        depth: Int = 1,
+        parent: Category? = null,
+    ): Category =
+        Category(
+            user = user,
+            name = name,
+            path = path,
+            depth = depth,
+            parent = parent,
         ).apply { id = UUID.randomUUID() }
 
     @Nested
@@ -477,6 +495,44 @@ class PostListReadServiceTest {
             val responseMap = result.content.associateBy { it.id }
             assertThat(responseMap[post1.id!!]!!.isRead).isTrue()
             assertThat(responseMap[post2.id!!]!!.isRead).isFalse()
+        }
+
+        @Test
+        @DisplayName("게시물 카테고리가 있으면 응답에 함께 포함된다")
+        fun getPosts_includesCategoryInResponse() {
+            // given
+            val category = createCategory(otherUser, name = "Kotlin", path = "backend/kotlin", depth = 2)
+            val posts = listOf(createPost(otherUser, category = category))
+            every {
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 21,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.LATEST,
+                    authorId = otherUser.id!!,
+                    statuses = listOf(PostStatusEnum.PUBLISHED),
+                    categoryId = null,
+                    tagIds = null,
+                    viewerId = null,
+                )
+            } returns posts
+
+            // when
+            val result =
+                postListReadService.getPosts(
+                    cursor = null,
+                    size = 20,
+                    currentUserId = null,
+                    authorId = otherUser.id!!,
+                )
+
+            // then
+            val response = result.content.single()
+            assertThat(response.category).isNotNull
+            assertThat(response.category!!.id).isEqualTo(category.id)
+            assertThat(response.category!!.name).isEqualTo(category.name)
+            assertThat(response.category!!.path).isEqualTo(category.path)
+            assertThat(response.category!!.depth).isEqualTo(category.depth)
         }
     }
 }

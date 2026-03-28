@@ -22,6 +22,8 @@ data class PostListItemResponse(
     val authorProfileImageUrl: String,
     @field:Schema(description = "게시물 썸네일 이미지 URL")
     val thumbnailUrl: String,
+    @field:Schema(description = "게시물 카테고리")
+    val category: CategoryResponse?,
     @field:Schema(description = "로그인한 사용자가 읽은 게시물인지 여부")
     val isRead: Boolean,
     @field:Schema(description = "태그 목록")
@@ -57,6 +59,7 @@ data class PostListItemResponse(
                 authorName = post.author.name,
                 authorProfileImageUrl = post.author.profileImageUrl,
                 thumbnailUrl = "",
+                category = post.category?.let(CategoryResponse::from),
                 isRead = false,
                 tags = post.tags.map { PostListTagResponse.from(it) },
                 viewCount = post.viewCount,
