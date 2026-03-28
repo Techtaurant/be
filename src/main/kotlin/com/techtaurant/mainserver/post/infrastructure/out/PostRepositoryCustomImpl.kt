@@ -3,6 +3,7 @@ package com.techtaurant.mainserver.post.infrastructure.out
 import com.techtaurant.mainserver.common.base.EntityBase_
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.post.dto.PostCursor
+import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
@@ -37,7 +38,7 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
     /**
      * 기간 필터 + 정렬 조건을 적용하여 게시물 목록 조회
      *
-     * N+1 방지를 위해 author, tags, pictures를 fetch join하며 커서 기반 페이지네이션으로 조회
+     * N+1 방지를 위해 author, category, tags를 fetch join하며 커서 기반 페이지네이션으로 조회
      */
     override fun findPostsWithConditions(
         cursor: PostCursor?,
@@ -57,6 +58,7 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         cq.distinct(true)
 
         root.fetch<Post, User>(Post_.AUTHOR)
+        root.fetch<Post, Category>(Post_.CATEGORY, JoinType.LEFT)
         root.fetch<Post, Tag>(Post_.TAGS, JoinType.LEFT)
 
         val predicates = mutableListOf<Predicate>()

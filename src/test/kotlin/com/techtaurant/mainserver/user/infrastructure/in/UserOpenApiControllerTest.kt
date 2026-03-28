@@ -2,6 +2,13 @@ package com.techtaurant.mainserver.user.infrastructure.`in`
 
 import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.common.dto.ApiResponse
+import com.techtaurant.mainserver.common.dto.CursorPageResponse
+import com.techtaurant.mainserver.post.dto.PostListItemResponse
+import com.techtaurant.mainserver.post.entity.Category
+import com.techtaurant.mainserver.post.entity.Post
+import com.techtaurant.mainserver.post.enums.PostStatusEnum
+import com.techtaurant.mainserver.post.infrastructure.out.CategoryRepository
+import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.user.dto.UserResponse
 import com.techtaurant.mainserver.user.entity.User
@@ -23,10 +30,62 @@ class UserOpenApiControllerTest : IntegrationTest() {
     @Autowired
     private lateinit var userRepository: UserRepository
 
+    @Autowired
+    private lateinit var postRepository: PostRepository
+
+    @Autowired
+    private lateinit var categoryRepository: CategoryRepository
+
     @BeforeEach
     fun setup() {
+        postRepository.deleteAllInBatch()
+        categoryRepository.deleteAllInBatch()
         userRepository.deleteAllInBatch()
     }
+
+    private fun createUser(name: String): User =
+        userRepository.save(
+            User(
+                name = name,
+                email = "${UUID.randomUUID()}@example.com",
+                provider = OAuthProvider.GOOGLE,
+                identifier = "google-${UUID.randomUUID()}",
+                role = UserRole.USER,
+                profileImageUrl = "https://example.com/profile.jpg",
+            ),
+        )
+
+    private fun createCategory(
+        user: User,
+        name: String,
+        path: String,
+        depth: Int,
+        parent: Category? = null,
+    ): Category =
+        categoryRepository.save(
+            Category(
+                user = user,
+                name = name,
+                path = path,
+                depth = depth,
+                parent = parent,
+            ),
+        )
+
+    private fun createPost(
+        author: User,
+        title: String,
+        category: Category? = null,
+    ): Post =
+        postRepository.save(
+            Post(
+                title = title,
+                content = "게시물 내용",
+                author = author,
+                category = category,
+                status = PostStatusEnum.PUBLISHED,
+            ),
+        )
 
     @Nested
     @DisplayName("입력값 검증")
@@ -149,6 +208,39 @@ class UserOpenApiControllerTest : IntegrationTest() {
 
             // then
             assertTrue(response.data!!.isEmpty(), "매칭되는 사용자가 없으면 빈 목록이 반환되어야 한다")
+        }
+    }
+
+    @Nested
+    @DisplayName("사용자 게시물 목록 조회")
+    inner class UserPostsTest {
+        @Test
+        @DisplayName("카테고리가 있는 게시물 조회 시 category 정보가 함께 반환된다")
+        fun getPostsByUserId_withCategory_returnsCategoryInResponse() {
+            // given
+            val author = createUser("김테크")
+            val rootCategory = createCategory(author, name = "백엔드", path = "backend", depth = 1)
+            val childCategory = createCategory(author, name = "Kotlin", path = "backend/kotlin", depth = 2, parent = rootCategory)
+            val post = createPost(author = author, title = "카테고리 포함 게시물", category = childCategory)
+
+            // when
+            val response =
+                RestAssured
+                    .given()
+                    .`when`()
+                    .get("/open-api/users/${author.id}/posts")
+                    .then()
+                    .statusCode(200)
+                    .extract()
+                    .`as`(object : TypeRef<ApiResponse<CursorPageResponse<PostListItemResponse>>>() {})
+
+            // then
+            val returnedPost = response.data!!.content.single { it.id == post.id }
+            assertEquals(childCategory.id, returnedPost.category?.id)
+            assertEquals(childCategory.name, returnedPost.category?.name)
+            assertEquals(childCategory.path, returnedPost.category?.path)
+            assertEquals(childCategory.depth, returnedPost.category?.depth)
+            assertEquals(rootCategory.id, returnedPost.category?.parentId)
         }
     }
 }
