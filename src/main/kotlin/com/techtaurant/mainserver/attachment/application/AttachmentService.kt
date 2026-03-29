@@ -1,11 +1,15 @@
 package com.techtaurant.mainserver.attachment.application
 
+import com.techtaurant.mainserver.attachment.dto.AttachmentPreviewUrlResponse
+import com.techtaurant.mainserver.attachment.dto.AttachmentPreviewUrlsRequest
 import com.techtaurant.mainserver.attachment.dto.PresignedUrlRequest
 import com.techtaurant.mainserver.attachment.dto.PresignedUrlResponse
 import com.techtaurant.mainserver.attachment.entity.Attachment
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.attachment.enums.AttachmentStatus
 import com.techtaurant.mainserver.attachment.infrastructure.out.AttachmentRepository
+import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.common.status.DefaultStatus
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -59,6 +63,47 @@ class AttachmentService(
             )
 
         return PresignedUrlResponse.from(attachment, presignedUrl)
+    }
+
+    /**
+     * TMP 상태 첨부파일의 미리보기용 GET Presigned URL을 발급합니다.
+     * 게시물 발행 전 미리보기에서 임시 이미지를 표시할 때 사용합니다.
+     *
+     * @param attachmentId 미리보기할 TMP Attachment ID
+     * @return attachmentId, objectKey, presignedUrl 응답
+     */
+    @Transactional(readOnly = true)
+    fun issueTmpPreviewUrl(attachmentId: UUID): AttachmentPreviewUrlResponse {
+        return issueTmpPreviewUrls(AttachmentPreviewUrlsRequest(listOf(attachmentId))).first()
+    }
+
+    /**
+     * TMP 상태 첨부파일 여러 건의 미리보기용 GET Presigned URL을 발급합니다.
+     * 요청 순서를 유지하며, 모든 첨부파일이 TMP 상태여야 합니다.
+     *
+     * @param request 미리보기할 TMP Attachment ID 목록
+     * @return attachmentId, objectKey, presignedUrl 응답 목록
+     */
+    @Transactional(readOnly = true)
+    fun issueTmpPreviewUrls(request: AttachmentPreviewUrlsRequest): List<AttachmentPreviewUrlResponse> {
+        val attachmentIds = request.attachmentIds.distinct()
+        val attachmentsById = attachmentRepository.findAllById(attachmentIds).associateBy { it.id!! }
+
+        return attachmentIds.map { attachmentId ->
+            val attachment =
+                attachmentsById[attachmentId]
+                    ?: throw ApiException(DefaultStatus.NOT_FOUND, "임시 첨부파일을 찾을 수 없습니다")
+
+            validateTmpPreviewAttachment(attachment)
+
+            val presignedUrl =
+                s3StorageService.generatePresignedDownloadUrl(
+                    objectKey = attachment.objectKey,
+                    expireMinutes = presignedUrlExpireMinutes,
+                )
+
+            AttachmentPreviewUrlResponse.from(attachment, presignedUrl)
+        }
     }
 
     /**
@@ -212,6 +257,36 @@ class AttachmentService(
                         expireMinutes = presignedUrlExpireMinutes,
                     )
             }
+    }
+
+    /**
+     * 전달된 첨부파일 목록의 attachmentId → presigned GET URL 맵을 반환합니다.
+     * 이미 조회된 첨부파일 목록을 재사용할 때 사용합니다.
+     *
+     * @param attachments presigned URL 발급 대상 첨부파일 목록
+     * @return attachmentId → presigned GET URL 맵
+     */
+    @Transactional(readOnly = true)
+    fun generatePresignedDownloadUrlMapByAttachments(attachments: List<Attachment>): Map<UUID, String> {
+        return attachments
+            .filter { it.status == AttachmentStatus.CONFIRMED }
+            .associate { attachment ->
+                attachment.id!! to
+                    s3StorageService.generatePresignedDownloadUrl(
+                        objectKey = attachment.objectKey,
+                        expireMinutes = presignedUrlExpireMinutes,
+                    )
+            }
+    }
+
+    private fun validateTmpPreviewAttachment(attachment: Attachment) {
+        if (attachment.status != AttachmentStatus.TMP || !attachment.objectKey.startsWith("tmp/")) {
+            throw ApiException(DefaultStatus.BAD_REQUEST, "TMP 상태의 첨부파일만 미리보기 URL을 발급할 수 있습니다")
+        }
+
+        if (!s3StorageService.exists(attachment.objectKey)) {
+            throw ApiException(DefaultStatus.NOT_FOUND, "S3에 임시 첨부파일이 존재하지 않습니다")
+        }
     }
 
     /**

@@ -136,6 +136,13 @@ class PostListReadService(
             } else {
                 emptyMap()
             }
+        val presignedThumbnailUrlByAttachmentId =
+            attachmentsByPostId
+                .values
+                .flatten()
+                .takeIf { it.isNotEmpty() }
+                ?.let { attachmentService.generatePresignedDownloadUrlMapByAttachments(it) }
+                ?: emptyMap()
 
         return CursorPageResponse(
             content =
@@ -144,6 +151,7 @@ class PostListReadService(
                         post,
                         readPostIds.contains(post.id),
                         attachmentsByPostId[post.id] ?: emptyList(),
+                        presignedThumbnailUrlByAttachmentId,
                     )
                 },
             nextCursor = nextCursor,
@@ -248,11 +256,13 @@ class PostListReadService(
         post: Post,
         isRead: Boolean,
         attachments: List<Attachment>,
+        presignedThumbnailUrlByAttachmentId: Map<UUID, String>,
     ): PostListItemResponse {
         val thumbnailUrl =
             attachments
                 .minByOrNull { it.createdAt }
-                ?.objectKey
+                ?.id
+                ?.let { presignedThumbnailUrlByAttachmentId[it] }
                 ?: "$baseUrl$defaultThumbnailUrl"
 
         return PostListItemResponse(
