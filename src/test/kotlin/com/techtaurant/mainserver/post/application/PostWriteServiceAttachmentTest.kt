@@ -193,7 +193,6 @@ class PostWriteServiceAttachmentTest {
             }
             assertThat(response.content).contains(attachmentId.toString())
         }
-
     }
 
     @Nested

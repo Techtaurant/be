@@ -286,7 +286,12 @@ class PostListReadServiceTest {
             // given
             val thumbnailAttachmentId = UUID.randomUUID()
             val post = createPost(otherUser, thumbnailImage = thumbnailAttachmentId)
-            val thumbnailAttachment = createAttachment(post.id!!, "posts/thumbnail-object-key.jpg", Date(1_000L)).apply { id = thumbnailAttachmentId }
+            val thumbnailAttachment =
+                createAttachment(
+                    post.id!!,
+                    "posts/thumbnail-object-key.jpg",
+                    Date(1_000L),
+                ).apply { id = thumbnailAttachmentId }
             val otherAttachment = createAttachment(post.id!!, "posts/other-object-key.jpg", Date(2_000L))
             every {
                 postRepository.findPostsWithConditions(
@@ -312,7 +317,6 @@ class PostListReadServiceTest {
             // then
             assertThat(result.content.single().thumbnailUrl).isEqualTo("https://cdn.example.com/thumbnail.jpg")
         }
-
     }
 
     @Nested

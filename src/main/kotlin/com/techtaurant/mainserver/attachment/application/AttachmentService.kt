@@ -279,7 +279,6 @@ class AttachmentService(
             }
     }
 
-
     private fun validateTmpPreviewAttachment(attachment: Attachment) {
         if (attachment.status != AttachmentStatus.TMP || !attachment.objectKey.startsWith("tmp/")) {
             throw ApiException(DefaultStatus.BAD_REQUEST, "TMP 상태의 첨부파일만 미리보기 URL을 발급할 수 있습니다")

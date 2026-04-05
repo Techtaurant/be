@@ -92,10 +92,11 @@ class PostWriteService(
         val savedPost = postRepository.save(post)
 
         if (status != PostStatusEnum.DRAFT) {
-            val attachmentIds = mergeAttachmentIds(
-                filterAttachmentIdsIncludedInContent(savedPost.content, request.attachmentIds),
-                request.thumbnailAttachmentId,
-            )
+            val attachmentIds =
+                mergeAttachmentIds(
+                    filterAttachmentIdsIncludedInContent(savedPost.content, request.attachmentIds),
+                    request.thumbnailAttachmentId,
+                )
             attachmentService.confirmAttachmentsByIds(
                 referenceId = savedPost.id!!,
                 referenceType = AttachmentReferenceType.POST,
@@ -149,10 +150,11 @@ class PostWriteService(
 
         val newStatus = request.status ?: post.status
         if (newStatus != PostStatusEnum.DRAFT) {
-            val attachmentIds = mergeAttachmentIds(
-                filterAttachmentIdsIncludedInContent(savedPost.content, request.attachmentIds),
-                request.thumbnailAttachmentId,
-            )
+            val attachmentIds =
+                mergeAttachmentIds(
+                    filterAttachmentIdsIncludedInContent(savedPost.content, request.attachmentIds),
+                    request.thumbnailAttachmentId,
+                )
             attachmentService.confirmAttachmentsByIds(
                 referenceId = postId,
                 referenceType = AttachmentReferenceType.POST,
@@ -219,8 +221,7 @@ class PostWriteService(
     private fun mergeAttachmentIds(
         attachmentIds: List<UUID>,
         thumbnailAttachmentId: UUID?,
-    ): List<UUID> =
-        (attachmentIds + listOfNotNull(thumbnailAttachmentId)).distinct()
+    ): List<UUID> = (attachmentIds + listOfNotNull(thumbnailAttachmentId)).distinct()
 
     /**
      * 카테고리 경로를 파싱하여 해당 카테고리를 반환합니다.
