@@ -70,11 +70,13 @@ class PostListReadServiceTest {
     private fun createPost(
         author: User,
         status: PostStatusEnum = PostStatusEnum.PUBLISHED,
+        thumbnailImage: UUID? = null,
     ): Post =
         Post(
             title = "테스트 게시물",
             content = "테스트 내용",
             author = author,
+            thumbnailImage = thumbnailImage,
             status = status,
         ).apply { id = UUID.randomUUID() }
 
@@ -250,7 +252,7 @@ class PostListReadServiceTest {
                 attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(post.id!!), AttachmentReferenceType.POST)
             } returns mapOf(post.id!! to listOf(laterAttachment, firstAttachment))
             every {
-                attachmentService.generatePresignedDownloadUrlMapByAttachments(listOf(laterAttachment, firstAttachment))
+                attachmentService.generatePresignedDownloadUrlMapByAttachments(listOf(firstAttachment))
             } returns mapOf(firstAttachment.id!! to "https://cdn.example.com/first.jpg")
 
             // when
@@ -259,6 +261,40 @@ class PostListReadServiceTest {
             // then
             assertThat(result.content.single().thumbnailUrl).isEqualTo("https://cdn.example.com/first.jpg")
         }
+
+        @Test
+        @DisplayName("게시물에 thumbnailImage가 있으면 attachment fallback 없이 해당 값을 사용한다")
+        fun getPosts_withThumbnailImage_usesThumbnailImageFirst() {
+            // given
+            val thumbnailAttachmentId = UUID.randomUUID()
+            val post = createPost(otherUser, thumbnailImage = thumbnailAttachmentId)
+            val thumbnailAttachment = createAttachment(post.id!!, "posts/thumbnail-object-key.jpg", Date(1_000L)).apply { id = thumbnailAttachmentId }
+            val otherAttachment = createAttachment(post.id!!, "posts/other-object-key.jpg", Date(2_000L))
+            every {
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 21,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.LATEST,
+                    visibleToUserId = null,
+                    tagIds = null,
+                    viewerId = null,
+                )
+            } returns listOf(post)
+            every {
+                attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(post.id!!), AttachmentReferenceType.POST)
+            } returns mapOf(post.id!! to listOf(otherAttachment, thumbnailAttachment))
+            every {
+                attachmentService.generatePresignedDownloadUrlMapByAttachments(listOf(thumbnailAttachment))
+            } returns mapOf(thumbnailAttachmentId to "https://cdn.example.com/thumbnail.jpg")
+
+            // when
+            val result = postListReadService.getPosts(cursor = null, size = 20, currentUserId = null)
+
+            // then
+            assertThat(result.content.single().thumbnailUrl).isEqualTo("https://cdn.example.com/thumbnail.jpg")
+        }
+
     }
 
     @Nested

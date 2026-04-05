@@ -92,12 +92,16 @@ class PostWriteService(
         val savedPost = postRepository.save(post)
 
         if (status != PostStatusEnum.DRAFT) {
-            val attachmentIds = filterAttachmentIdsIncludedInContent(savedPost.content, request.attachmentIds)
+            val attachmentIds = mergeAttachmentIds(
+                filterAttachmentIdsIncludedInContent(savedPost.content, request.attachmentIds),
+                request.thumbnailAttachmentId,
+            )
             attachmentService.confirmAttachmentsByIds(
                 referenceId = savedPost.id!!,
                 referenceType = AttachmentReferenceType.POST,
                 attachmentIds = attachmentIds,
             )
+            savedPost.thumbnailImage = request.thumbnailAttachmentId ?: attachmentIds.firstOrNull()
         }
 
         return PostResponse.from(savedPost)
@@ -145,7 +149,10 @@ class PostWriteService(
 
         val newStatus = request.status ?: post.status
         if (newStatus != PostStatusEnum.DRAFT) {
-            val attachmentIds = filterAttachmentIdsIncludedInContent(savedPost.content, request.attachmentIds)
+            val attachmentIds = mergeAttachmentIds(
+                filterAttachmentIdsIncludedInContent(savedPost.content, request.attachmentIds),
+                request.thumbnailAttachmentId,
+            )
             attachmentService.confirmAttachmentsByIds(
                 referenceId = postId,
                 referenceType = AttachmentReferenceType.POST,
@@ -155,8 +162,12 @@ class PostWriteService(
             attachmentService.deleteOrphanedAttachmentsByIds(
                 referenceId = postId,
                 referenceType = AttachmentReferenceType.POST,
-                keepAttachmentIds = attachmentIds,
+                keepAttachmentIds = mergeAttachmentIds(attachmentIds, post.thumbnailImage),
             )
+
+            post.thumbnailImage = request.thumbnailAttachmentId ?: post.thumbnailImage ?: attachmentIds.firstOrNull()
+        } else {
+            post.thumbnailImage = null
         }
 
         return PostResponse.from(savedPost)
@@ -183,6 +194,7 @@ class PostWriteService(
             throw ApiException(PostStatus.CANNOT_MODIFY_OTHERS_POST)
         }
 
+        post.thumbnailImage = null
         attachmentService.deleteAttachmentsByReference(postId, AttachmentReferenceType.POST)
         postRepository.delete(post)
     }
@@ -203,6 +215,12 @@ class PostWriteService(
             .filter { attachmentId ->
                 content.contains(attachmentId.toString())
             }
+
+    private fun mergeAttachmentIds(
+        attachmentIds: List<UUID>,
+        thumbnailAttachmentId: UUID?,
+    ): List<UUID> =
+        (attachmentIds + listOfNotNull(thumbnailAttachmentId)).distinct()
 
     /**
      * 카테고리 경로를 파싱하여 해당 카테고리를 반환합니다.
