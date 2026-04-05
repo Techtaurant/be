@@ -4,6 +4,7 @@ import com.techtaurant.mainserver.attachment.application.AttachmentService
 import com.techtaurant.mainserver.attachment.entity.Attachment
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
+import com.techtaurant.mainserver.post.dto.CategoryResponse
 import com.techtaurant.mainserver.post.dto.DraftListItemResponse
 import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.dto.PostListItemResponse
@@ -280,6 +281,7 @@ class PostListReadService(
             authorName = post.author.name,
             authorProfileImageUrl = post.author.profileImageUrl,
             thumbnailUrl = thumbnailUrl,
+            category = post.category?.let(CategoryResponse::from),
             isRead = isRead,
             tags = post.tags.map { PostListTagResponse.from(it) },
             viewCount = post.viewCount,
