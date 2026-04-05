@@ -1,7 +1,9 @@
 package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.attachment.application.AttachmentService
+import com.techtaurant.mainserver.attachment.entity.Attachment
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
+import com.techtaurant.mainserver.attachment.enums.AttachmentStatus
 import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
@@ -21,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import java.util.Date
 import java.util.UUID
 
 class PostListReadServiceTest {
@@ -68,15 +71,35 @@ class PostListReadServiceTest {
     private fun createPost(
         author: User,
         status: PostStatusEnum = PostStatusEnum.PUBLISHED,
+        thumbnailImage: UUID? = null,
         category: Category? = null,
     ): Post =
         Post(
             title = "테스트 게시물",
             content = "테스트 내용",
             author = author,
+            thumbnailImage = thumbnailImage,
             category = category,
             status = status,
         ).apply { id = UUID.randomUUID() }
+
+    private fun createAttachment(
+        postId: UUID,
+        objectKey: String,
+        createdAt: Date,
+    ): Attachment =
+        Attachment(
+            referenceId = postId,
+            referenceType = AttachmentReferenceType.POST,
+            objectKey = objectKey,
+            status = AttachmentStatus.CONFIRMED,
+            originalFileName = "thumbnail.jpg",
+            contentType = "image/jpeg",
+            fileSize = 1024,
+        ).apply {
+            id = UUID.randomUUID()
+            this.createdAt = createdAt
+        }
 
     private fun createCategory(
         user: User,
@@ -213,6 +236,86 @@ class PostListReadServiceTest {
                     viewerId = null,
                 )
             }
+        }
+
+        @Test
+        @DisplayName("첨부파일 썸네일은 presigned URL로 반환한다")
+        fun getPosts_withThumbnailAttachment_returnsPresignedThumbnailUrl() {
+            // given
+            val post = createPost(otherUser)
+            val firstAttachment =
+                createAttachment(
+                    postId = post.id!!,
+                    objectKey = "posts/${post.id}/uuid-1/first.jpg",
+                    createdAt = Date(1_000L),
+                )
+            val laterAttachment =
+                createAttachment(
+                    postId = post.id!!,
+                    objectKey = "posts/${post.id}/uuid-2/later.jpg",
+                    createdAt = Date(2_000L),
+                )
+            every {
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 21,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.LATEST,
+                    visibleToUserId = null,
+                    tagIds = null,
+                    viewerId = null,
+                )
+            } returns listOf(post)
+            every {
+                attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(post.id!!), AttachmentReferenceType.POST)
+            } returns mapOf(post.id!! to listOf(laterAttachment, firstAttachment))
+            every {
+                attachmentService.generatePresignedDownloadUrlMapByAttachments(listOf(firstAttachment))
+            } returns mapOf(firstAttachment.id!! to "https://cdn.example.com/first.jpg")
+
+            // when
+            val result = postListReadService.getPosts(cursor = null, size = 20, currentUserId = null)
+
+            // then
+            assertThat(result.content.single().thumbnailUrl).isEqualTo("https://cdn.example.com/first.jpg")
+        }
+
+        @Test
+        @DisplayName("게시물에 thumbnailImage가 있으면 attachment fallback 없이 해당 값을 사용한다")
+        fun getPosts_withThumbnailImage_usesThumbnailImageFirst() {
+            // given
+            val thumbnailAttachmentId = UUID.randomUUID()
+            val post = createPost(otherUser, thumbnailImage = thumbnailAttachmentId)
+            val thumbnailAttachment =
+                createAttachment(
+                    post.id!!,
+                    "posts/thumbnail-object-key.jpg",
+                    Date(1_000L),
+                ).apply { id = thumbnailAttachmentId }
+            val otherAttachment = createAttachment(post.id!!, "posts/other-object-key.jpg", Date(2_000L))
+            every {
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 21,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.LATEST,
+                    visibleToUserId = null,
+                    tagIds = null,
+                    viewerId = null,
+                )
+            } returns listOf(post)
+            every {
+                attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(post.id!!), AttachmentReferenceType.POST)
+            } returns mapOf(post.id!! to listOf(otherAttachment, thumbnailAttachment))
+            every {
+                attachmentService.generatePresignedDownloadUrlMapByAttachments(listOf(thumbnailAttachment))
+            } returns mapOf(thumbnailAttachmentId to "https://cdn.example.com/thumbnail.jpg")
+
+            // when
+            val result = postListReadService.getPosts(cursor = null, size = 20, currentUserId = null)
+
+            // then
+            assertThat(result.content.single().thumbnailUrl).isEqualTo("https://cdn.example.com/thumbnail.jpg")
         }
     }
 

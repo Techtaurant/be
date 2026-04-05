@@ -1,10 +1,12 @@
 package com.techtaurant.mainserver.attachment.application
 
+import com.techtaurant.mainserver.attachment.dto.AttachmentPreviewUrlsRequest
 import com.techtaurant.mainserver.attachment.dto.PresignedUrlRequest
 import com.techtaurant.mainserver.attachment.entity.Attachment
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.attachment.enums.AttachmentStatus
 import com.techtaurant.mainserver.attachment.infrastructure.out.AttachmentRepository
+import com.techtaurant.mainserver.common.exception.ApiException
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -12,6 +14,7 @@ import io.mockk.runs
 import io.mockk.slot
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -179,6 +182,76 @@ class AttachmentServiceTest {
             assertThat(tmpAttachment.status).isEqualTo(AttachmentStatus.CONFIRMED)
             assertThat(tmpAttachment.referenceId).isEqualTo(postId)
             assertThat(tmpAttachment.referenceType).isEqualTo(AttachmentReferenceType.POST)
+        }
+    }
+
+    @Nested
+    @DisplayName("issueTmpPreviewUrl")
+    inner class IssueTmpPreviewUrl {
+        @Test
+        @DisplayName("TMP 첨부파일이면 미리보기 presigned URL을 반환한다")
+        fun issueTmpPreviewUrl_tmpAttachment_returnsPreviewUrl() {
+            // given
+            val tmpAttachment = makeAttachment("tmp/${UUID.randomUUID()}/preview.jpg", AttachmentStatus.TMP, referenceId = null)
+            every { attachmentRepository.findAllById(listOf(tmpAttachment.id!!)) } returns listOf(tmpAttachment)
+            every { s3StorageService.exists(tmpAttachment.objectKey) } returns true
+            every {
+                s3StorageService.generatePresignedDownloadUrl(tmpAttachment.objectKey, presignedUrlExpireMinutes)
+            } returns "https://preview-url"
+
+            // when
+            val result = attachmentService.issueTmpPreviewUrl(tmpAttachment.id!!)
+
+            // then
+            assertThat(result.attachmentId).isEqualTo(tmpAttachment.id)
+            assertThat(result.objectKey).isEqualTo(tmpAttachment.objectKey)
+            assertThat(result.presignedUrl).isEqualTo("https://preview-url")
+        }
+
+        @Test
+        @DisplayName("TMP 상태가 아니면 예외를 던진다")
+        fun issueTmpPreviewUrl_confirmedAttachment_throwsBadRequest() {
+            // given
+            val confirmedAttachment = makeAttachment("posts/$postId/${UUID.randomUUID()}/preview.jpg", AttachmentStatus.CONFIRMED)
+            every { attachmentRepository.findAllById(listOf(confirmedAttachment.id!!)) } returns listOf(confirmedAttachment)
+
+            // when & then
+            assertThatThrownBy { attachmentService.issueTmpPreviewUrl(confirmedAttachment.id!!) }
+                .isInstanceOf(ApiException::class.java)
+                .hasMessage("TMP 상태의 첨부파일만 미리보기 URL을 발급할 수 있습니다")
+        }
+    }
+
+    @Nested
+    @DisplayName("issueTmpPreviewUrls")
+    inner class IssueTmpPreviewUrls {
+        @Test
+        @DisplayName("여러 TMP 첨부파일의 미리보기 presigned URL을 요청 순서대로 반환한다")
+        fun issueTmpPreviewUrls_tmpAttachments_returnsPreviewUrlsInOrder() {
+            // given
+            val firstAttachment = makeAttachment("tmp/${UUID.randomUUID()}/first.jpg", AttachmentStatus.TMP, referenceId = null)
+            val secondAttachment = makeAttachment("tmp/${UUID.randomUUID()}/second.jpg", AttachmentStatus.TMP, referenceId = null)
+            every {
+                attachmentRepository.findAllById(listOf(secondAttachment.id!!, firstAttachment.id!!))
+            } returns listOf(firstAttachment, secondAttachment)
+            every { s3StorageService.exists(firstAttachment.objectKey) } returns true
+            every { s3StorageService.exists(secondAttachment.objectKey) } returns true
+            every {
+                s3StorageService.generatePresignedDownloadUrl(firstAttachment.objectKey, presignedUrlExpireMinutes)
+            } returns "https://preview-first"
+            every {
+                s3StorageService.generatePresignedDownloadUrl(secondAttachment.objectKey, presignedUrlExpireMinutes)
+            } returns "https://preview-second"
+
+            // when
+            val result =
+                attachmentService.issueTmpPreviewUrls(
+                    AttachmentPreviewUrlsRequest(listOf(secondAttachment.id!!, firstAttachment.id!!)),
+                )
+
+            // then
+            assertThat(result.map { it.attachmentId }).containsExactly(secondAttachment.id!!, firstAttachment.id!!)
+            assertThat(result.map { it.presignedUrl }).containsExactly("https://preview-second", "https://preview-first")
         }
     }
 
@@ -378,6 +451,44 @@ class AttachmentServiceTest {
             // then
             assertThat(result).isEmpty()
             verify(exactly = 0) { s3StorageService.generatePresignedDownloadUrl(any(), any()) }
+        }
+    }
+
+    @Nested
+    @DisplayName("generatePresignedDownloadUrlMapByAttachments")
+    inner class GeneratePresignedDownloadUrlMapByAttachments {
+        @Test
+        @DisplayName("전달된 CONFIRMED 첨부파일 목록으로 attachmentId → URL 맵을 만든다")
+        fun generatePresignedDownloadUrlMapByAttachments_confirmedAttachments_returnsUrlMap() {
+            // given
+            val confirmed1 = makeAttachment("posts/$postId/uuid1/a.jpg", AttachmentStatus.CONFIRMED)
+            val confirmed2 = makeAttachment("posts/$postId/uuid2/b.jpg", AttachmentStatus.CONFIRMED)
+            every { s3StorageService.generatePresignedDownloadUrl(confirmed1.objectKey, presignedUrlExpireMinutes) } returns "https://url1"
+            every { s3StorageService.generatePresignedDownloadUrl(confirmed2.objectKey, presignedUrlExpireMinutes) } returns "https://url2"
+
+            // when
+            val result = attachmentService.generatePresignedDownloadUrlMapByAttachments(listOf(confirmed1, confirmed2))
+
+            // then
+            assertThat(result[confirmed1.id!!]).isEqualTo("https://url1")
+            assertThat(result[confirmed2.id!!]).isEqualTo("https://url2")
+        }
+
+        @Test
+        @DisplayName("TMP 첨부파일은 제외한다")
+        fun generatePresignedDownloadUrlMapByAttachments_tmpAttachment_excluded() {
+            // given
+            val confirmed = makeAttachment("posts/$postId/uuid1/a.jpg", AttachmentStatus.CONFIRMED)
+            val tmp = makeAttachment("tmp/${UUID.randomUUID()}/tmp.jpg", AttachmentStatus.TMP, referenceId = null)
+            every { s3StorageService.generatePresignedDownloadUrl(confirmed.objectKey, presignedUrlExpireMinutes) } returns "https://url"
+
+            // when
+            val result = attachmentService.generatePresignedDownloadUrlMapByAttachments(listOf(confirmed, tmp))
+
+            // then
+            assertThat(result).hasSize(1)
+            assertThat(result).containsKey(confirmed.id!!)
+            assertThat(result).doesNotContainKey(tmp.id!!)
         }
     }
 

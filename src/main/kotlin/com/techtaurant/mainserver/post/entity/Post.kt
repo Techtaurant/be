@@ -26,6 +26,7 @@ import jakarta.persistence.Table
  * @property viewCount 조회수 (이벤트 발생 시 원자적 증분)
  * @property likeCount 좋아요수 (이벤트 발생 시 원자적 증분)
  * @property commentCount 댓글수 (이벤트 발생 시 원자적 증분)
+ * @property thumbnailImage 게시물 썸네일 이미지 attachment ID
  * @property status 게시물 상태 (DRAFT: 임시저장, PUBLISHED: 발행, PRIVATE: 비공개)
  */
 @Entity
@@ -54,6 +55,8 @@ class Post(
     var likeCount: Long = 0,
     @Column(name = "comment_count", nullable = false)
     var commentCount: Long = 0,
+    @Column(name = "thumbnail_image")
+    var thumbnailImage: java.util.UUID? = null,
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     var status: PostStatusEnum = PostStatusEnum.PUBLISHED,

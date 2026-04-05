@@ -137,6 +137,25 @@ class PostListReadService(
             } else {
                 emptyMap()
             }
+        val thumbnailAttachmentByPostId =
+            content.associate { post ->
+                val thumbnailAttachment =
+                    attachmentsByPostId[post.id]
+                        .orEmpty()
+                        .let { attachments ->
+                            post.thumbnailImage?.let { thumbnailAttachmentId ->
+                                attachments.firstOrNull { it.id == thumbnailAttachmentId }
+                            } ?: attachments.minByOrNull { it.createdAt }
+                        }
+                post.id!! to thumbnailAttachment
+            }
+        val presignedThumbnailUrlByAttachmentId =
+            thumbnailAttachmentByPostId
+                .values
+                .filterNotNull()
+                .takeIf { it.isNotEmpty() }
+                ?.let { attachmentService.generatePresignedDownloadUrlMapByAttachments(it) }
+                ?: emptyMap()
 
         return CursorPageResponse(
             content =
@@ -144,7 +163,8 @@ class PostListReadService(
                     convertToResponse(
                         post,
                         readPostIds.contains(post.id),
-                        attachmentsByPostId[post.id] ?: emptyList(),
+                        thumbnailAttachmentByPostId[post.id],
+                        presignedThumbnailUrlByAttachmentId,
                     )
                 },
             nextCursor = nextCursor,
@@ -248,13 +268,10 @@ class PostListReadService(
     private fun convertToResponse(
         post: Post,
         isRead: Boolean,
-        attachments: List<Attachment>,
+        thumbnailAttachment: Attachment?,
+        presignedThumbnailUrlByAttachmentId: Map<UUID, String>,
     ): PostListItemResponse {
-        val thumbnailUrl =
-            attachments
-                .minByOrNull { it.createdAt }
-                ?.objectKey
-                ?: "$baseUrl$defaultThumbnailUrl"
+        val thumbnailUrl = thumbnailAttachment?.id?.let { presignedThumbnailUrlByAttachmentId[it] } ?: "$baseUrl$defaultThumbnailUrl"
 
         return PostListItemResponse(
             id = post.id!!,
