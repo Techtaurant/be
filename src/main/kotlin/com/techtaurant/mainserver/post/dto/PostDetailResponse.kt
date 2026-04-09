@@ -23,6 +23,7 @@ import java.util.UUID
  * @property likeStatus 현재 사용자의 좋아요 상태
  * @property status 게시물 상태 (DRAFT: 임시저장, PUBLISHED: 발행, PRIVATE: 비공개)
  * @property isRead 현재 사용자가 읽음 표시한 게시물인지 여부 (비회원은 항상 false)
+ * @property attachmentPresignedUrls attachmentId와 presigned URL 매핑 목록
  * @property createdAt 작성일
  * @property updatedAt 수정일
  */
@@ -52,6 +53,8 @@ data class PostDetailResponse(
     val status: PostStatusEnum,
     @field:Schema(description = "현재 사용자가 읽음 표시한 게시물인지 여부")
     val isRead: Boolean,
+    @field:Schema(description = "attachmentId와 presigned URL 매핑 목록")
+    val attachmentPresignedUrls: List<PostDetailAttachmentPresignedUrlResponse>,
     @field:Schema(description = "작성일")
     val createdAt: Date,
     @field:Schema(description = "수정일")
@@ -64,6 +67,7 @@ data class PostDetailResponse(
          * @param post 게시물 엔티티
          * @param likeStatus 현재 사용자의 좋아요 상태
          * @param isRead 현재 사용자가 읽음 표시한 게시물인지 여부
+         * @param attachmentPresignedUrls attachmentId와 presigned URL 매핑 목록
          * @return 게시물 상세 응답 DTO
          */
         fun from(
@@ -71,6 +75,7 @@ data class PostDetailResponse(
             likeStatus: LikeStatus,
             isRead: Boolean,
             content: String = post.content,
+            attachmentPresignedUrls: List<PostDetailAttachmentPresignedUrlResponse> = emptyList(),
         ): PostDetailResponse =
             PostDetailResponse(
                 id = post.id!!,
@@ -85,8 +90,28 @@ data class PostDetailResponse(
                 likeStatus = likeStatus,
                 status = post.status,
                 isRead = isRead,
+                attachmentPresignedUrls = attachmentPresignedUrls,
                 createdAt = post.createdAt,
                 updatedAt = post.updatedAt,
+            )
+    }
+}
+
+@Schema(description = "게시물 본문 attachment presigned URL 매핑")
+data class PostDetailAttachmentPresignedUrlResponse(
+    @field:Schema(description = "첨부파일 ID", example = "550e8400-e29b-41d4-a716-446655440000")
+    val attachmentId: UUID,
+    @field:Schema(description = "첨부파일 다운로드용 presigned URL", example = "https://techtaurant-media.s3.ap-northeast-2.amazonaws.com/post/...")
+    val presignedUrl: String,
+) {
+    companion object {
+        fun from(
+            attachmentId: UUID,
+            presignedUrl: String,
+        ): PostDetailAttachmentPresignedUrlResponse =
+            PostDetailAttachmentPresignedUrlResponse(
+                attachmentId = attachmentId,
+                presignedUrl = presignedUrl,
             )
     }
 }
