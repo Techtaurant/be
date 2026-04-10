@@ -4,6 +4,7 @@ import com.techtaurant.mainserver.attachment.application.AttachmentService
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.post.dto.PostDetailAttachmentPresignedUrlResponse
 import com.techtaurant.mainserver.post.dto.PostDetailResponse
 import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
@@ -78,13 +79,12 @@ class PostDetailReadService(
                 postReadLogRepository.existsByPostIdAndUserId(postId, it)
             } ?: false
 
-        val contentWithPresignedUrls =
+        val attachmentPresignedUrls =
             attachmentService.generatePresignedDownloadUrlMapByReference(postId, AttachmentReferenceType.POST)
-                .entries
-                .fold(post.content) { acc, (attachmentId, presignedUrl) ->
-                    acc.replace(attachmentId.toString(), presignedUrl)
+                .map { (attachmentId, presignedUrl) ->
+                    PostDetailAttachmentPresignedUrlResponse.from(attachmentId, presignedUrl)
                 }
 
-        return PostDetailResponse.from(post, likeStatus, isRead, contentWithPresignedUrls)
+        return PostDetailResponse.from(post, likeStatus, isRead, attachmentPresignedUrls = attachmentPresignedUrls)
     }
 }

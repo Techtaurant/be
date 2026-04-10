@@ -62,8 +62,8 @@ class PostDetailReadServiceTest {
     @DisplayName("getPostDetail")
     inner class GetPostDetail {
         @Test
-        @DisplayName("연결된 attachmentId를 presigned URL로 치환한다")
-        fun getPostDetail_attachmentReferences_replacesContentTargets() {
+        @DisplayName("연결된 attachmentId와 presigned URL 매핑을 별도 필드로 반환한다")
+        fun getPostDetail_attachmentReferences_returnsPresignedUrlMappings() {
             // given
             val postId = UUID.randomUUID()
             val viewerId = UUID.randomUUID()
@@ -93,7 +93,10 @@ class PostDetailReadServiceTest {
             // then
             assertThat(result.likeStatus).isEqualTo(LikeStatus.NONE)
             assertThat(result.isRead).isTrue()
-            assertThat(result.content).contains("https://cdn.example.com/attachment.png")
+            assertThat(result.content).isEqualTo(content)
+            val attachmentPresignedUrl = result.attachmentPresignedUrls.single()
+            assertThat(attachmentPresignedUrl.attachmentId).isEqualTo(attachmentId)
+            assertThat(attachmentPresignedUrl.presignedUrl).isEqualTo("https://cdn.example.com/attachment.png")
             verify {
                 postViewLogService.recordView(postId, viewerId, "127.0.0.1", "JUnit")
             }
@@ -119,6 +122,7 @@ class PostDetailReadServiceTest {
 
             // then
             assertThat(result.isRead).isFalse()
+            assertThat(result.attachmentPresignedUrls).isEmpty()
         }
 
         @Test
@@ -145,6 +149,7 @@ class PostDetailReadServiceTest {
 
             // then
             assertThat(result.likeStatus).isEqualTo(LikeStatus.LIKE)
+            assertThat(result.attachmentPresignedUrls).isEmpty()
         }
     }
 }
