@@ -37,7 +37,7 @@ class CategoryRepositoryTest : IntegrationTest() {
     private fun createUser(identifier: String): User =
         userRepository.save(
             User(
-                name = "테스트 사용자",
+                name = "테스트 사용자-$identifier",
                 email = "$identifier@example.com",
                 provider = OAuthProvider.GOOGLE,
                 identifier = identifier,
