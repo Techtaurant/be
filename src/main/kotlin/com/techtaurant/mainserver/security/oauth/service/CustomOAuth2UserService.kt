@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.security.oauth.CustomOAuth2User
 import com.techtaurant.mainserver.security.oauth.info.GoogleOAuth2UserInfo
 import com.techtaurant.mainserver.security.oauth.info.OAuth2UserInfo
 import com.techtaurant.mainserver.security.oauth.status.OAuthStatus
+import com.techtaurant.mainserver.user.application.UserUniqueNameService
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
@@ -17,10 +18,11 @@ import org.springframework.stereotype.Service
 @Service
 class CustomOAuth2UserService(
     private val userRepository: UserRepository,
+    private val userUniqueNameService: UserUniqueNameService,
 ) : DefaultOAuth2UserService() {
     override fun loadUser(userRequest: OAuth2UserRequest): OAuth2User {
         try {
-            val oAuth2User = super.loadUser(userRequest)
+            val oAuth2User = fetchOAuth2User(userRequest)
             val registrationId = userRequest.clientRegistration.registrationId
 
             val oAuth2UserInfo = getOAuth2UserInfo(registrationId, oAuth2User.attributes)
@@ -39,6 +41,8 @@ class CustomOAuth2UserService(
             throw e
         }
     }
+
+    protected open fun fetchOAuth2User(userRequest: OAuth2UserRequest): OAuth2User = super.loadUser(userRequest)
 
     private fun getOAuth2UserInfo(
         registrationId: String,
@@ -61,7 +65,7 @@ class CustomOAuth2UserService(
         userInfo: OAuth2UserInfo,
         provider: OAuthProvider,
     ): User {
-        val user =
+        return userUniqueNameService.saveNewUser(
             User(
                 name = userInfo.getName(),
                 email = userInfo.getEmail(),
@@ -69,7 +73,7 @@ class CustomOAuth2UserService(
                 identifier = userInfo.getId(),
                 role = UserRole.USER,
                 profileImageUrl = userInfo.getProfileImageUrl(),
-            )
-        return userRepository.save(user)
+            ),
+        )
     }
 }
