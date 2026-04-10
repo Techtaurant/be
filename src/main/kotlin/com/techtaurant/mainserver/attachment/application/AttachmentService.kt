@@ -108,7 +108,7 @@ class AttachmentService(
 
     /**
      * attachmentId에 해당하는 TMP Attachment를 CONFIRMED 상태로 전환합니다.
-     * S3 파일을 tmp/ 경로에서 posts/{referenceId}/ 경로로 이동합니다.
+     * S3 파일을 tmp/ 경로에서 referenceType에 맞는 확정 경로로 이동합니다.
      *
      * @param referenceId 연관 도메인 PK (게시물 ID 등)
      * @param referenceType 연관 도메인 타입
@@ -139,7 +139,7 @@ class AttachmentService(
 
             val uniqueId = UUID.randomUUID()
             val fileName = tmpObjectKey.substringAfterLast("/")
-            val newObjectKey = "posts/$referenceId/$uniqueId/$fileName"
+            val newObjectKey = buildConfirmedObjectKey(referenceType, referenceId, uniqueId, fileName)
 
             s3StorageService.copyObject(
                 sourceKey = tmpObjectKey,
@@ -287,6 +287,21 @@ class AttachmentService(
         if (!s3StorageService.exists(attachment.objectKey)) {
             throw ApiException(DefaultStatus.NOT_FOUND, "S3에 임시 첨부파일이 존재하지 않습니다")
         }
+    }
+
+    private fun buildConfirmedObjectKey(
+        referenceType: AttachmentReferenceType,
+        referenceId: UUID,
+        uniqueId: UUID,
+        fileName: String,
+    ): String {
+        val prefix =
+            when (referenceType) {
+                AttachmentReferenceType.POST -> "posts"
+                AttachmentReferenceType.USER -> "users"
+            }
+
+        return "$prefix/$referenceId/$uniqueId/$fileName"
     }
 
     /**

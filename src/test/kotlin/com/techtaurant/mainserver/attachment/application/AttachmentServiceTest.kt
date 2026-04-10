@@ -183,6 +183,26 @@ class AttachmentServiceTest {
             assertThat(tmpAttachment.referenceId).isEqualTo(postId)
             assertThat(tmpAttachment.referenceType).isEqualTo(AttachmentReferenceType.POST)
         }
+
+        @Test
+        @DisplayName("USER attachment는 users/{referenceId} 경로로 이동한다")
+        fun confirmAttachmentsByIds_userAttachment_movesToUsersPath() {
+            val userId = UUID.randomUUID()
+            val userAttachment =
+                makeAttachment(tmpKey, AttachmentStatus.TMP, referenceId = null).apply {
+                    referenceType = AttachmentReferenceType.USER
+                }
+            every { attachmentRepository.findAllById(listOf(userAttachment.id!!)) } returns listOf(userAttachment)
+
+            attachmentService.confirmAttachmentsByIds(
+                referenceId = userId,
+                referenceType = AttachmentReferenceType.USER,
+                attachmentIds = listOf(userAttachment.id!!),
+            )
+
+            assertThat(userAttachment.objectKey).startsWith("users/$userId/")
+            assertThat(userAttachment.objectKey).endsWith("photo.jpg")
+        }
     }
 
     @Nested
