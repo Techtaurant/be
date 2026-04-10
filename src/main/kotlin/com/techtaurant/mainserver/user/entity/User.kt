@@ -8,10 +8,15 @@ import jakarta.persistence.Entity
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import jakarta.persistence.Table
+import jakarta.persistence.UniqueConstraint
 
 @Entity
-@Table(name = "users")
+@Table(
+    name = "users",
+    uniqueConstraints = [UniqueConstraint(name = "uk_users_name", columnNames = ["name"])],
+)
 class User(
+    @Column(nullable = false, unique = true)
     var name: String,
     var email: String,
     @Enumerated(EnumType.STRING)

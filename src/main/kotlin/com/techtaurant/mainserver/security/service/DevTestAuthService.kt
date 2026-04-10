@@ -10,6 +10,7 @@ import com.techtaurant.mainserver.security.helper.CookieHelper
 import com.techtaurant.mainserver.security.jwt.JwtConstants
 import com.techtaurant.mainserver.security.jwt.JwtProperties
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
+import com.techtaurant.mainserver.user.application.UserUniqueNameService
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
@@ -33,6 +34,7 @@ class DevTestAuthService(
     private val jwtProperties: JwtProperties,
     private val cookieHelper: CookieHelper,
     private val tokenCacheManager: TokenCachePort,
+    private val userUniqueNameService: UserUniqueNameService,
 ) {
     companion object {
         private const val DEV_PASSWORD_HASH =
@@ -90,7 +92,7 @@ class DevTestAuthService(
 
     private fun findOrCreateTestUser(identifier: String): User {
         return userRepository.findByIdentifierAndProvider(identifier, OAuthProvider.DEV_LOCAL)
-            ?: userRepository.save(
+            ?: userUniqueNameService.saveNewUser(
                 User(
                     name = identifier,
                     email = "$identifier@dev.local",
