@@ -8,6 +8,7 @@ import com.techtaurant.mainserver.user.dto.UpdateUserRequest
 import com.techtaurant.mainserver.user.dto.UserResponse
 import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -18,6 +19,10 @@ class UserWriteService(
     private val attachmentService: AttachmentService,
     private val userResponseAssembler: UserResponseAssembler,
 ) {
+    companion object {
+        private const val USER_NAME_UNIQUE_CONSTRAINT = "uk_users_name"
+    }
+
     @Transactional
     fun updateMe(
         userId: UUID,
@@ -34,6 +39,15 @@ class UserWriteService(
                 throw ApiException(DefaultStatus.BAD_REQUEST, "이름은 공백일 수 없습니다")
             }
             user.name = normalizedName
+
+            try {
+                userRepository.flush()
+            } catch (exception: DataIntegrityViolationException) {
+                if (isUserNameUniqueConstraintViolation(exception)) {
+                    throw ApiException(UserStatus.USER_NAME_ALREADY_EXISTS)
+                }
+                throw exception
+            }
         }
 
         if (request.hasServiceProfileImageAttachmentId()) {
@@ -56,5 +70,11 @@ class UserWriteService(
         }
 
         return userResponseAssembler.assemble(user)
+    }
+
+    private fun isUserNameUniqueConstraintViolation(exception: DataIntegrityViolationException): Boolean {
+        return generateSequence<Throwable>(exception) { current -> current.cause }
+            .mapNotNull { throwable -> throwable.message }
+            .any { message -> message.contains(USER_NAME_UNIQUE_CONSTRAINT, ignoreCase = true) }
     }
 }
