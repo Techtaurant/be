@@ -8,6 +8,7 @@ import com.techtaurant.mainserver.user.dto.UpdateUserRequest
 import com.techtaurant.mainserver.user.dto.UserResponse
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
+import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.mockk.every
 import io.mockk.just
@@ -19,6 +20,7 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.springframework.dao.DataIntegrityViolationException
 import java.util.Optional
 import java.util.UUID
 
@@ -55,6 +57,7 @@ class UserWriteServiceTest {
             val targetUser = firstArg<User>()
             UserResponse.from(targetUser, targetUser.profileImageUrl)
         }
+        every { userRepository.flush() } just runs
         every { attachmentService.confirmAttachmentsByIds(any(), any(), any()) } just runs
         every { attachmentService.deleteOrphanedAttachmentsByIds(any(), any(), any()) } just runs
     }
@@ -133,5 +136,25 @@ class UserWriteServiceTest {
         }
             .isInstanceOf(ApiException::class.java)
             .hasMessage("이름은 공백일 수 없습니다")
+    }
+
+    @Test
+    @DisplayName("중복 닉네임으로 수정하면 중복 닉네임 예외를 던진다")
+    fun updateMe_duplicateName_throwsConflictApiException() {
+        // given
+        every {
+            userRepository.flush()
+        } throws DataIntegrityViolationException("duplicate key value violates unique constraint \"uk_users_name\"")
+
+        // when & then
+        assertThatThrownBy {
+            userWriteService.updateMe(
+                userId = user.id!!,
+                request = UpdateUserRequest(name = "중복닉네임"),
+            )
+        }
+            .isInstanceOf(ApiException::class.java)
+            .extracting { (it as ApiException).status }
+            .isEqualTo(UserStatus.USER_NAME_ALREADY_EXISTS)
     }
 }

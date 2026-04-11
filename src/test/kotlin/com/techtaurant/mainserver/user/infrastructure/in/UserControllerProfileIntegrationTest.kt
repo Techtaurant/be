@@ -7,6 +7,7 @@ import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.dto.UpdateUserRequest
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
+import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserBanRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserFollowRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
@@ -63,6 +64,9 @@ class UserControllerProfileIntegrationTest : IntegrationTest() {
     @Test
     @DisplayName("내 이름 수정이 성공한다")
     fun updateMe_name_success() {
+        // given
+
+        // when
         given()
             .contentType("application/json")
             .header("Authorization", "Bearer $accessToken")
@@ -74,6 +78,7 @@ class UserControllerProfileIntegrationTest : IntegrationTest() {
             .body("data.name", equalTo("새이름"))
             .body("data.profileImageUrl", equalTo("https://example.com/default-profile.jpg"))
 
+        // then
         given()
             .header("Authorization", "Bearer $accessToken")
             .`when`()
@@ -81,5 +86,33 @@ class UserControllerProfileIntegrationTest : IntegrationTest() {
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("data.name", equalTo("새이름"))
+    }
+
+    @Test
+    @DisplayName("중복 닉네임으로 수정하면 409와 중복 닉네임 에러를 반환한다")
+    fun updateMe_duplicateName_returnsConflictResponse() {
+        // given
+        userRepository.save(
+            User(
+                name = "중복닉네임",
+                email = "duplicate-${UUID.randomUUID()}@example.com",
+                provider = OAuthProvider.GOOGLE,
+                identifier = "duplicate-id-${UUID.randomUUID()}",
+                role = UserRole.USER,
+                profileImageUrl = "https://example.com/duplicate-profile.jpg",
+            ),
+        )
+
+        // when & then
+        given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $accessToken")
+            .body(UpdateUserRequest(name = "중복닉네임"))
+            .`when`()
+            .patch("/api/users/me")
+            .then()
+            .statusCode(HttpStatus.CONFLICT.value())
+            .body("status", equalTo(UserStatus.USER_NAME_ALREADY_EXISTS.getCustomStatusCode()))
+            .body("message", equalTo(UserStatus.USER_NAME_ALREADY_EXISTS.getDescription()))
     }
 }

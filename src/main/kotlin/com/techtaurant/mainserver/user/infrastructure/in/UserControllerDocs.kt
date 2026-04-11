@@ -41,7 +41,7 @@ interface UserControllerDocs {
     @ApiErrorCodeResponses(
         [
             ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED"]),
-            ApiErrorCodeResponse(UserStatus::class, ["ID_NOT_FOUND"]),
+            ApiErrorCodeResponse(UserStatus::class, ["ID_NOT_FOUND", "USER_NAME_ALREADY_EXISTS"]),
             ApiErrorCodeResponse(DefaultStatus::class, ["BAD_REQUEST", "UNKNOWN_EXCEPTION"]),
         ],
     )
