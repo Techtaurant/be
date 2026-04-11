@@ -10,6 +10,7 @@ import java.util.UUID
 @Service
 class UserReadService(
     private val userRepository: UserRepository,
+    private val userResponseAssembler: UserResponseAssembler,
 ) {
     fun getMe(userId: UUID): UserResponse {
         // SecurityContext에서 userId를 받아 DB에서 User 조회
@@ -17,11 +18,11 @@ class UserReadService(
             userRepository.findById(userId).orElseThrow {
                 ApiException(UserStatus.ID_NOT_FOUND)
             }
-        return UserResponse.from(user)
+        return userResponseAssembler.assemble(user)
     }
 
     fun searchByName(name: String): List<UserResponse> {
         val users = userRepository.findByNameContainingIgnoreCaseOrderByNameAsc(name)
-        return users.map { UserResponse.from(it) }
+        return userResponseAssembler.assemble(users)
     }
 }

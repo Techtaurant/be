@@ -18,12 +18,15 @@ data class UserResponse(
     val profileImageUrl: String,
 ) {
     companion object {
-        fun from(user: User): UserResponse {
+        fun from(
+            user: User,
+            profileImageUrl: String,
+        ): UserResponse {
             return UserResponse(
                 id = user.id ?: throw ApiException(UserStatus.ID_NOT_FOUND),
                 name = user.name,
                 email = user.email,
-                profileImageUrl = user.profileImageUrl,
+                profileImageUrl = profileImageUrl,
             )
         }
     }

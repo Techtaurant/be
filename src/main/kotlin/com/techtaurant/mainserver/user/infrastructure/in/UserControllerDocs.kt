@@ -5,6 +5,7 @@ import com.techtaurant.mainserver.common.status.DefaultStatus
 import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponse
 import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponses
 import com.techtaurant.mainserver.security.jwt.JwtStatus
+import com.techtaurant.mainserver.user.dto.UpdateUserRequest
 import com.techtaurant.mainserver.user.dto.UserBanListItemResponse
 import com.techtaurant.mainserver.user.dto.UserBanResponse
 import com.techtaurant.mainserver.user.dto.UserFollowResponse
@@ -12,6 +13,7 @@ import com.techtaurant.mainserver.user.dto.UserResponse
 import com.techtaurant.mainserver.user.enums.UserStatus
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import java.util.UUID
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 
@@ -30,6 +32,23 @@ interface UserControllerDocs {
         ],
     )
     fun getMe(userId: UUID): ApiResponse<UserResponse>
+
+    @Operation(summary = "내 정보 수정", description = "현재 로그인한 사용자의 이름과 서비스 프로필 이미지를 수정합니다")
+    @SwaggerApiResponse(
+        responseCode = "200",
+        description = "수정 성공",
+    )
+    @ApiErrorCodeResponses(
+        [
+            ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED"]),
+            ApiErrorCodeResponse(UserStatus::class, ["ID_NOT_FOUND"]),
+            ApiErrorCodeResponse(DefaultStatus::class, ["BAD_REQUEST", "UNKNOWN_EXCEPTION"]),
+        ],
+    )
+    fun updateMe(
+        userId: UUID,
+        @Valid request: UpdateUserRequest,
+    ): ApiResponse<UserResponse>
 
     @Operation(summary = "사용자 차단", description = "현재 로그인한 사용자가 특정 사용자를 차단합니다")
     @SwaggerApiResponse(
