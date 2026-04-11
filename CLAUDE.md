@@ -6,6 +6,19 @@
 ./gradlew spotlessApply && ./gradlew spotlessCheck
 ```
 
+## Terraform 변수 파일 규칙
+
+`techtaurant-infra/dev`, `techtaurant-infra/monitoring` 작업 시 변수 예제와 실제 입력값은 repo root 기준으로 관리한다.
+
+- 커밋 가능한 예제값은 root `terraform.tfvars.example`에 둔다.
+- 실제 민감값은 root `terraform.tfvars`에만 두고 커밋하지 않는다.
+- 각 스택은 root tfvars를 자동 인식하지 않으므로 반드시 `-var-file=../../terraform.tfvars`를 명시한다.
+
+```bash
+terraform -chdir=techtaurant-infra/dev plan -var-file=../../terraform.tfvars
+terraform -chdir=techtaurant-infra/monitoring plan -var-file=../../terraform.tfvars
+```
+
 ## Swagger 명세 규칙
 
 Swagger 명세는 Controller 구현체에 직접 흩뿌리지 않고, 반드시 별도 `*ControllerDocs` interface에 작성한다. 구현체 Controller는 라우팅과 서비스 호출만 담당하고, Swagger/OpenAPI 어노테이션은 interface로 분리한다.
