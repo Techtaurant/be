@@ -27,6 +27,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
     implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
@@ -81,6 +82,12 @@ dependencies {
 
     // HTML Sanitization
     implementation("org.jsoup:jsoup:1.18.3")
+
+    // Observability
+    implementation("io.micrometer:micrometer-registry-prometheus")
+    implementation("io.micrometer:micrometer-tracing-bridge-brave")
+    implementation("com.github.loki4j:loki-logback-appender:2.0.3")
+    runtimeOnly("org.codehaus.janino:janino:3.1.12")
 
     // AWS SDK v2
     implementation(platform("software.amazon.awssdk:bom:2.25.0"))
