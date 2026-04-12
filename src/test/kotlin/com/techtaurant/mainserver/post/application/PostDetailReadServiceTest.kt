@@ -1,7 +1,9 @@
 package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.attachment.application.AttachmentService
+import com.techtaurant.mainserver.attachment.entity.Attachment
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
+import com.techtaurant.mainserver.attachment.enums.AttachmentStatus
 import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostLikeLog
@@ -10,6 +12,7 @@ import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
+import com.techtaurant.mainserver.user.application.UserProfileImageResolver
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
 import io.mockk.every
@@ -30,6 +33,7 @@ class PostDetailReadServiceTest {
     private val postLikeLogRepository: PostLikeLogRepository = mockk()
     private val postReadLogRepository: PostReadLogRepository = mockk()
     private val attachmentService: AttachmentService = mockk()
+    private val userProfileImageResolver = UserProfileImageResolver(attachmentService)
 
     private val postDetailReadService =
         PostDetailReadService(
@@ -38,6 +42,7 @@ class PostDetailReadServiceTest {
             postLikeLogRepository = postLikeLogRepository,
             postReadLogRepository = postReadLogRepository,
             attachmentService = attachmentService,
+            userProfileImageResolver = userProfileImageResolver,
         )
 
     private lateinit var author: User
@@ -56,7 +61,25 @@ class PostDetailReadServiceTest {
 
         every { postViewLogService.recordView(any(), any(), any(), any()) } just runs
         every { attachmentService.generatePresignedDownloadUrlMapByReference(any(), any()) } returns emptyMap()
+        every {
+            attachmentService.getConfirmedAttachmentsByReferenceIds(any(), AttachmentReferenceType.USER)
+        } returns emptyMap()
+        every { attachmentService.generatePresignedDownloadUrlMapByAttachments(emptyList()) } returns emptyMap()
     }
+
+    private fun createUserProfileAttachment(
+        userId: UUID,
+        attachmentId: UUID,
+    ): Attachment =
+        Attachment(
+            referenceId = userId,
+            referenceType = AttachmentReferenceType.USER,
+            objectKey = "users/$userId/$attachmentId/profile.png",
+            status = AttachmentStatus.CONFIRMED,
+            originalFileName = "profile.png",
+            contentType = "image/png",
+            fileSize = 1024L,
+        ).apply { id = attachmentId }
 
     @Nested
     @DisplayName("getPostDetail")
@@ -150,6 +173,34 @@ class PostDetailReadServiceTest {
             // then
             assertThat(result.likeStatus).isEqualTo(LikeStatus.LIKE)
             assertThat(result.attachmentPresignedUrls).isEmpty()
+        }
+
+        @Test
+        @DisplayName("서비스 프로필 이미지 attachment가 있으면 작성자 프로필 이미지에 presigned URL을 사용한다")
+        fun getPostDetail_serviceProfileImageAttachment_usesPresignedAuthorProfileImageUrl() {
+            val postId = UUID.randomUUID()
+            val attachmentId = UUID.randomUUID()
+            author.serviceProfileImageAttachmentId = attachmentId
+            val profileAttachment = createUserProfileAttachment(author.id!!, attachmentId)
+            val post =
+                Post(
+                    title = "게시물",
+                    content = "본문",
+                    author = author,
+                    status = PostStatusEnum.PUBLISHED,
+                ).apply { id = postId }
+
+            every { postRepository.findVisiblePostDetailById(postId, null) } returns post
+            every {
+                attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(author.id!!), AttachmentReferenceType.USER)
+            } returns mapOf(author.id!! to listOf(profileAttachment))
+            every {
+                attachmentService.generatePresignedDownloadUrlMapByAttachments(listOf(profileAttachment))
+            } returns mapOf(attachmentId to "https://cdn.example.com/authors/detail-author.png")
+
+            val result = postDetailReadService.getPostDetail(postId, null, null, null)
+
+            assertThat(result.author.profileImageUrl).isEqualTo("https://cdn.example.com/authors/detail-author.png")
         }
     }
 }

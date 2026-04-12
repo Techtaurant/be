@@ -74,6 +74,7 @@ data class PostDetailResponse(
             post: Post,
             likeStatus: LikeStatus,
             isRead: Boolean,
+            authorProfileImageUrl: String,
             content: String = post.content,
             attachmentPresignedUrls: List<PostDetailAttachmentPresignedUrlResponse> = emptyList(),
         ): PostDetailResponse =
@@ -81,7 +82,7 @@ data class PostDetailResponse(
                 id = post.id!!,
                 title = post.title,
                 content = content,
-                author = AuthorResponse.from(post.author),
+                author = AuthorResponse.from(post.author, authorProfileImageUrl),
                 category = post.category?.let { CategoryResponse.from(it) },
                 tags = post.tags.map { PostListTagResponse.from(it) },
                 viewCount = post.viewCount,
@@ -133,11 +134,14 @@ data class AuthorResponse(
     val profileImageUrl: String,
 ) {
     companion object {
-        fun from(user: User): AuthorResponse =
+        fun from(
+            user: User,
+            profileImageUrl: String,
+        ): AuthorResponse =
             AuthorResponse(
                 id = user.id!!,
                 name = user.name,
-                profileImageUrl = user.profileImageUrl,
+                profileImageUrl = profileImageUrl,
             )
     }
 }

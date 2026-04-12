@@ -14,17 +14,16 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import java.util.UUID
 
-class UserResponseAssemblerTest {
+class UserProfileImageResolverTest {
     private val attachmentService: AttachmentService = mockk()
-    private val userProfileImageResolver = UserProfileImageResolver(attachmentService)
-    private val userResponseAssembler = UserResponseAssembler(userProfileImageResolver)
+    private val resolver = UserProfileImageResolver(attachmentService)
 
     @Test
     @DisplayName("서비스 프로필 이미지 attachment가 있으면 presigned URL을 우선 반환한다")
-    fun assemble_serviceProfileImageAttachment_usesPresignedUrl() {
+    fun resolve_serviceAttachment_usesPresignedUrl() {
         val userId = UUID.randomUUID()
         val attachmentId = UUID.randomUUID()
-        val user = createUser(userId, attachmentId)
+        val user = createUser(userId, attachmentId, "https://example.com/fallback.jpg")
         val attachment = createAttachment(userId, attachmentId)
 
         every {
@@ -34,16 +33,36 @@ class UserResponseAssemblerTest {
             attachmentService.generatePresignedDownloadUrlMapByAttachments(listOf(attachment))
         } returns mapOf(attachmentId to "https://cdn.example.com/profile.png")
 
-        val response = userResponseAssembler.assemble(user)
+        val resolved = resolver.resolve(user)
 
-        assertThat(response.profileImageUrl).isEqualTo("https://cdn.example.com/profile.png")
+        assertThat(resolved).isEqualTo("https://cdn.example.com/profile.png")
+    }
+
+    @Test
+    @DisplayName("서비스 프로필 이미지 attachment URL 생성에 실패하면 기본 profileImageUrl로 fallback 한다")
+    fun resolve_missingAttachmentUrl_fallsBackToProfileImageUrl() {
+        val userId = UUID.randomUUID()
+        val attachmentId = UUID.randomUUID()
+        val user = createUser(userId, attachmentId, "https://example.com/fallback.jpg")
+        val attachment = createAttachment(userId, attachmentId)
+
+        every {
+            attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(userId), AttachmentReferenceType.USER)
+        } returns mapOf(userId to listOf(attachment))
+        every {
+            attachmentService.generatePresignedDownloadUrlMapByAttachments(listOf(attachment))
+        } returns emptyMap()
+
+        val resolved = resolver.resolve(user)
+
+        assertThat(resolved).isEqualTo("https://example.com/fallback.jpg")
     }
 
     @Test
     @DisplayName("서비스 프로필 이미지 attachment가 없으면 기본 profileImageUrl을 사용한다")
-    fun assemble_withoutServiceProfileImage_usesFallbackUrl() {
+    fun resolve_withoutServiceAttachment_usesProfileImageUrl() {
         val userId = UUID.randomUUID()
-        val user = createUser(userId, null)
+        val user = createUser(userId, null, "https://example.com/default-profile.jpg")
 
         every {
             attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(userId), AttachmentReferenceType.USER)
@@ -52,31 +71,31 @@ class UserResponseAssemblerTest {
             attachmentService.generatePresignedDownloadUrlMapByAttachments(emptyList())
         } returns emptyMap()
 
-        val response = userResponseAssembler.assemble(user)
+        val resolved = resolver.resolve(user)
 
-        assertThat(response.profileImageUrl).isEqualTo("https://example.com/default-profile.jpg")
+        assertThat(resolved).isEqualTo("https://example.com/default-profile.jpg")
     }
 
     private fun createUser(
         userId: UUID,
         attachmentId: UUID?,
-    ): User {
-        return User(
+        profileImageUrl: String,
+    ): User =
+        User(
             name = "테스트사용자",
             email = "user@example.com",
             provider = OAuthProvider.GOOGLE,
             identifier = "google-${UUID.randomUUID()}",
             role = UserRole.USER,
-            profileImageUrl = "https://example.com/default-profile.jpg",
+            profileImageUrl = profileImageUrl,
             serviceProfileImageAttachmentId = attachmentId,
         ).apply { id = userId }
-    }
 
     private fun createAttachment(
         userId: UUID,
         attachmentId: UUID,
-    ): Attachment {
-        return Attachment(
+    ): Attachment =
+        Attachment(
             referenceId = userId,
             referenceType = AttachmentReferenceType.USER,
             objectKey = "users/$userId/$attachmentId/profile.png",
@@ -85,5 +104,4 @@ class UserResponseAssemblerTest {
             contentType = "image/png",
             fileSize = 1024L,
         ).apply { id = attachmentId }
-    }
 }

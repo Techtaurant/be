@@ -17,19 +17,25 @@ data class UserFollowListItemResponse(
     val followedAt: Date,
 ) {
     companion object {
-        fun fromFollowing(userFollow: UserFollow): UserFollowListItemResponse =
+        fun fromFollowing(
+            userFollow: UserFollow,
+            profileImageUrl: String,
+        ): UserFollowListItemResponse =
             UserFollowListItemResponse(
                 userId = userFollow.following.id!!,
                 name = userFollow.following.name,
-                profileImageUrl = userFollow.following.profileImageUrl,
+                profileImageUrl = profileImageUrl,
                 followedAt = userFollow.createdAt,
             )
 
-        fun fromFollower(userFollow: UserFollow): UserFollowListItemResponse =
+        fun fromFollower(
+            userFollow: UserFollow,
+            profileImageUrl: String,
+        ): UserFollowListItemResponse =
             UserFollowListItemResponse(
                 userId = userFollow.follower.id!!,
                 name = userFollow.follower.name,
-                profileImageUrl = userFollow.follower.profileImageUrl,
+                profileImageUrl = profileImageUrl,
                 followedAt = userFollow.createdAt,
             )
     }

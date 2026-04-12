@@ -18,6 +18,7 @@ import java.util.UUID
 class UserFollowService(
     private val userRepository: UserRepository,
     private val userFollowRepository: UserFollowRepository,
+    private val userProfileImageResolver: UserProfileImageResolver,
 ) {
     @Transactional
     fun follow(
@@ -76,8 +77,14 @@ class UserFollowService(
     fun getFollowings(userId: UUID): List<UserFollowListItemResponse> {
         getUser(userId, UserStatus.USER_NOT_FOUND)
 
-        return userFollowRepository.findAllByFollowerIdOrderByCreatedAtDesc(userId).map {
-            UserFollowListItemResponse.fromFollowing(it)
+        val userFollows = userFollowRepository.findAllByFollowerIdOrderByCreatedAtDesc(userId)
+        val profileImageUrlByUserId = userProfileImageResolver.resolve(userFollows.map { it.following })
+
+        return userFollows.map {
+            UserFollowListItemResponse.fromFollowing(
+                userFollow = it,
+                profileImageUrl = profileImageUrlByUserId[it.following.id] ?: it.following.getFallbackProfileImageUrl(),
+            )
         }
     }
 
@@ -85,8 +92,14 @@ class UserFollowService(
     fun getFollowers(userId: UUID): List<UserFollowListItemResponse> {
         getUser(userId, UserStatus.USER_NOT_FOUND)
 
-        return userFollowRepository.findAllByFollowingIdOrderByCreatedAtDesc(userId).map {
-            UserFollowListItemResponse.fromFollower(it)
+        val userFollows = userFollowRepository.findAllByFollowingIdOrderByCreatedAtDesc(userId)
+        val profileImageUrlByUserId = userProfileImageResolver.resolve(userFollows.map { it.follower })
+
+        return userFollows.map {
+            UserFollowListItemResponse.fromFollower(
+                userFollow = it,
+                profileImageUrl = profileImageUrlByUserId[it.follower.id] ?: it.follower.getFallbackProfileImageUrl(),
+            )
         }
     }
 

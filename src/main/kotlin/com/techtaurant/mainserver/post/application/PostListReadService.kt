@@ -15,6 +15,7 @@ import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
+import com.techtaurant.mainserver.user.application.UserProfileImageResolver
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -31,6 +32,7 @@ class PostListReadService(
     private val postRepository: PostRepository,
     private val postReadLogRepository: PostReadLogRepository,
     private val attachmentService: AttachmentService,
+    private val userProfileImageResolver: UserProfileImageResolver,
     @param:Value("\${app.default-post-thumbnail-url}")
     private val defaultThumbnailUrl: String,
     @param:Value("\${swagger.base-url}")
@@ -156,6 +158,7 @@ class PostListReadService(
                 .takeIf { it.isNotEmpty() }
                 ?.let { attachmentService.generatePresignedDownloadUrlMapByAttachments(it) }
                 ?: emptyMap()
+        val authorProfileImageUrlByUserId = userProfileImageResolver.resolve(content.map { it.author }.distinctBy { it.id })
 
         return CursorPageResponse(
             content =
@@ -164,6 +167,7 @@ class PostListReadService(
                         post,
                         readPostIds.contains(post.id),
                         thumbnailAttachmentByPostId[post.id],
+                        authorProfileImageUrlByUserId[post.author.id] ?: post.author.getFallbackProfileImageUrl(),
                         presignedThumbnailUrlByAttachmentId,
                     )
                 },
@@ -269,6 +273,7 @@ class PostListReadService(
         post: Post,
         isRead: Boolean,
         thumbnailAttachment: Attachment?,
+        authorProfileImageUrl: String,
         presignedThumbnailUrlByAttachmentId: Map<UUID, String>,
     ): PostListItemResponse {
         val thumbnailUrl = thumbnailAttachment?.id?.let { presignedThumbnailUrlByAttachmentId[it] } ?: "$baseUrl$defaultThumbnailUrl"
@@ -279,7 +284,7 @@ class PostListReadService(
             content = post.content.take(POST_LIST_CONTENT_MAX_LENGTH),
             authorId = post.author.id!!,
             authorName = post.author.name,
-            authorProfileImageUrl = post.author.profileImageUrl,
+            authorProfileImageUrl = authorProfileImageUrl,
             thumbnailUrl = thumbnailUrl,
             category = post.category?.let(CategoryResponse::from),
             isRead = isRead,
