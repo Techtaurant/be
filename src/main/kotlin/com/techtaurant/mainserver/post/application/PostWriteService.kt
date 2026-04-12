@@ -231,6 +231,16 @@ class PostWriteService(
         thumbnailAttachmentId: UUID?,
     ): List<UUID> = (attachmentIds + listOfNotNull(thumbnailAttachmentId)).distinct()
 
+    /**
+     * 게시물 수정 후 최종 썸네일 attachmentId를 결정합니다.
+     * 요청 썸네일이 있으면 그 값을 우선 사용하고, 없으면 본문에 여전히 포함된 기존 썸네일을 유지합니다.
+     * 둘 다 없으면 본문에 남아 있는 첫 번째 attachment를 썸네일로 사용합니다.
+     *
+     * @param requestThumbnailAttachmentId 수정 요청에서 명시적으로 전달한 썸네일 attachmentId
+     * @param currentThumbnailAttachmentId 게시물에 현재 저장된 썸네일 attachmentId
+     * @param attachmentIdsIncludedInContent 수정 후 본문에 포함된 attachmentId 목록
+     * @return 최종적으로 게시물에 저장할 썸네일 attachmentId, 없으면 null
+     */
     private fun resolveThumbnailAttachmentId(
         requestThumbnailAttachmentId: UUID?,
         currentThumbnailAttachmentId: UUID?,

@@ -17,6 +17,12 @@ interface AttachmentRepository : JpaRepository<Attachment, UUID> {
         referenceType: AttachmentReferenceType,
     ): List<Attachment>
 
+    fun findAllByReferenceIdAndReferenceTypeAndIdNotIn(
+        referenceId: UUID,
+        referenceType: AttachmentReferenceType,
+        attachmentIds: List<UUID>,
+    ): List<Attachment>
+
     fun findAllByReferenceIdInAndReferenceType(
         referenceIds: List<UUID>,
         referenceType: AttachmentReferenceType,
