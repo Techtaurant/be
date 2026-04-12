@@ -188,9 +188,16 @@ class AttachmentService(
         referenceType: AttachmentReferenceType,
         keepAttachmentIds: List<UUID>,
     ) {
-        val attachments = attachmentRepository.findAllByReferenceIdAndReferenceType(referenceId, referenceType)
-        val keepAttachmentIdSet = keepAttachmentIds.toSet()
-        val orphaned = attachments.filter { attachment -> attachment.id !in keepAttachmentIdSet }
+        val orphaned =
+            if (keepAttachmentIds.isEmpty()) {
+                attachmentRepository.findAllByReferenceIdAndReferenceType(referenceId, referenceType)
+            } else {
+                attachmentRepository.findAllByReferenceIdAndReferenceTypeAndIdNotIn(
+                    referenceId = referenceId,
+                    referenceType = referenceType,
+                    attachmentIds = keepAttachmentIds.distinct(),
+                )
+            }
         if (orphaned.isEmpty()) return
 
         s3StorageService.deleteObjects(orphaned.map { it.objectKey })

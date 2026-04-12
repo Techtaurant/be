@@ -334,8 +334,12 @@ class AttachmentServiceTest {
             val orphanAttachment = makeAttachment("posts/$postId/uuid2/orphan.jpg")
 
             every {
-                attachmentRepository.findAllByReferenceIdAndReferenceType(postId, AttachmentReferenceType.POST)
-            } returns listOf(keepAttachment, orphanAttachment)
+                attachmentRepository.findAllByReferenceIdAndReferenceTypeAndIdNotIn(
+                    postId,
+                    AttachmentReferenceType.POST,
+                    listOf(keepAttachment.id!!),
+                )
+            } returns listOf(orphanAttachment)
             every { s3StorageService.deleteObjects(any()) } just runs
             every { attachmentRepository.deleteAll(any<List<Attachment>>()) } just runs
 
@@ -358,8 +362,12 @@ class AttachmentServiceTest {
             val keepAttachment = makeAttachment("posts/$postId/uuid1/keep.jpg")
 
             every {
-                attachmentRepository.findAllByReferenceIdAndReferenceType(postId, AttachmentReferenceType.POST)
-            } returns listOf(keepAttachment)
+                attachmentRepository.findAllByReferenceIdAndReferenceTypeAndIdNotIn(
+                    postId,
+                    AttachmentReferenceType.POST,
+                    listOf(keepAttachment.id!!),
+                )
+            } returns emptyList()
 
             // when
             attachmentService.deleteOrphanedAttachmentsByIds(
@@ -370,6 +378,36 @@ class AttachmentServiceTest {
 
             // then
             verify(exactly = 0) { s3StorageService.deleteObjects(any()) }
+        }
+
+        @Test
+        @DisplayName("keepAttachmentIds가 비어 있으면 reference에 연결된 첨부를 모두 orphan으로 조회한다")
+        fun deleteOrphanedAttachmentsByIds_withoutKeepIds_loadsAllAttachments() {
+            // given
+            val orphanAttachment = makeAttachment("posts/$postId/uuid2/orphan.jpg")
+
+            every {
+                attachmentRepository.findAllByReferenceIdAndReferenceType(postId, AttachmentReferenceType.POST)
+            } returns listOf(orphanAttachment)
+            every { s3StorageService.deleteObjects(any()) } just runs
+            every { attachmentRepository.deleteAll(any<List<Attachment>>()) } just runs
+
+            // when
+            attachmentService.deleteOrphanedAttachmentsByIds(
+                postId,
+                AttachmentReferenceType.POST,
+                emptyList(),
+            )
+
+            // then
+            verify {
+                attachmentRepository.findAllByReferenceIdAndReferenceType(postId, AttachmentReferenceType.POST)
+            }
+            verify(exactly = 0) {
+                attachmentRepository.findAllByReferenceIdAndReferenceTypeAndIdNotIn(any(), any(), any())
+            }
+            verify { s3StorageService.deleteObjects(listOf(orphanAttachment.objectKey)) }
+            verify { attachmentRepository.deleteAll(listOf(orphanAttachment)) }
         }
     }
 
