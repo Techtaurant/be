@@ -238,6 +238,52 @@ class PostWriteServiceAttachmentTest {
         }
 
         @Test
+        @DisplayName("thumbnailAttachmentId가 없어도 기존 thumbnailImage가 본문에 없으면 orphan으로 정리한다")
+        fun updatePost_withoutThumbnailAttachmentId_deletesCurrentThumbnailWhenRemovedFromContent() {
+            // given
+            val postId = UUID.randomUUID()
+            val currentThumbnailAttachmentId = UUID.randomUUID()
+            val remainingAttachmentId = UUID.randomUUID()
+            val post =
+                Post(
+                    title = "기존 제목",
+                    content = "기존 본문",
+                    author = author,
+                    thumbnailImage = currentThumbnailAttachmentId,
+                    status = PostStatusEnum.PUBLISHED,
+                ).apply { id = postId }
+
+            every { postRepository.findPostByIdWithAuthor(postId) } returns post
+
+            val request =
+                UpdatePostRequest(
+                    content = "<img src=\"$remainingAttachmentId\" />",
+                    attachmentIds = listOf(remainingAttachmentId),
+                    status = PostStatusEnum.PUBLISHED,
+                )
+
+            // when
+            postWriteService.updatePost(postId, request, author.id!!)
+
+            // then
+            assertThat(post.thumbnailImage).isEqualTo(remainingAttachmentId)
+            verify {
+                attachmentService.confirmAttachmentsByIds(
+                    postId,
+                    AttachmentReferenceType.POST,
+                    listOf(remainingAttachmentId),
+                )
+            }
+            verify {
+                attachmentService.deleteOrphanedAttachmentsByIds(
+                    postId,
+                    AttachmentReferenceType.POST,
+                    listOf(remainingAttachmentId),
+                )
+            }
+        }
+
+        @Test
         @DisplayName("수정 시 thumbnailAttachmentId를 별도로 전달하면 본문 첨부와 함께 confirm하고 유지한다")
         fun updatePost_withSeparateThumbnailAttachment_confirmsAndKeepsThumbnail() {
             // given

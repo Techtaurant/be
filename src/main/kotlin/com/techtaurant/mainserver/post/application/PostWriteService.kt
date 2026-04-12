@@ -150,24 +150,32 @@ class PostWriteService(
 
         val newStatus = request.status ?: post.status
         if (newStatus != PostStatusEnum.DRAFT) {
-            val attachmentIds =
+            val attachmentIdsIncludedInContent =
                 mergeAttachmentIds(
                     filterAttachmentIdsIncludedInContent(savedPost.content, request.attachmentIds),
                     request.thumbnailAttachmentId,
                 )
+            val thumbnailAttachmentId =
+                resolveThumbnailAttachmentId(
+                    requestThumbnailAttachmentId = request.thumbnailAttachmentId,
+                    currentThumbnailAttachmentId = post.thumbnailImage,
+                    attachmentIdsIncludedInContent = attachmentIdsIncludedInContent,
+                )
+            val keepAttachmentIds = mergeAttachmentIds(attachmentIdsIncludedInContent, thumbnailAttachmentId)
+
             attachmentService.confirmAttachmentsByIds(
                 referenceId = postId,
                 referenceType = AttachmentReferenceType.POST,
-                attachmentIds = attachmentIds,
+                attachmentIds = keepAttachmentIds,
             )
 
             attachmentService.deleteOrphanedAttachmentsByIds(
                 referenceId = postId,
                 referenceType = AttachmentReferenceType.POST,
-                keepAttachmentIds = mergeAttachmentIds(attachmentIds, post.thumbnailImage),
+                keepAttachmentIds = keepAttachmentIds,
             )
 
-            post.thumbnailImage = request.thumbnailAttachmentId ?: post.thumbnailImage ?: attachmentIds.firstOrNull()
+            post.thumbnailImage = thumbnailAttachmentId
         } else {
             post.thumbnailImage = null
         }
@@ -222,6 +230,22 @@ class PostWriteService(
         attachmentIds: List<UUID>,
         thumbnailAttachmentId: UUID?,
     ): List<UUID> = (attachmentIds + listOfNotNull(thumbnailAttachmentId)).distinct()
+
+    private fun resolveThumbnailAttachmentId(
+        requestThumbnailAttachmentId: UUID?,
+        currentThumbnailAttachmentId: UUID?,
+        attachmentIdsIncludedInContent: List<UUID>,
+    ): UUID? {
+        if (requestThumbnailAttachmentId != null) {
+            return requestThumbnailAttachmentId
+        }
+
+        if (currentThumbnailAttachmentId in attachmentIdsIncludedInContent) {
+            return currentThumbnailAttachmentId
+        }
+
+        return attachmentIdsIncludedInContent.firstOrNull()
+    }
 
     /**
      * 카테고리 경로를 파싱하여 해당 카테고리를 반환합니다.
