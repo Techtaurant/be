@@ -17,11 +17,14 @@ data class UserBanListItemResponse(
     val bannedAt: Date,
 ) {
     companion object {
-        fun from(userBan: UserBan): UserBanListItemResponse =
+        fun from(
+            userBan: UserBan,
+            profileImageUrl: String,
+        ): UserBanListItemResponse =
             UserBanListItemResponse(
                 userId = userBan.bannedUser.id!!,
                 name = userBan.bannedUser.name,
-                profileImageUrl = userBan.bannedUser.profileImageUrl,
+                profileImageUrl = profileImageUrl,
                 bannedAt = userBan.createdAt,
             )
     }

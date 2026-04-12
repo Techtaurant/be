@@ -165,3 +165,13 @@ spring:
 - `SPRING_PROFILES_ACTIVE=dev`는 **로컬 개발 환경에서만** 사용
 - Production/Staging 환경에서는 절대로 `dev` 프로파일을 활성화하지 않아야 함
 - CI/CD 파이프라인에서 dev 프로파일이 포함되지 않도록 확인
+
+## User Domain
+
+### User Profile Image 접근 규칙
+
+- `User.profileImageUrl`을 응답 생성 코드에서 직접 읽지 않는다.
+- 사용자 프로필 이미지는 반드시 `User.getProfileImageSource()`와 `UserProfileImageResolver`를 통해 계산한다.
+- 우선순위는 `serviceProfileImageAttachmentId` 기반 presigned URL이 먼저이고, 없거나 URL 생성에 실패하면 `profileImageUrl` fallback을 사용한다.
+- `post`, `comment`, `follow`, `ban`, `user` 응답처럼 사용자 프로필 이미지를 노출하는 모든 경로는 위 규칙을 동일하게 따라야 한다.
+- 새 DTO/서비스를 만들 때도 `user.profileImageUrl` 직접 참조를 추가하지 말고, resolver에서 계산한 값을 DTO에 주입한다.

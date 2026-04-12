@@ -1,14 +1,12 @@
 package com.techtaurant.mainserver.user.application
 
-import com.techtaurant.mainserver.attachment.application.AttachmentService
-import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.user.dto.UserResponse
 import com.techtaurant.mainserver.user.entity.User
 import org.springframework.stereotype.Component
 
 @Component
 class UserResponseAssembler(
-    private val attachmentService: AttachmentService,
+    private val userProfileImageResolver: UserProfileImageResolver,
 ) {
     fun assemble(user: User): UserResponse {
         return assemble(listOf(user)).first()
@@ -19,23 +17,10 @@ class UserResponseAssembler(
             return emptyList()
         }
 
-        val userIds = users.mapNotNull { it.id }
-        val attachmentsByUserId =
-            if (userIds.isNotEmpty()) {
-                attachmentService.getConfirmedAttachmentsByReferenceIds(userIds, AttachmentReferenceType.USER)
-            } else {
-                emptyMap()
-            }
-        val presignedUrlByAttachmentId =
-            attachmentService.generatePresignedDownloadUrlMapByAttachments(
-                attachmentsByUserId.values.flatten(),
-            )
+        val profileImageUrlByUserId = userProfileImageResolver.resolve(users)
 
         return users.map { user ->
-            val profileImageUrl =
-                user.serviceProfileImageAttachmentId
-                    ?.let { presignedUrlByAttachmentId[it] }
-                    ?: user.profileImageUrl
+            val profileImageUrl = user.id?.let { profileImageUrlByUserId[it] } ?: user.getFallbackProfileImageUrl()
             UserResponse.from(user, profileImageUrl)
         }
     }

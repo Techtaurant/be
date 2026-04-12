@@ -5,6 +5,7 @@ import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.user.application.BannedUserMaskingService
 import com.techtaurant.mainserver.user.application.UserBanService
+import com.techtaurant.mainserver.user.application.UserProfileImageResolver
 import org.springframework.stereotype.Component
 import java.util.UUID
 
@@ -12,6 +13,7 @@ import java.util.UUID
 class CommentResponseAssembler(
     private val userBanService: UserBanService,
     private val bannedUserMaskingService: BannedUserMaskingService,
+    private val userProfileImageResolver: UserProfileImageResolver,
 ) {
     fun assemble(
         comments: List<Comment>,
@@ -23,11 +25,22 @@ class CommentResponseAssembler(
         }
 
         val bannedUserIds = userBanService.getBannedUserIds(userId)
+        val authorProfileImageUrlByUserId =
+            userProfileImageResolver.resolve(
+                comments
+                    .filterNot { bannedUserIds.contains(it.author.id) }
+                    .map { it.author }
+                    .distinctBy { it.id },
+            )
 
         return comments.map { comment ->
             val likeStatus = likeStatusMap[comment.id!!] ?: LikeStatus.NONE
             if (!bannedUserIds.contains(comment.author.id)) {
-                CommentListResponse.from(comment, likeStatus)
+                CommentListResponse.from(
+                    comment = comment,
+                    likeStatus = likeStatus,
+                    authorProfileImageUrl = authorProfileImageUrlByUserId[comment.author.id] ?: comment.author.getFallbackProfileImageUrl(),
+                )
             } else {
                 CommentListResponse.fromMasked(
                     comment = comment,

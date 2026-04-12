@@ -45,6 +45,7 @@ data class CommentListResponse(
         fun from(
             comment: Comment,
             likeStatus: LikeStatus = LikeStatus.NONE,
+            authorProfileImageUrl: String,
         ): CommentListResponse {
             return CommentListResponse(
                 id = comment.id!!,
@@ -52,7 +53,7 @@ data class CommentListResponse(
                 postId = comment.post.id!!,
                 authorId = comment.author.id!!,
                 authorName = comment.author.name,
-                authorProfileImageUrl = comment.author.profileImageUrl,
+                authorProfileImageUrl = authorProfileImageUrl,
                 parentId = comment.parent?.id,
                 depth = comment.depth,
                 likeCount = comment.likeCount,

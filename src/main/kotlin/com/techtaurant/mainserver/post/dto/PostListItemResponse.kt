@@ -50,14 +50,17 @@ data class PostListItemResponse(
             message = "Use PostListReadService.convertToResponse() instead",
             level = DeprecationLevel.WARNING,
         )
-        fun from(post: Post): PostListItemResponse =
+        fun from(
+            post: Post,
+            authorProfileImageUrl: String,
+        ): PostListItemResponse =
             PostListItemResponse(
                 id = post.id!!,
                 title = post.title,
                 content = post.content.take(2000),
                 authorId = post.author.id!!,
                 authorName = post.author.name,
-                authorProfileImageUrl = post.author.profileImageUrl,
+                authorProfileImageUrl = authorProfileImageUrl,
                 thumbnailUrl = "",
                 category = post.category?.let(CategoryResponse::from),
                 isRead = false,

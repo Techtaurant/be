@@ -13,6 +13,7 @@ import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
+import com.techtaurant.mainserver.user.application.UserProfileImageResolver
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
 import io.mockk.every
@@ -30,6 +31,7 @@ class PostListReadServiceTest {
     private val postRepository: PostRepository = mockk()
     private val postReadLogRepository: PostReadLogRepository = mockk()
     private val attachmentService: AttachmentService = mockk()
+    private val userProfileImageResolver = UserProfileImageResolver(attachmentService)
     private val defaultThumbnailUrl = "/static/images/post-thumbnail.png"
     private val baseUrl = "http://localhost:8080"
 
@@ -38,6 +40,7 @@ class PostListReadServiceTest {
             postRepository = postRepository,
             postReadLogRepository = postReadLogRepository,
             attachmentService = attachmentService,
+            userProfileImageResolver = userProfileImageResolver,
             defaultThumbnailUrl = defaultThumbnailUrl,
             baseUrl = baseUrl,
         )
@@ -101,6 +104,20 @@ class PostListReadServiceTest {
             this.createdAt = createdAt
         }
 
+    private fun createUserProfileAttachment(
+        userId: UUID,
+        attachmentId: UUID,
+    ): Attachment =
+        Attachment(
+            referenceId = userId,
+            referenceType = AttachmentReferenceType.USER,
+            objectKey = "users/$userId/$attachmentId/profile.png",
+            status = AttachmentStatus.CONFIRMED,
+            originalFileName = "profile.png",
+            contentType = "image/png",
+            fileSize = 1024L,
+        ).apply { id = attachmentId }
+
     private fun createCategory(
         user: User,
         name: String = "백엔드",
@@ -124,6 +141,10 @@ class PostListReadServiceTest {
             every {
                 attachmentService.getConfirmedAttachmentsByReferenceIds(any(), AttachmentReferenceType.POST)
             } returns emptyMap()
+            every {
+                attachmentService.getConfirmedAttachmentsByReferenceIds(any(), AttachmentReferenceType.USER)
+            } returns emptyMap()
+            every { attachmentService.generatePresignedDownloadUrlMapByAttachments(emptyList()) } returns emptyMap()
         }
 
         @Test
@@ -327,6 +348,10 @@ class PostListReadServiceTest {
             every {
                 attachmentService.getConfirmedAttachmentsByReferenceIds(any(), AttachmentReferenceType.POST)
             } returns emptyMap()
+            every {
+                attachmentService.getConfirmedAttachmentsByReferenceIds(any(), AttachmentReferenceType.USER)
+            } returns emptyMap()
+            every { attachmentService.generatePresignedDownloadUrlMapByAttachments(emptyList()) } returns emptyMap()
         }
 
         @Test
@@ -636,6 +661,46 @@ class PostListReadServiceTest {
             assertThat(response.category!!.name).isEqualTo(category.name)
             assertThat(response.category!!.path).isEqualTo(category.path)
             assertThat(response.category!!.depth).isEqualTo(category.depth)
+        }
+
+        @Test
+        @DisplayName("서비스 프로필 이미지 attachment가 있으면 작성자 프로필 이미지에 presigned URL을 사용한다")
+        fun getPosts_serviceProfileImageAttachment_usesPresignedAuthorProfileImageUrl() {
+            val attachmentId = UUID.randomUUID()
+            otherUser.serviceProfileImageAttachmentId = attachmentId
+            val posts = listOf(createPost(otherUser))
+            val profileAttachment = createUserProfileAttachment(otherUser.id!!, attachmentId)
+
+            every {
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 21,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.LATEST,
+                    authorId = otherUser.id!!,
+                    statuses = listOf(PostStatusEnum.PUBLISHED),
+                    categoryId = null,
+                    tagIds = null,
+                    viewerId = null,
+                )
+            } returns posts
+            every {
+                attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(otherUser.id!!), AttachmentReferenceType.USER)
+            } returns mapOf(otherUser.id!! to listOf(profileAttachment))
+            every {
+                attachmentService.generatePresignedDownloadUrlMapByAttachments(listOf(profileAttachment))
+            } returns mapOf(attachmentId to "https://cdn.example.com/authors/other-user.png")
+
+            val result =
+                postListReadService.getPosts(
+                    cursor = null,
+                    size = 20,
+                    currentUserId = null,
+                    authorId = otherUser.id!!,
+                )
+
+            assertThat(result.content.single().authorProfileImageUrl)
+                .isEqualTo("https://cdn.example.com/authors/other-user.png")
         }
     }
 }

@@ -31,4 +31,10 @@ class User(
     var profileImageUrl: String,
     @Column(name = "service_profile_image_attachment_id")
     var serviceProfileImageAttachmentId: UUID? = null,
-) : EntityBase()
+) : EntityBase() {
+    fun getProfileImageSource(): UserProfileImageSource =
+        serviceProfileImageAttachmentId?.let(UserProfileImageSource::ServiceAttachment)
+            ?: UserProfileImageSource.Url(profileImageUrl)
+
+    fun getFallbackProfileImageUrl(): String = profileImageUrl
+}

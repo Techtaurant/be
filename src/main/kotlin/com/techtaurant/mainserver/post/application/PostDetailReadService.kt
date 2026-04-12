@@ -11,6 +11,7 @@ import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
+import com.techtaurant.mainserver.user.application.UserProfileImageResolver
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -27,6 +28,7 @@ class PostDetailReadService(
     private val postLikeLogRepository: PostLikeLogRepository,
     private val postReadLogRepository: PostReadLogRepository,
     private val attachmentService: AttachmentService,
+    private val userProfileImageResolver: UserProfileImageResolver,
 ) {
     /**
      * 게시물 상세 정보를 조회합니다.
@@ -84,7 +86,14 @@ class PostDetailReadService(
                 .map { (attachmentId, presignedUrl) ->
                     PostDetailAttachmentPresignedUrlResponse.from(attachmentId, presignedUrl)
                 }
+        val authorProfileImageUrl = userProfileImageResolver.resolve(post.author)
 
-        return PostDetailResponse.from(post, likeStatus, isRead, attachmentPresignedUrls = attachmentPresignedUrls)
+        return PostDetailResponse.from(
+            post = post,
+            likeStatus = likeStatus,
+            isRead = isRead,
+            authorProfileImageUrl = authorProfileImageUrl,
+            attachmentPresignedUrls = attachmentPresignedUrls,
+        )
     }
 }

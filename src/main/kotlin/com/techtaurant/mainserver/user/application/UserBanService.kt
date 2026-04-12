@@ -18,6 +18,7 @@ class UserBanService(
     private val userRepository: UserRepository,
     private val userBanRepository: UserBanRepository,
     private val userFollowService: UserFollowService,
+    private val userProfileImageResolver: UserProfileImageResolver,
 ) {
     @Transactional
     fun banUser(
@@ -62,8 +63,15 @@ class UserBanService(
     }
 
     fun getBannedUsers(userId: UUID): List<UserBanListItemResponse> {
-        return userBanRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
-            .map(UserBanListItemResponse::from)
+        val userBans = userBanRepository.findAllByUserIdOrderByCreatedAtDesc(userId)
+        val profileImageUrlByUserId = userProfileImageResolver.resolve(userBans.map { it.bannedUser })
+
+        return userBans.map {
+            UserBanListItemResponse.from(
+                userBan = it,
+                profileImageUrl = profileImageUrlByUserId[it.bannedUser.id] ?: it.bannedUser.getFallbackProfileImageUrl(),
+            )
+        }
     }
 
     fun getBannedUserIds(userId: UUID?): Set<UUID> {
