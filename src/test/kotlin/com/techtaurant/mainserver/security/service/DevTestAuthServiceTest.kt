@@ -52,7 +52,7 @@ class DevTestAuthServiceTest {
     @DisplayName("dev 테스트 사용자가 없으면 유니크 닉네임 정책으로 새 사용자를 생성한다")
     fun `create dev test user with unique name policy`() {
         val identifier = "dev-user"
-        val request = DevTestLoginRequest(identifier = identifier, password = "dev-password")
+        val request = DevTestLoginRequest(identifier = identifier, password = "dev-password", role = UserRole.ADMIN)
         val response = mockk<HttpServletResponse>(relaxed = true)
         val userId = UUID.randomUUID()
         val createdUser =
@@ -61,7 +61,7 @@ class DevTestAuthServiceTest {
                 email = "$identifier@dev.local",
                 provider = OAuthProvider.DEV_LOCAL,
                 identifier = identifier,
-                role = UserRole.USER,
+                role = UserRole.ADMIN,
                 profileImageUrl = "",
             ).apply {
                 id = userId
@@ -69,7 +69,7 @@ class DevTestAuthServiceTest {
 
         every { userRepository.findByIdentifierAndProvider(identifier, OAuthProvider.DEV_LOCAL) } returns null
         every { userUniqueNameService.saveNewUser(any()) } returns createdUser
-        every { jwtTokenProvider.createAccessToken(userId, UserRole.USER) } returns "access-token"
+        every { jwtTokenProvider.createAccessToken(userId, UserRole.ADMIN) } returns "access-token"
         every { jwtTokenProvider.createRefreshToken(userId) } returns "refresh-token"
 
         val result = devTestAuthService.execute(request, response)
@@ -81,6 +81,7 @@ class DevTestAuthServiceTest {
                 withArg {
                     assertEquals(identifier, it.name)
                     assertEquals("$identifier@dev.local", it.email)
+                    assertEquals(UserRole.ADMIN, it.role)
                 },
             )
         }
@@ -101,5 +102,36 @@ class DevTestAuthServiceTest {
             )
         }
         verify { tokenCacheManager.saveRefreshToken(userId.toString(), "refresh-token") }
+    }
+
+    @Test
+    @DisplayName("기존 dev 테스트 사용자는 요청한 권한으로 갱신한다")
+    fun `update existing dev test user role`() {
+        val identifier = "existing-user"
+        val request = DevTestLoginRequest(identifier = identifier, password = "dev-password", role = UserRole.ADMIN)
+        val response = mockk<HttpServletResponse>(relaxed = true)
+        val userId = UUID.randomUUID()
+        val existingUser =
+            User(
+                name = identifier,
+                email = "$identifier@dev.local",
+                provider = OAuthProvider.DEV_LOCAL,
+                identifier = identifier,
+                role = UserRole.USER,
+                profileImageUrl = "",
+            ).apply {
+                id = userId
+            }
+
+        every { userRepository.findByIdentifierAndProvider(identifier, OAuthProvider.DEV_LOCAL) } returns existingUser
+        every { jwtTokenProvider.createAccessToken(userId, UserRole.ADMIN) } returns "access-token"
+        every { jwtTokenProvider.createRefreshToken(userId) } returns "refresh-token"
+
+        val result = devTestAuthService.execute(request, response)
+
+        assertEquals(UserRole.ADMIN, existingUser.role)
+        assertEquals("access-token", result.accessToken)
+        assertEquals("refresh-token", result.refreshToken)
+        verify(exactly = 0) { userUniqueNameService.saveNewUser(any()) }
     }
 }

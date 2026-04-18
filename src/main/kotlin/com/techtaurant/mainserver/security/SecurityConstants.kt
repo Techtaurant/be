@@ -5,4 +5,5 @@ object SecurityConstants {
 
     const val OPEN_API_PREFIX = "/open-api"
     const val API_PREFIX = "/api"
+    const val ADMIN_API_PREFIX = "/admin"
 }

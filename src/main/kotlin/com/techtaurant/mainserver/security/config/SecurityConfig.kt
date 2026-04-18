@@ -61,6 +61,9 @@ class SecurityConfig(
                         "${SecurityConstants.OPEN_API_PREFIX}/**",
                     ).permitAll()
                     .requestMatchers(
+                        "${SecurityConstants.ADMIN_API_PREFIX}/**",
+                    ).hasAuthority(UserRole.ADMIN.key)
+                    .requestMatchers(
                         "${SecurityConstants.API_PREFIX}/**",
                     ).hasAnyAuthority(
                         UserRole.ADMIN.key,

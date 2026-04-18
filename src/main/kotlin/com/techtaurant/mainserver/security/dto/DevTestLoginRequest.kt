@@ -1,5 +1,6 @@
 package com.techtaurant.mainserver.security.dto
 
+import com.techtaurant.mainserver.user.enums.UserRole
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.NotBlank
 
@@ -8,6 +9,7 @@ import jakarta.validation.constraints.NotBlank
  *
  * @property identifier 테스트 사용자 식별자
  * @property password 개발 환경 고정 비밀번호 (dev-password)
+ * @property role 테스트 사용자 권한, 기본값은 USER
  */
 @Schema(description = "개발 환경 테스트 로그인 요청")
 data class DevTestLoginRequest(
@@ -17,4 +19,6 @@ data class DevTestLoginRequest(
     @field:NotBlank(message = "비밀번호는 필수입니다")
     @field:Schema(description = "개발 환경 비밀번호", example = "dev-password")
     val password: String,
+    @field:Schema(description = "테스트 사용자 권한", example = "USER", allowableValues = ["USER", "ADMIN"], defaultValue = "USER")
+    val role: UserRole = UserRole.USER,
 )
