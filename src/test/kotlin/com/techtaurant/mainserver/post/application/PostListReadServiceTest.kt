@@ -20,6 +20,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -36,13 +37,26 @@ class PostListReadServiceTest {
     private val baseUrl = "http://localhost:8080"
 
     private val postListReadService =
+        createPostListReadService()
+
+    private fun createPostListReadService(
+        postListQueryStrategies: List<PostListQueryStrategy> = createPostListQueryStrategies(),
+    ) =
         PostListReadService(
             postRepository = postRepository,
             postReadLogRepository = postReadLogRepository,
             attachmentService = attachmentService,
             userProfileImageResolver = userProfileImageResolver,
+            postListQueryStrategies = postListQueryStrategies,
             defaultThumbnailUrl = defaultThumbnailUrl,
             baseUrl = baseUrl,
+        )
+
+    private fun createPostListQueryStrategies(): List<PostListQueryStrategy> =
+        listOf(
+            AllVisiblePostsQueryStrategy(postRepository),
+            OwnVisiblePostsQueryStrategy(postRepository),
+            AuthorPublicPostsQueryStrategy(postRepository),
         )
 
     private lateinit var testUser: User
@@ -132,6 +146,40 @@ class PostListReadServiceTest {
             depth = depth,
             parent = parent,
         ).apply { id = UUID.randomUUID() }
+
+    @Test
+    @DisplayName("게시물 목록 조회 전략이 누락되면 서비스 생성에 실패한다")
+    fun constructor_missingStrategy_throwsException() {
+        assertThatThrownBy {
+            createPostListReadService(
+                postListQueryStrategies =
+                    listOf(
+                        AllVisiblePostsQueryStrategy(postRepository),
+                        OwnVisiblePostsQueryStrategy(postRepository),
+                    ),
+            )
+        }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("누락")
+    }
+
+    @Test
+    @DisplayName("게시물 목록 조회 전략이 중복되면 서비스 생성에 실패한다")
+    fun constructor_duplicateStrategy_throwsException() {
+        assertThatThrownBy {
+            createPostListReadService(
+                postListQueryStrategies =
+                    listOf(
+                        AllVisiblePostsQueryStrategy(postRepository),
+                        AllVisiblePostsQueryStrategy(postRepository),
+                        OwnVisiblePostsQueryStrategy(postRepository),
+                        AuthorPublicPostsQueryStrategy(postRepository),
+                    ),
+            )
+        }
+            .isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("중복")
+    }
 
     @Nested
     @DisplayName("getPosts")
@@ -355,8 +403,8 @@ class PostListReadServiceTest {
         }
 
         @Test
-        @DisplayName("본인 조회 시 모든 상태(DRAFT, PUBLISHED, PRIVATE)로 Repository를 호출한다")
-        fun getPosts_ownPosts_queriesAllStatuses() {
+        @DisplayName("본인 조회 시 DRAFT를 제외한 공개 가능 상태만 Repository에 전달한다")
+        fun getPosts_ownPosts_excludesDraftStatus() {
             // given
             val posts = listOf(createPost(testUser))
             every {
@@ -366,7 +414,7 @@ class PostListReadServiceTest {
                     period = PostPeriod.ALL,
                     sortType = PostSortType.LATEST,
                     authorId = testUser.id!!,
-                    statuses = PostStatusEnum.entries,
+                    statuses = listOf(PostStatusEnum.PUBLISHED, PostStatusEnum.PRIVATE),
                     categoryId = null,
                     tagIds = null,
                     viewerId = testUser.id!!,
@@ -392,10 +440,56 @@ class PostListReadServiceTest {
                     period = PostPeriod.ALL,
                     sortType = PostSortType.LATEST,
                     authorId = testUser.id!!,
-                    statuses = PostStatusEnum.entries,
+                    statuses = listOf(PostStatusEnum.PUBLISHED, PostStatusEnum.PRIVATE),
                     categoryId = null,
                     tagIds = null,
                     viewerId = testUser.id!!,
+                )
+            }
+        }
+
+        @Test
+        @DisplayName("본인 조회 시 Repository 상태 필터에 DRAFT가 포함되지 않는다")
+        fun getPosts_ownPosts_doesNotPassDraftStatus() {
+            // given
+            val posts = listOf(createPost(testUser, status = PostStatusEnum.PRIVATE))
+            every {
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 21,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.LATEST,
+                    authorId = testUser.id!!,
+                    statuses = listOf(PostStatusEnum.PUBLISHED, PostStatusEnum.PRIVATE),
+                    categoryId = null,
+                    tagIds = null,
+                    viewerId = testUser.id!!,
+                )
+            } returns posts
+            every {
+                postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
+            } returns emptyList()
+
+            // when
+            postListReadService.getPosts(
+                cursor = null,
+                size = 20,
+                currentUserId = testUser.id!!,
+                authorId = testUser.id!!,
+            )
+
+            // then
+            verify(exactly = 0) {
+                postRepository.findPostsWithConditions(
+                    cursor = any(),
+                    size = any(),
+                    period = any(),
+                    sortType = any(),
+                    authorId = testUser.id!!,
+                    statuses = match { PostStatusEnum.DRAFT in it },
+                    categoryId = any(),
+                    tagIds = any(),
+                    viewerId = any(),
                 )
             }
         }
@@ -522,7 +616,7 @@ class PostListReadServiceTest {
                     period = PostPeriod.ALL,
                     sortType = PostSortType.LATEST,
                     authorId = testUser.id!!,
-                    statuses = PostStatusEnum.entries,
+                    statuses = listOf(PostStatusEnum.PUBLISHED, PostStatusEnum.PRIVATE),
                     categoryId = null,
                     tagIds = null,
                     viewerId = testUser.id!!,
@@ -559,7 +653,7 @@ class PostListReadServiceTest {
                     period = PostPeriod.ALL,
                     sortType = PostSortType.LATEST,
                     authorId = testUser.id!!,
-                    statuses = PostStatusEnum.entries,
+                    statuses = listOf(PostStatusEnum.PUBLISHED, PostStatusEnum.PRIVATE),
                     categoryId = null,
                     tagIds = null,
                     viewerId = testUser.id!!,

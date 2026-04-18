@@ -293,7 +293,7 @@ class PostRepositoryCustomImplTest : IntegrationTest() {
     @DisplayName("visibleToUserId 필터링")
     inner class VisibleToUserIdFilter {
         @Test
-        @DisplayName("visibleToUserId 지정 시 PUBLISHED + 해당 사용자의 모든 상태 게시물을 반환한다")
+        @DisplayName("visibleToUserId 지정 시 PUBLISHED + 해당 사용자의 PRIVATE 게시물을 반환한다")
         fun findPostsWithConditions_withVisibleToUserId_returnsPublishedAndOwnPosts() {
             // given
             val publishedByA = createPost(userA, PostStatusEnum.PUBLISHED)
@@ -317,10 +317,10 @@ class PostRepositoryCustomImplTest : IntegrationTest() {
             val resultIds = result.map { it.id }.toSet()
             assertThat(resultIds).containsExactlyInAnyOrder(
                 publishedByA.id,
-                draftByA.id,
                 privateByA.id,
                 publishedByB.id,
             )
+            assertThat(resultIds).doesNotContain(draftByA.id)
         }
 
         @Test
@@ -357,6 +357,7 @@ class PostRepositoryCustomImplTest : IntegrationTest() {
             // given
             val publishedByA = createPost(userA, PostStatusEnum.PUBLISHED)
             val draftByA = createPost(userA, PostStatusEnum.DRAFT)
+            val privateByA = createPost(userA, PostStatusEnum.PRIVATE)
             val publishedByB = createPost(userB, PostStatusEnum.PUBLISHED)
             createPost(userB, PostStatusEnum.DRAFT)
 
@@ -375,9 +376,10 @@ class PostRepositoryCustomImplTest : IntegrationTest() {
             val resultIds = result.map { it.id }.toSet()
             assertThat(resultIds).containsExactlyInAnyOrder(
                 publishedByA.id,
-                draftByA.id,
+                privateByA.id,
                 publishedByB.id,
             )
+            assertThat(resultIds).doesNotContain(draftByA.id)
         }
 
         @Test
