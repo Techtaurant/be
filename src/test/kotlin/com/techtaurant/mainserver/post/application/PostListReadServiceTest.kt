@@ -39,9 +39,7 @@ class PostListReadServiceTest {
     private val postListReadService =
         createPostListReadService()
 
-    private fun createPostListReadService(
-        postListQueryStrategies: List<PostListQueryStrategy> = createPostListQueryStrategies(),
-    ) =
+    private fun createPostListReadService(postListQueryStrategies: List<PostListQueryStrategy> = createPostListQueryStrategies()) =
         PostListReadService(
             postRepository = postRepository,
             postReadLogRepository = postReadLogRepository,
