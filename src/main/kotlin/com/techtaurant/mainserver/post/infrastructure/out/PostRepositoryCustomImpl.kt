@@ -65,8 +65,12 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
 
         if (visibleToUserId != null) {
             val publishedPredicate = cb.equal(root.get(Post_.status), PostStatusEnum.PUBLISHED)
-            val ownPostPredicate = cb.equal(root.get(Post_.author).get(EntityBase_.id), visibleToUserId)
-            predicates.add(cb.or(publishedPredicate, ownPostPredicate))
+            val ownPrivatePostPredicate =
+                cb.and(
+                    cb.equal(root.get(Post_.author).get(EntityBase_.id), visibleToUserId),
+                    cb.equal(root.get(Post_.status), PostStatusEnum.PRIVATE),
+                )
+            predicates.add(cb.or(publishedPredicate, ownPrivatePostPredicate))
         } else if (statuses != null) {
             predicates.add(root.get(Post_.status).`in`(statuses))
         } else {

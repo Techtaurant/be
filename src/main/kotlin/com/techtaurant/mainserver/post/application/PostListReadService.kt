@@ -12,7 +12,6 @@ import com.techtaurant.mainserver.post.dto.PostListTagResponse
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
-import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.user.application.UserProfileImageResolver
@@ -33,6 +32,7 @@ class PostListReadService(
     private val postReadLogRepository: PostReadLogRepository,
     private val attachmentService: AttachmentService,
     private val userProfileImageResolver: UserProfileImageResolver,
+    postListQueryStrategies: List<PostListQueryStrategy>,
     @param:Value("\${app.default-post-thumbnail-url}")
     private val defaultThumbnailUrl: String,
     @param:Value("\${swagger.base-url}")
@@ -43,11 +43,13 @@ class PostListReadService(
         private const val POST_LIST_CONTENT_MAX_LENGTH = 2000
     }
 
+    private val postListQueryStrategyByType = createPostListQueryStrategyByType(postListQueryStrategies)
+
     /**
      * 게시물 목록을 커서 기반 페이지네이션으로 조회
      *
-     * authorId 지정 시 해당 사용자의 게시물만 조회하며, 본인 조회 시 DRAFT/PRIVATE 포함, 타인 조회 시 PUBLISHED만 반환.
-     * authorId 미지정 시 전체 게시물 조회 (로그인 사용자의 DRAFT/PRIVATE 포함).
+     * authorId 지정 시 해당 사용자의 게시물만 조회하며, 본인 조회 시 PUBLISHED/PRIVATE 포함, 타인 조회 시 PUBLISHED만 반환.
+     * authorId 미지정 시 전체 게시물 조회하며, open-api 목록에서는 DRAFT를 제외합니다.
      *
      * @param cursor 이전 응답의 nextCursor (null이면 첫 페이지)
      * @param size 페이지 크기
@@ -81,36 +83,18 @@ class PostListReadService(
             )
         }
 
-        val posts =
-            if (authorId != null) {
-                val statuses =
-                    if (currentUserId == authorId) {
-                        PostStatusEnum.entries
-                    } else {
-                        listOf(PostStatusEnum.PUBLISHED)
-                    }
-                postRepository.findPostsWithConditions(
-                    cursor = postCursor,
-                    size = size + 1,
-                    period = period,
-                    sortType = sortType,
-                    authorId = authorId,
-                    statuses = statuses,
-                    categoryId = categoryId,
-                    tagIds = normalizedTagIds,
-                    viewerId = currentUserId,
-                )
-            } else {
-                postRepository.findPostsWithConditions(
-                    cursor = postCursor,
-                    size = size + 1,
-                    period = period,
-                    sortType = sortType,
-                    visibleToUserId = currentUserId,
-                    tagIds = normalizedTagIds,
-                    viewerId = currentUserId,
-                )
-            }
+        val postListQueryCriteria =
+            PostListQueryCriteria(
+                cursor = postCursor,
+                size = size,
+                period = period,
+                sortType = sortType,
+                currentUserId = currentUserId,
+                authorId = authorId,
+                categoryId = categoryId,
+                tagIds = normalizedTagIds,
+            )
+        val posts = selectPostListQueryStrategy(postListQueryCriteria).findPosts(postListQueryCriteria)
 
         val hasNext = posts.size > size
         val content = posts.take(size)
@@ -182,6 +166,24 @@ class PostListReadService(
 
         return normalizedTagIds?.takeIf { it.isNotEmpty() }
     }
+
+    private fun createPostListQueryStrategyByType(strategies: List<PostListQueryStrategy>): Map<PostListQueryType, PostListQueryStrategy> {
+        val strategiesByType = strategies.groupBy { it.queryType }
+        val duplicatedTypes = strategiesByType.filterValues { it.size > 1 }.keys
+        require(duplicatedTypes.isEmpty()) {
+            "게시물 목록 조회 전략이 중복 등록되었습니다: ${duplicatedTypes.joinToString()}"
+        }
+
+        val missingTypes = PostListQueryType.entries.filterNot { strategiesByType.containsKey(it) }
+        require(missingTypes.isEmpty()) {
+            "게시물 목록 조회 전략이 누락되었습니다: ${missingTypes.joinToString()}"
+        }
+
+        return strategiesByType.mapValues { (_, strategyGroup) -> strategyGroup.single() }
+    }
+
+    private fun selectPostListQueryStrategy(criteria: PostListQueryCriteria): PostListQueryStrategy =
+        postListQueryStrategyByType.getValue(criteria.queryType)
 
     /**
      * 현재 사용자의 DRAFT 게시물 목록을 커서 기반으로 조회합니다.

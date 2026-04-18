@@ -116,6 +116,50 @@ class PostReadOpenApiControllerIntegrationTest : IntegrationTest() {
     }
 
     @Test
+    @DisplayName("로그인 사용자가 게시물 목록 조회 시 본인의 DRAFT 게시물은 포함되지 않는다")
+    fun getPosts_loggedInUser_excludesOwnDraftPost() {
+        // given
+        val myDraftPost =
+            postRepository.save(
+                Post(
+                    title = "내 임시 저장 게시물",
+                    content = "임시 저장 내용",
+                    author = testUser,
+                    status = PostStatusEnum.DRAFT,
+                ),
+            )
+        val myPrivatePost =
+            postRepository.save(
+                Post(
+                    title = "내 비공개 게시물",
+                    content = "비공개 내용",
+                    author = testUser,
+                    status = PostStatusEnum.PRIVATE,
+                ),
+            )
+        val myPublishedPost =
+            postRepository.save(
+                Post(
+                    title = "내 공개 게시물",
+                    content = "공개 내용",
+                    author = testUser,
+                    status = PostStatusEnum.PUBLISHED,
+                ),
+            )
+
+        // when & then
+        given()
+            .header("Authorization", "Bearer $accessToken")
+            .`when`()
+            .get("/open-api/posts")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.content.id", not(hasItem(myDraftPost.id.toString())))
+            .body("data.content.id", hasItem(myPrivatePost.id.toString()))
+            .body("data.content.id", hasItem(myPublishedPost.id.toString()))
+    }
+
+    @Test
     @DisplayName("로그인 사용자가 차단한 작성자의 게시물은 목록에서 제외된다")
     fun getPosts_excludesBannedAuthorPosts() {
         // given

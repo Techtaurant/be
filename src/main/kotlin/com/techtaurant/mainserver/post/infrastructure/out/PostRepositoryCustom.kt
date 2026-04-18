@@ -21,7 +21,7 @@ interface PostRepositoryCustom {
      * @param authorId 작성자 ID 필터 (null이면 미적용)
      * @param statuses 게시물 상태 필터 (null이면 PUBLISHED만 조회)
      * @param categoryId 카테고리 ID 필터 (null이면 미적용)
-     * @param visibleToUserId PUBLISHED + 해당 사용자의 모든 상태 게시물 조회 (null이면 미적용, statuses보다 우선)
+     * @param visibleToUserId PUBLISHED + 해당 사용자의 PRIVATE 게시물 조회 (null이면 미적용, statuses보다 우선)
      * @param tagIds 태그 UUID 필터 (여러 개 전달 시 OR 조건)
      * @return 게시물 목록
      */
