@@ -57,7 +57,7 @@ class DevTestAuthService(
     ): DevTestLoginResponse {
         validatePassword(request.password)
 
-        val user = findOrCreateTestUser(request.identifier)
+        val user = findOrCreateTestUser(request)
         val userId = user.id ?: throw ApiException(DefaultStatus.SERVER_ERROR, "테스트 사용자 ID가 없습니다")
 
         val accessToken = jwtTokenProvider.createAccessToken(userId, user.role)
@@ -90,17 +90,22 @@ class DevTestAuthService(
         }
     }
 
-    private fun findOrCreateTestUser(identifier: String): User {
-        return userRepository.findByIdentifierAndProvider(identifier, OAuthProvider.DEV_LOCAL)
-            ?: userUniqueNameService.saveNewUser(
-                User(
-                    name = identifier,
-                    email = "$identifier@dev.local",
-                    provider = OAuthProvider.DEV_LOCAL,
-                    identifier = identifier,
-                    role = UserRole.USER,
-                    profileImageUrl = "",
-                ),
-            )
+    private fun findOrCreateTestUser(request: DevTestLoginRequest): User {
+        val existingUser = userRepository.findByIdentifierAndProvider(request.identifier, OAuthProvider.DEV_LOCAL)
+        if (existingUser != null) {
+            existingUser.role = request.role
+            return existingUser
+        }
+
+        return userUniqueNameService.saveNewUser(
+            User(
+                name = request.identifier,
+                email = "${request.identifier}@dev.local",
+                provider = OAuthProvider.DEV_LOCAL,
+                identifier = request.identifier,
+                role = request.role,
+                profileImageUrl = "",
+            ),
+        )
     }
 }
