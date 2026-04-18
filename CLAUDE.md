@@ -2,6 +2,9 @@
 
 코드 변경 작업 완료 시 반드시 아래를 실행하고 통과해야 한다.
 
+- 커밋 전에는 반드시 `./gradlew spotlessApply`를 먼저 실행한 뒤 변경 사항을 확인하고 커밋한다.
+- `spotlessApply`를 실행하지 않은 상태로 코드 변경을 커밋하지 않는다.
+
 ```bash
 ./gradlew spotlessApply && ./gradlew spotlessCheck
 ```
