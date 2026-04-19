@@ -1,55 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <springProperty scope="context" name="LOG_LEVEL" source="logging.level.root" defaultValue="INFO"/>
-    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="techtaurant-be"/>
-    <springProperty scope="context" name="APP_ENVIRONMENT" source="monitoring.environment" defaultValue="dev"/>
-    <springProperty scope="context" name="LOKI_ENABLED" source="monitoring.logging.loki.enabled" defaultValue="false"/>
-    <springProperty scope="context" name="LOKI_URL" source="monitoring.logging.loki.url" defaultValue="http://localhost:3100/loki/api/v1/push"/>
-    <springProperty scope="context" name="LOKI_BATCH_MAX_ITEMS" source="monitoring.logging.loki.batch-max-items" defaultValue="500"/>
-    <springProperty scope="context" name="LOKI_BATCH_TIMEOUT_MS" source="monitoring.logging.loki.batch-timeout-ms" defaultValue="5000"/>
 
-    <property name="CONSOLE_LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] [traceId=%X{traceId:-}, spanId=%X{spanId:-}, transactionId=%X{transactionId:-}] %logger{36} - %msg%n"/>
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} trace_id=%X{trace_id} span_id=%X{span_id} transactionId=%X{transactionId} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
 
-    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
-    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
-
-    <if condition='property("LOKI_ENABLED").equals("true")'>
-        <then>
-            <appender name="LOKI" class="com.github.loki4j.logback.Loki4jAppender">
-                <labels>
-                    app = ${APP_NAME}
-                    environment = ${APP_ENVIRONMENT}
-                    host = ${HOSTNAME}
-                </labels>
-                <structuredMetadata>
-                    level = %level
-                    logger = %logger
-                    thread = %thread
-                    * = %%mdc{traceId, spanId, transactionId}
-                </structuredMetadata>
-                <message>
-                    <pattern>${CONSOLE_LOG_PATTERN}</pattern>
-                </message>
-                <http>
-                    <url>${LOKI_URL}</url>
-                </http>
-                <batch>
-                    <maxItems>${LOKI_BATCH_MAX_ITEMS}</maxItems>
-                    <timeoutMs>${LOKI_BATCH_TIMEOUT_MS}</timeoutMs>
-                </batch>
-            </appender>
-
-            <root level="${LOG_LEVEL}">
-                <appender-ref ref="CONSOLE"/>
-                <appender-ref ref="LOKI"/>
-            </root>
-        </then>
-        <else>
-            <root level="${LOG_LEVEL}">
-                <appender-ref ref="CONSOLE"/>
-            </root>
-        </else>
-    </if>
-
-    <logger name="org.springframework.boot.autoconfigure.logging" level="${LOG_LEVEL}"/>
+    <root level="${LOG_LEVEL}">
+        <appender-ref ref="CONSOLE"/>
+    </root>
 </configuration>
