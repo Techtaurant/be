@@ -100,7 +100,7 @@ otel:
         exporter: none
     exporter:
         otlp:
-            protocol: http/protobuf
+            protocol: grpc
             endpoint: ${app.otel-collector-endpoint}
     instrumentation:
         logback-appender:
