@@ -49,6 +49,11 @@ decorator:
       # 실제값 한 줄만 출력됨 이거 안하면 ? 쿼리하는 거까지 총 두 줄뜸
       log-format: "%(sql)"
 
+app:
+  environment: ${APP_ENVIRONMENT:dev}
+  otel-collector-endpoint: ${MONITORING_OTEL_EXPORTER_ENDPOINT:http://localhost:4318}
+  default-post-thumbnail-url: /static/images/post-thumbnail.png
+
 # Logging
 logging:
   level:
@@ -67,14 +72,39 @@ management:
   metrics:
     tags:
       application: ${APP_NAME}
-      environment: ${APP_ENVIRONMENT:dev}
+      environment: ${app.environment}
   prometheus:
     metrics:
       export:
         enabled: true
-  tracing:
-    sampling:
-      probability: ${MANAGEMENT_TRACING_SAMPLING_PROBABILITY:1.0}
+
+otel:
+  service:
+    name: techtaurant-be
+  propagators:
+    - tracecontext
+    - baggage
+  resource:
+    attributes:
+      # 예전 Loki label(app, environment)을 OTel resource attribute로 Collector에 전달한다.
+      app: ${APP_NAME:techtaurant-be}
+      environment: ${app.environment}
+      deployment.environment.name: ${app.environment}
+      service.namespace: techtaurant
+  traces:
+    exporter: otlp
+  logs:
+    exporter: otlp
+  metrics:
+    exporter: none
+  exporter:
+    otlp:
+      protocol: http/protobuf
+      endpoint: ${app.otel-collector-endpoint}
+  instrumentation:
+    logback-appender:
+      experimental:
+        capture-mdc-attributes: "*"
 
 # CORS
 cors:
@@ -111,10 +141,6 @@ springdoc:
 swagger:
   base-url: ${SWAGGER_BASE_URL:http://localhost:8080}
 
-# App
-app:
-  default-post-thumbnail-url: /static/images/post-thumbnail.png
-
 # AWS S3
 aws:
   s3:
@@ -123,13 +149,6 @@ aws:
     presigned-url-expire-minutes: ${AWS_S3_PRESIGNED_URL_EXPIRE_MINUTES:15}
 
 monitoring:
-  environment: ${APP_ENVIRONMENT:dev}
   metrics:
     username: ${MONITORING_METRICS_USERNAME:prometheus}
     password: ${MONITORING_METRICS_PASSWORD:change-me-prometheus-password}
-  logging:
-    loki:
-      enabled: ${MONITORING_LOKI_ENABLED:false}
-      url: ${MONITORING_LOKI_URL:http://localhost:3100/loki/api/v1/push}
-      batch-max-items: ${MONITORING_LOKI_BATCH_MAX_ITEMS:500}
-      batch-timeout-ms: ${MONITORING_LOKI_BATCH_TIMEOUT_MS:5000}

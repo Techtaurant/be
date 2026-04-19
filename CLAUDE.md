@@ -8,15 +8,14 @@
 
 ## Terraform 변수 파일 규칙
 
-`techtaurant-infra/dev`, `techtaurant-infra/monitoring` 작업 시 변수 예제와 실제 입력값은 repo root 기준으로 관리한다.
+`techtaurant-infra/dev` 작업 시 변수 예제와 실제 입력값은 스택 디렉터리 기준으로 관리한다.
 
-- 커밋 가능한 예제값은 root `terraform.tfvars.example`에 둔다.
-- 실제 민감값은 root `terraform.tfvars`에만 두고 커밋하지 않는다.
-- 각 스택은 root tfvars를 자동 인식하지 않으므로 반드시 `-var-file=../../terraform.tfvars`를 명시한다.
+- 커밋 가능한 예제값은 `techtaurant-infra/dev/terraform.tfvars.example`에 둔다.
+- 실제 민감값은 `techtaurant-infra/dev/terraform.tfvars`에만 두고 커밋하지 않는다.
+- dev 스택은 자신의 `terraform.tfvars`를 기본 변수 파일로 사용한다.
 
 ```bash
-terraform -chdir=techtaurant-infra/dev plan -var-file=../../terraform.tfvars
-terraform -chdir=techtaurant-infra/monitoring plan -var-file=../../terraform.tfvars
+terraform -chdir=techtaurant-infra/dev plan
 ```
 
 ## Swagger 명세 규칙

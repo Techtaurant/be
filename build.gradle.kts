@@ -13,6 +13,8 @@ group = "com.techtaurant"
 version = "0.0.1-SNAPSHOT"
 description = "main-server"
 
+extra["opentelemetry.version"] = "1.60.1"
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
@@ -24,6 +26,7 @@ repositories {
 }
 
 dependencies {
+    implementation(enforcedPlatform("io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom:2.26.1"))
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-oauth2-client")
     implementation("org.springframework.boot:spring-boot-starter-security")
@@ -85,9 +88,8 @@ dependencies {
 
     // Observability
     implementation("io.micrometer:micrometer-registry-prometheus")
-    implementation("io.micrometer:micrometer-tracing-bridge-brave")
-    implementation("com.github.loki4j:loki-logback-appender:2.0.3")
-    runtimeOnly("org.codehaus.janino:janino:3.1.12")
+    implementation("io.opentelemetry:opentelemetry-api")
+    implementation("io.opentelemetry.instrumentation:opentelemetry-spring-boot-starter")
 
     // AWS SDK v2
     implementation(platform("software.amazon.awssdk:bom:2.25.0"))
