@@ -3,152 +3,153 @@ server:
     port: ${SERVER_PORT:8080}
 
 spring:
-  application:
-    name: ${APP_NAME}
+    application:
+        name: ${APP_NAME}
 
-  datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      maximum-pool-size: 8
-      minimum-idle: 4
-      connection-timeout: 30000
-      idle-timeout: 600000
-      max-lifetime: 1800000
+    datasource:
+        url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME}
+        username: ${DB_USERNAME}
+        password: ${DB_PASSWORD}
+        driver-class-name: org.postgresql.Driver
+        hikari:
+            maximum-pool-size: 8
+            minimum-idle: 4
+            connection-timeout: 30000
+            idle-timeout: 600000
+            max-lifetime: 1800000
 
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+    jpa:
+        hibernate:
+            ddl-auto: validate
+        properties:
+            hibernate:
+                dialect: org.hibernate.dialect.PostgreSQLDialect
 
-  flyway:
-    enabled: true
-    baseline-on-migrate: true
-    locations: classpath:db/migration
+    flyway:
+        enabled: true
+        baseline-on-migrate: true
+        locations: classpath:db/migration
 
-  security:
-    oauth2:
-      client:
-        registration:
-          google:
-            client-id: ${GOOGLE_CLIENT_ID}
-            client-secret: ${GOOGLE_CLIENT_SECRET}
-            scope:
-              - email
-              - profile
+    security:
+        oauth2:
+            client:
+                registration:
+                    google:
+                        client-id: ${GOOGLE_CLIENT_ID}
+                        client-secret: ${GOOGLE_CLIENT_SECRET}
+                        scope:
+                            - email
+                            - profile
 decorator:
-  datasource:
-    p6spy:
-      enable-logging: true
-      multiline: true
-      logging: slf4j
-      # 실제값 한 줄만 출력됨 이거 안하면 ? 쿼리하는 거까지 총 두 줄뜸
-      log-format: "%(sql)"
+    datasource:
+        p6spy:
+            enable-logging: true
+            multiline: true
+            logging: slf4j
+            # 실제값 한 줄만 출력됨 이거 안하면 ? 쿼리하는 거까지 총 두 줄뜸
+            log-format: "%(sql)"
 
 app:
-  environment: ${APP_ENVIRONMENT:dev}
-  otel-collector-endpoint: ${MONITORING_OTEL_EXPORTER_ENDPOINT:http://localhost:4318}
-  default-post-thumbnail-url: /static/images/post-thumbnail.png
+    environment: ${APP_ENVIRONMENT:dev}
+    # OTel SDK 표준 env와 기존 프로젝트 env 중 하나만 있어도 동일하게 해석한다.
+    otel-collector-endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}
+    default-post-thumbnail-url: /static/images/post-thumbnail.png
 
 # Logging
 logging:
-  level:
-    root: ${LOG_LEVEL:INFO}
+    level:
+        root: ${LOG_LEVEL:INFO}
 
 management:
-  endpoints:
-    web:
-      exposure:
-        include: health,prometheus
-  endpoint:
-    health:
-      probes:
-        enabled: true
-      show-details: never
-  metrics:
-    tags:
-      application: ${APP_NAME}
-      environment: ${app.environment}
-  prometheus:
+    endpoints:
+        web:
+            exposure:
+                include: health,prometheus
+    endpoint:
+        health:
+            probes:
+                enabled: true
+            show-details: never
     metrics:
-      export:
-        enabled: true
+        tags:
+            application: ${APP_NAME}
+            environment: ${app.environment}
+    prometheus:
+        metrics:
+            export:
+                enabled: true
 
 otel:
-  service:
-    name: techtaurant-be
-  propagators:
-    - tracecontext
-    - baggage
-  resource:
-    attributes:
-      # 예전 Loki label(app, environment)을 OTel resource attribute로 Collector에 전달한다.
-      app: ${APP_NAME:techtaurant-be}
-      environment: ${app.environment}
-      deployment.environment.name: ${app.environment}
-      service.namespace: techtaurant
-  traces:
-    exporter: otlp
-  logs:
-    exporter: otlp
-  metrics:
-    exporter: none
-  exporter:
-    otlp:
-      protocol: http/protobuf
-      endpoint: ${app.otel-collector-endpoint}
-  instrumentation:
-    logback-appender:
-      experimental:
-        capture-mdc-attributes: "*"
+    service:
+        name: techtaurant-be
+    propagators:
+        - tracecontext
+        - baggage
+    resource:
+        attributes:
+            # 예전 Loki label(app, environment)을 OTel resource attribute로 Collector에 전달한다.
+            app: ${APP_NAME:techtaurant-be}
+            environment: ${app.environment}
+            deployment.environment.name: ${app.environment}
+            service.namespace: techtaurant
+    traces:
+        exporter: otlp
+    logs:
+        exporter: otlp
+    metrics:
+        exporter: none
+    exporter:
+        otlp:
+            protocol: http/protobuf
+            endpoint: ${app.otel-collector-endpoint}
+    instrumentation:
+        logback-appender:
+            experimental:
+                capture-mdc-attributes: "*"
 
 # CORS
 cors:
-  allowed-origins: ${CORS_ORIGINS}
+    allowed-origins: ${CORS_ORIGINS}
 
 # JWT
 jwt:
-  secret: ${JWT_SECRET}
-  access-token-expire-ms: ${JWT_ACCESS_TOKEN_EXPIRE_MS:3600000}
-  refresh-token-expire-ms: ${JWT_REFRESH_TOKEN_EXPIRE_MS:604800000}
+    secret: ${JWT_SECRET}
+    access-token-expire-ms: ${JWT_ACCESS_TOKEN_EXPIRE_MS:3600000}
+    refresh-token-expire-ms: ${JWT_REFRESH_TOKEN_EXPIRE_MS:604800000}
 
 # Cookie
 # 주의: SameSite=None은 반드시 Secure=true와 함께 사용해야 함 (Chrome 80+)
 cookie:
-  secure: ${COOKIE_SECURE:true}
-  http-only: ${COOKIE_HTTP_ONLY:true}
-  same-site: ${COOKIE_SAME_SITE:None}
-  path: ${COOKIE_PATH:/}
+    secure: ${COOKIE_SECURE:true}
+    http-only: ${COOKIE_HTTP_ONLY:true}
+    same-site: ${COOKIE_SAME_SITE:None}
+    path: ${COOKIE_PATH:/}
 
 # Springdoc OpenAPI
 springdoc:
-  swagger-ui:
-    # Cookie 전송을 위한 withCredentials 활성화
-    request-interceptor: >
-      function(request) {
-        request.credentials = 'include';
-        return request;
-      }
-    # 인증된 API 테스트를 위한 설정
-    persist-authorization: true
-    try-it-out-enabled: true
+    swagger-ui:
+        # Cookie 전송을 위한 withCredentials 활성화
+        request-interceptor: >
+            function(request) {
+              request.credentials = 'include';
+              return request;
+            }
+        # 인증된 API 테스트를 위한 설정
+        persist-authorization: true
+        try-it-out-enabled: true
 
 # Swagger
 swagger:
-  base-url: ${SWAGGER_BASE_URL:http://localhost:8080}
+    base-url: ${SWAGGER_BASE_URL:http://localhost:8080}
 
 # AWS S3
 aws:
-  s3:
-    region: ${AWS_REGION:ap-northeast-2}
-    bucket-name: ${AWS_S3_BUCKET_NAME:techtaurant-media}
-    presigned-url-expire-minutes: ${AWS_S3_PRESIGNED_URL_EXPIRE_MINUTES:15}
+    s3:
+        region: ${AWS_REGION:ap-northeast-2}
+        bucket-name: ${AWS_S3_BUCKET_NAME:techtaurant-media}
+        presigned-url-expire-minutes: ${AWS_S3_PRESIGNED_URL_EXPIRE_MINUTES:15}
 
 monitoring:
-  metrics:
-    username: ${MONITORING_METRICS_USERNAME:prometheus}
-    password: ${MONITORING_METRICS_PASSWORD:change-me-prometheus-password}
+    metrics:
+        username: ${MONITORING_METRICS_USERNAME:prometheus}
+        password: ${MONITORING_METRICS_PASSWORD:change-me-prometheus-password}
