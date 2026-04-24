@@ -6,4 +6,6 @@ import java.util.UUID
 
 interface NotificationTargetRepository : JpaRepository<NotificationTarget, UUID> {
     fun findAllByNotificationIdOrderByCreatedAtAsc(notificationId: UUID): List<NotificationTarget>
+
+    fun findAllByNotificationIdInOrderByCreatedAtAsc(notificationIds: Collection<UUID>): List<NotificationTarget>
 }

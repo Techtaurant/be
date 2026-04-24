@@ -36,4 +36,10 @@ class NotificationRecipient(
     var user: User,
     @Column(name = "read_at")
     var readAt: Date? = null,
-) : EntityBase()
+) : EntityBase() {
+    fun markAsRead(readAt: Date) {
+        if (this.readAt == null) {
+            this.readAt = readAt
+        }
+    }
+}
