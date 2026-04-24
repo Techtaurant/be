@@ -10,7 +10,7 @@ services:
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - techtaurant_postgres_data:/var/lib/postgresql
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-root} -d ${DB_NAME:-techtaurant}"]
@@ -32,5 +32,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
+  techtaurant_postgres_data:
     driver: local
