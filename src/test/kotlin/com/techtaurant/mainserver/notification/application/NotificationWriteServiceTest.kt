@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
+import java.util.Locale
 import java.util.UUID
 
 @Transactional
@@ -72,7 +73,7 @@ class NotificationWriteServiceTest : IntegrationTest() {
                 recipientUserId = recipientUser.id!!,
                 postId = post.id!!,
                 commentId = comment.id!!,
-                payloadHtml = "<strong>${actorUser.name}</strong><script>alert('xss')</script>님이 댓글을 남겼습니다",
+                locale = Locale.KOREAN,
             )
 
         val savedNotification = notificationRepository.findById(notificationId).orElseThrow()
@@ -81,7 +82,8 @@ class NotificationWriteServiceTest : IntegrationTest() {
 
         assertThat(savedNotification.type).isEqualTo(NotificationType.POST_COMMENT)
         assertThat(savedNotification.payloadHtml).contains("<strong>${actorUser.name}</strong>")
-        assertThat(savedNotification.payloadHtml).doesNotContain("<script>", "alert")
+        assertThat(savedNotification.payloadHtml).contains("<strong>${post.title}</strong>")
+        assertThat(savedNotification.payloadHtml).contains("댓글을 남겼습니다")
         assertThat(savedTargets)
             .extracting("role", "targetType", "targetId")
             .containsExactlyInAnyOrder(
@@ -103,14 +105,15 @@ class NotificationWriteServiceTest : IntegrationTest() {
                 recipientUserId = recipientUser.id!!,
                 postId = post.id!!,
                 commentId = replyComment.id!!,
-                payloadHtml = "<em>${actorUser.name}</em>님이 답글을 남겼습니다",
+                locale = Locale.ENGLISH,
             )
 
         val savedNotification = notificationRepository.findById(notificationId).orElseThrow()
         val savedTargets = notificationTargetRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
 
         assertThat(savedNotification.type).isEqualTo(NotificationType.COMMENT_REPLY)
-        assertThat(savedNotification.payloadHtml).contains("<em>${actorUser.name}</em>")
+        assertThat(savedNotification.payloadHtml).contains("<strong>${actorUser.name}</strong>")
+        assertThat(savedNotification.payloadHtml).contains("replied to your comment")
         assertThat(savedTargets)
             .extracting("role", "targetType", "targetId")
             .containsExactlyInAnyOrder(
@@ -128,7 +131,7 @@ class NotificationWriteServiceTest : IntegrationTest() {
                 actorUserId = actorUser.id!!,
                 recipientUserIds = listOf(recipientUser.id!!, secondRecipientUser.id!!, recipientUser.id!!),
                 postId = post.id!!,
-                payloadHtml = "<p>${actorUser.name}님의 새 글</p>",
+                locale = Locale.ENGLISH,
             )
 
         val savedNotification = notificationRepository.findById(notificationId).orElseThrow()
@@ -136,6 +139,8 @@ class NotificationWriteServiceTest : IntegrationTest() {
         val savedRecipients = notificationRecipientRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
 
         assertThat(savedNotification.type).isEqualTo(NotificationType.FOLLOWER_POST)
+        assertThat(savedNotification.payloadHtml).contains("published a new post")
+        assertThat(savedNotification.payloadHtml).contains("<strong>${post.title}</strong>")
         assertThat(savedTargets)
             .extracting("role", "targetType", "targetId")
             .containsExactlyInAnyOrder(
@@ -153,7 +158,7 @@ class NotificationWriteServiceTest : IntegrationTest() {
             notificationWriteService.createFollowNotification(
                 actorUserId = actorUser.id!!,
                 recipientUserId = recipientUser.id!!,
-                payloadHtml = "<span>${actorUser.name}</span>님이 팔로우했습니다",
+                locale = Locale.KOREAN,
             )
 
         val savedNotification = notificationRepository.findById(notificationId).orElseThrow()
@@ -161,6 +166,8 @@ class NotificationWriteServiceTest : IntegrationTest() {
         val savedRecipients = notificationRecipientRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
 
         assertThat(savedNotification.type).isEqualTo(NotificationType.FOLLOW)
+        assertThat(savedNotification.payloadHtml).contains("<strong>${actorUser.name}</strong>")
+        assertThat(savedNotification.payloadHtml).contains("팔로우했습니다")
         assertThat(savedTargets)
             .extracting("role", "targetType", "targetId")
             .containsExactlyInAnyOrder(

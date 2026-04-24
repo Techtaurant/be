@@ -1,9 +1,9 @@
 package com.techtaurant.mainserver.notification.application
 
 import com.techtaurant.mainserver.comment.enums.CommentStatus
+import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
 import com.techtaurant.mainserver.common.exception.ApiException
-import com.techtaurant.mainserver.common.util.HtmlSanitizer
 import com.techtaurant.mainserver.notification.entity.Notification
 import com.techtaurant.mainserver.notification.entity.NotificationRecipient
 import com.techtaurant.mainserver.notification.entity.NotificationTarget
@@ -12,6 +12,7 @@ import com.techtaurant.mainserver.notification.enums.NotificationTargetRole
 import com.techtaurant.mainserver.notification.enums.NotificationTargetType
 import com.techtaurant.mainserver.notification.enums.NotificationType
 import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRepository
+import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.user.entity.User
@@ -19,11 +20,13 @@ import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.Locale
 import java.util.UUID
 
 @Service
 class NotificationWriteService(
     private val notificationRepository: NotificationRepository,
+    private val notificationPayloadService: NotificationPayloadService,
     private val userRepository: UserRepository,
     private val postRepository: PostRepository,
     private val commentRepository: CommentRepository,
@@ -34,17 +37,17 @@ class NotificationWriteService(
         recipientUserId: UUID,
         postId: UUID,
         commentId: UUID,
-        payloadHtml: String,
+        locale: Locale? = null,
     ): UUID {
         val actor = resolveActor(actorUserId)
         val recipients = resolveRecipients(listOf(recipientUserId))
+        val post = resolvePost(postId)
 
-        requirePost(postId)
-        requireComment(commentId)
+        resolveComment(commentId)
 
         return createNotification(
             type = NotificationType.POST_COMMENT,
-            payloadHtml = payloadHtml,
+            payloadHtml = notificationPayloadService.buildPostCommentPayload(actor.name, post.title, locale),
             recipients = recipients,
             targetSpecs =
                 listOf(
@@ -61,17 +64,17 @@ class NotificationWriteService(
         recipientUserId: UUID,
         postId: UUID,
         commentId: UUID,
-        payloadHtml: String,
+        locale: Locale? = null,
     ): UUID {
         val actor = resolveActor(actorUserId)
         val recipients = resolveRecipients(listOf(recipientUserId))
+        val post = resolvePost(postId)
 
-        requirePost(postId)
-        requireComment(commentId)
+        resolveComment(commentId)
 
         return createNotification(
             type = NotificationType.COMMENT_REPLY,
-            payloadHtml = payloadHtml,
+            payloadHtml = notificationPayloadService.buildCommentReplyPayload(actor.name, post.title, locale),
             recipients = recipients,
             targetSpecs =
                 listOf(
@@ -87,16 +90,15 @@ class NotificationWriteService(
         actorUserId: UUID,
         recipientUserIds: List<UUID>,
         postId: UUID,
-        payloadHtml: String,
+        locale: Locale? = null,
     ): UUID {
         val actor = resolveActor(actorUserId)
         val recipients = resolveRecipients(recipientUserIds)
-
-        requirePost(postId)
+        val post = resolvePost(postId)
 
         return createNotification(
             type = NotificationType.FOLLOWER_POST,
-            payloadHtml = payloadHtml,
+            payloadHtml = notificationPayloadService.buildFollowerPostPayload(actor.name, post.title, locale),
             recipients = recipients,
             targetSpecs =
                 listOf(
@@ -110,14 +112,14 @@ class NotificationWriteService(
     fun createFollowNotification(
         actorUserId: UUID,
         recipientUserId: UUID,
-        payloadHtml: String,
+        locale: Locale? = null,
     ): UUID {
         val actor = resolveActor(actorUserId)
         val recipients = resolveRecipients(listOf(recipientUserId))
 
         return createNotification(
             type = NotificationType.FOLLOW,
-            payloadHtml = payloadHtml,
+            payloadHtml = notificationPayloadService.buildFollowPayload(actor.name, locale),
             recipients = recipients,
             targetSpecs =
                 listOf(
@@ -140,7 +142,7 @@ class NotificationWriteService(
         val notification =
             Notification(
                 type = type,
-                payloadHtml = sanitizePayload(payloadHtml),
+                payloadHtml = requirePayload(payloadHtml),
             )
 
         targetSpecs.distinct().forEach { spec ->
@@ -166,13 +168,12 @@ class NotificationWriteService(
         return notificationRepository.save(notification).id!!
     }
 
-    private fun sanitizePayload(payloadHtml: String): String {
-        val sanitizedPayload = HtmlSanitizer.sanitizeContent(payloadHtml).trim()
-        if (sanitizedPayload.isBlank()) {
+    private fun requirePayload(payloadHtml: String): String {
+        if (payloadHtml.isBlank()) {
             throw ApiException(NotificationStatus.NOTIFICATION_PAYLOAD_REQUIRED)
         }
 
-        return sanitizedPayload
+        return payloadHtml
     }
 
     private fun resolveActor(actorUserId: UUID): User {
@@ -196,15 +197,15 @@ class NotificationWriteService(
         return distinctRecipientIds.map { recipientId -> recipientsById.getValue(recipientId) }
     }
 
-    private fun requirePost(postId: UUID) {
-        if (!postRepository.existsById(postId)) {
-            throw ApiException(PostStatus.POST_NOT_FOUND)
+    private fun resolvePost(postId: UUID): Post {
+        return postRepository.findById(postId).orElseThrow {
+            ApiException(PostStatus.POST_NOT_FOUND)
         }
     }
 
-    private fun requireComment(commentId: UUID) {
-        if (!commentRepository.existsById(commentId)) {
-            throw ApiException(CommentStatus.COMMENT_NOT_FOUND)
+    private fun resolveComment(commentId: UUID): Comment {
+        return commentRepository.findById(commentId).orElseThrow {
+            ApiException(CommentStatus.COMMENT_NOT_FOUND)
         }
     }
 
