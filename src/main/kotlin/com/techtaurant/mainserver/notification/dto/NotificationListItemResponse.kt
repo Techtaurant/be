@@ -28,6 +28,7 @@ data class NotificationListItemResponse(
     companion object {
         fun from(
             recipient: NotificationRecipient,
+            payloadHtml: String,
             targets: List<NotificationTarget>,
         ): NotificationListItemResponse {
             val notification = recipient.notification
@@ -35,7 +36,7 @@ data class NotificationListItemResponse(
             return NotificationListItemResponse(
                 id = notification.id!!,
                 type = notification.type,
-                payloadHtml = notification.payloadHtml,
+                payloadHtml = payloadHtml,
                 isRead = recipient.readAt != null,
                 readAt = recipient.readAt,
                 createdAt = recipient.createdAt,
