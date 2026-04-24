@@ -124,7 +124,7 @@ class NotificationWriteService(
             targetSpecs =
                 listOf(
                     NotificationTargetSpec(NotificationTargetRole.ACTOR, NotificationTargetType.USER, actor.id!!),
-                    NotificationTargetSpec(NotificationTargetRole.TARGET, NotificationTargetType.USER, actor.id!!),
+                    NotificationTargetSpec(NotificationTargetRole.TARGET, NotificationTargetType.USER, recipientUserId),
                 ),
         )
     }
