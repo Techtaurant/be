@@ -3,6 +3,7 @@ package com.techtaurant.mainserver.post.application
 import com.techtaurant.mainserver.attachment.application.AttachmentService
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.lock.DistributedLock
+import com.techtaurant.mainserver.notification.application.NotificationWriteService
 import com.techtaurant.mainserver.post.dto.CreatePostRequest
 import com.techtaurant.mainserver.post.dto.UpdatePostRequest
 import com.techtaurant.mainserver.post.entity.Post
@@ -13,6 +14,7 @@ import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
+import com.techtaurant.mainserver.user.infrastructure.out.UserFollowRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.mockk.every
 import io.mockk.just
@@ -33,8 +35,10 @@ class PostWriteServiceAttachmentTest {
     private val categoryRepository: CategoryRepository = mockk()
     private val tagRepository: TagRepository = mockk()
     private val userRepository: UserRepository = mockk()
+    private val userFollowRepository: UserFollowRepository = mockk()
     private val distributedLock: DistributedLock = mockk()
     private val attachmentService: AttachmentService = mockk()
+    private val notificationWriteService: NotificationWriteService = mockk()
 
     private val postWriteService =
         PostWriteService(
@@ -42,8 +46,10 @@ class PostWriteServiceAttachmentTest {
             categoryRepository = categoryRepository,
             tagRepository = tagRepository,
             userRepository = userRepository,
+            userFollowRepository = userFollowRepository,
             distributedLock = distributedLock,
             attachmentService = attachmentService,
+            notificationWriteService = notificationWriteService,
         )
 
     private lateinit var author: User
@@ -61,6 +67,7 @@ class PostWriteServiceAttachmentTest {
             ).apply { id = UUID.randomUUID() }
 
         every { userRepository.findById(author.id!!) } returns Optional.of(author)
+        every { userFollowRepository.findFollowerIdsByFollowingId(author.id!!) } returns emptyList()
         every { attachmentService.confirmAttachmentsByIds(any(), any(), any()) } just runs
         every { attachmentService.deleteOrphanedAttachmentsByIds(any(), any(), any()) } just runs
         every { attachmentService.deleteAttachmentsByReference(any(), any()) } just runs

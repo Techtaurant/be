@@ -6,6 +6,9 @@ import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.enums.CommentStatus
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.notification.enums.NotificationType
+import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRecipientRepository
+import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRepository
 import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.enums.PostStatus
@@ -43,6 +46,12 @@ class CommentWriteServiceTest : IntegrationTest() {
 
     @Autowired
     private lateinit var userRepository: UserRepository
+
+    @Autowired
+    private lateinit var notificationRepository: NotificationRepository
+
+    @Autowired
+    private lateinit var notificationRecipientRepository: NotificationRecipientRepository
 
     @Autowired
     private lateinit var categoryRepository: CategoryRepository
@@ -238,6 +247,63 @@ class CommentWriteServiceTest : IntegrationTest() {
         val dailyStats = postDailyStatsRepository.findAll().single()
         assertThat(dailyStats.post.id).isEqualTo(testPost.id)
         assertThat(dailyStats.commentCount).isEqualTo(1)
+    }
+
+    @Test
+    @DisplayName("일반 댓글 작성 시 게시물 작성자에게 POST_COMMENT 알림이 생성된다")
+    fun createComment_createsPostCommentNotificationForPostAuthor() {
+        val commenter = createUser("댓글 작성자")
+        val request =
+            CreateCommentRequest(
+                postId = testPost.id!!,
+                content = "좋은 글이네요",
+                parentId = null,
+            )
+
+        commentWriteService.createComment(commenter.id!!, request)
+        entityManager.flush()
+        entityManager.clear()
+
+        val savedNotification = notificationRepository.findAll().single()
+
+        assertThat(savedNotification.type).isEqualTo(NotificationType.POST_COMMENT)
+        assertThat(recipientIdsOf(savedNotification.id!!)).containsExactly(testUser.id)
+    }
+
+    @Test
+    @DisplayName("대댓글 작성 시 게시물 작성자와 부모 댓글 작성자에게 각각 알림이 생성된다")
+    fun createReply_createsNotificationsForPostAuthorAndParentAuthor() {
+        val parentAuthor = createUser("부모 작성자")
+        val replyAuthor = createUser("답글 작성자")
+        val parentComment =
+            commentRepository.save(
+                Comment(
+                    content = "부모 댓글",
+                    post = testPost,
+                    author = parentAuthor,
+                    parent = null,
+                    depth = 0,
+                ),
+            )
+        val request =
+            CreateCommentRequest(
+                postId = testPost.id!!,
+                content = "대댓글입니다",
+                parentId = parentComment.id,
+            )
+
+        commentWriteService.createComment(replyAuthor.id!!, request)
+        entityManager.flush()
+        entityManager.clear()
+
+        val notificationsByType = notificationRepository.findAll().associateBy { it.type }
+
+        assertThat(notificationsByType.keys)
+            .containsExactlyInAnyOrder(NotificationType.POST_COMMENT, NotificationType.COMMENT_REPLY)
+        assertThat(recipientIdsOf(notificationsByType.getValue(NotificationType.POST_COMMENT).id!!))
+            .containsExactly(testUser.id)
+        assertThat(recipientIdsOf(notificationsByType.getValue(NotificationType.COMMENT_REPLY).id!!))
+            .containsExactly(parentAuthor.id)
     }
 
     @Test
@@ -450,5 +516,22 @@ class CommentWriteServiceTest : IntegrationTest() {
         // Then
         val updatedPost = postRepository.findById(testPost.id!!).orElseThrow()
         assertThat(updatedPost.commentCount).isEqualTo(initialCount + numberOfComments)
+    }
+
+    private fun recipientIdsOf(notificationId: UUID): List<UUID?> =
+        notificationRecipientRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId).map { it.user.id }
+
+    private fun createUser(name: String): User {
+        val uniqueSuffix = UUID.randomUUID().toString().take(8)
+        return userRepository.save(
+            User(
+                name = "$name-$uniqueSuffix",
+                email = "user-$uniqueSuffix@example.com",
+                provider = OAuthProvider.GOOGLE,
+                identifier = "identifier-$uniqueSuffix",
+                role = UserRole.USER,
+                profileImageUrl = "https://example.com/$uniqueSuffix.jpg",
+            ),
+        )
     }
 }

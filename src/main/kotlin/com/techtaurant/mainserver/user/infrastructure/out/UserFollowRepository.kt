@@ -22,6 +22,18 @@ interface UserFollowRepository : JpaRepository<UserFollow, UUID> {
 
     fun findAllByFollowingIdOrderByCreatedAtDesc(followingId: UUID): List<UserFollow>
 
+    @Query(
+        """
+        SELECT uf.follower.id
+        FROM UserFollow uf
+        WHERE uf.following.id = :followingId
+        ORDER BY uf.createdAt DESC
+        """,
+    )
+    fun findFollowerIdsByFollowingId(
+        @Param("followingId") followingId: UUID,
+    ): List<UUID>
+
     @Modifying
     @Transactional
     @Query(

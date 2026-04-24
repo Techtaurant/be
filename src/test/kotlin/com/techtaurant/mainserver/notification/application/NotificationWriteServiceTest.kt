@@ -152,7 +152,7 @@ class NotificationWriteServiceTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("팔로우 알림 생성 시 actor와 profile target user가 함께 저장된다")
+    @DisplayName("팔로우 알림 생성 시 actor와 팔로우 당한 target user가 함께 저장된다")
     fun createFollowNotification_savesUserTargets() {
         val notificationId =
             notificationWriteService.createFollowNotification(
@@ -172,7 +172,7 @@ class NotificationWriteServiceTest : IntegrationTest() {
             .extracting("role", "targetType", "targetId")
             .containsExactlyInAnyOrder(
                 tuple(NotificationTargetRole.ACTOR, NotificationTargetType.USER, actorUser.id),
-                tuple(NotificationTargetRole.TARGET, NotificationTargetType.USER, actorUser.id),
+                tuple(NotificationTargetRole.TARGET, NotificationTargetType.USER, recipientUser.id),
             )
         assertThat(savedRecipients).singleElement().extracting("user.id").isEqualTo(recipientUser.id)
     }

@@ -1,13 +1,18 @@
 package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.base.IntegrationTest
+import com.techtaurant.mainserver.notification.enums.NotificationType
+import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRecipientRepository
+import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRepository
 import com.techtaurant.mainserver.post.dto.CreatePostRequest
 import com.techtaurant.mainserver.post.dto.UpdatePostRequest
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.user.entity.User
+import com.techtaurant.mainserver.user.entity.UserFollow
 import com.techtaurant.mainserver.user.enums.UserRole
+import com.techtaurant.mainserver.user.infrastructure.out.UserFollowRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -31,6 +36,15 @@ class PostWriteServiceTest : IntegrationTest() {
     @Autowired
     private lateinit var userRepository: UserRepository
 
+    @Autowired
+    private lateinit var userFollowRepository: UserFollowRepository
+
+    @Autowired
+    private lateinit var notificationRepository: NotificationRepository
+
+    @Autowired
+    private lateinit var notificationRecipientRepository: NotificationRecipientRepository
+
     private lateinit var testUser: User
 
     @BeforeEach
@@ -46,6 +60,45 @@ class PostWriteServiceTest : IntegrationTest() {
                     profileImageUrl = "https://example.com/profile.jpg",
                 ),
             )
+    }
+
+    @Test
+    @DisplayName("PUBLISHED 게시물 작성 시 모든 팔로워에게 FOLLOWER_POST 알림이 생성된다")
+    fun createPost_published_createsFollowerNotifications() {
+        val firstFollower = createUser("팔로워A")
+        val secondFollower = createUser("팔로워B")
+        userFollowRepository.save(UserFollow(follower = firstFollower, following = testUser))
+        userFollowRepository.save(UserFollow(follower = secondFollower, following = testUser))
+
+        postWriteService.createPost(
+            testUser.id!!,
+            CreatePostRequest(
+                title = "새 글",
+                content = "새 글 본문",
+                status = PostStatusEnum.PUBLISHED,
+            ),
+        )
+
+        val savedNotification = notificationRepository.findAll().single()
+
+        assertThat(savedNotification.type).isEqualTo(NotificationType.FOLLOWER_POST)
+        assertThat(recipientIdsOf(savedNotification.id!!)).containsExactlyInAnyOrder(firstFollower.id, secondFollower.id)
+    }
+
+    @Test
+    @DisplayName("DRAFT 게시물 작성 시 팔로워 알림은 생성되지 않는다")
+    fun createPost_draft_doesNotCreateFollowerNotifications() {
+        val follower = createUser("초안팔로워")
+        userFollowRepository.save(UserFollow(follower = follower, following = testUser))
+
+        postWriteService.createPost(
+            testUser.id!!,
+            CreatePostRequest(
+                status = PostStatusEnum.DRAFT,
+            ),
+        )
+
+        assertThat(notificationRepository.findAll()).isEmpty()
     }
 
     @Nested
@@ -240,5 +293,22 @@ class PostWriteServiceTest : IntegrationTest() {
             assertThat(response.content).doesNotContain("<script>")
             assertThat(response.content).doesNotContain("<style>")
         }
+    }
+
+    private fun recipientIdsOf(notificationId: UUID): List<UUID?> =
+        notificationRecipientRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId).map { it.user.id }
+
+    private fun createUser(name: String): User {
+        val uniqueSuffix = UUID.randomUUID().toString().take(8)
+        return userRepository.save(
+            User(
+                name = "$name-$uniqueSuffix",
+                email = "$uniqueSuffix@example.com",
+                provider = OAuthProvider.GOOGLE,
+                identifier = "test-id-$uniqueSuffix",
+                role = UserRole.USER,
+                profileImageUrl = "https://example.com/$uniqueSuffix.jpg",
+            ),
+        )
     }
 }
