@@ -1,6 +1,7 @@
 package com.techtaurant.mainserver.user.application
 
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.notification.application.NotificationWriteService
 import com.techtaurant.mainserver.user.dto.UserFollowCountResponse
 import com.techtaurant.mainserver.user.dto.UserFollowListItemResponse
 import com.techtaurant.mainserver.user.dto.UserFollowResponse
@@ -19,6 +20,7 @@ class UserFollowService(
     private val userRepository: UserRepository,
     private val userFollowRepository: UserFollowRepository,
     private val userProfileImageResolver: UserProfileImageResolver,
+    private val notificationWriteService: NotificationWriteService,
 ) {
     @Transactional
     fun follow(
@@ -34,8 +36,10 @@ class UserFollowService(
             return UserFollowResponse.from(it)
         }
 
+        var shouldNotify = false
         val userFollow =
             try {
+                shouldNotify = true
                 userFollowRepository.save(
                     UserFollow(
                         follower = follower,
@@ -45,6 +49,13 @@ class UserFollowService(
             } catch (e: DataIntegrityViolationException) {
                 userFollowRepository.findByFollowerIdAndFollowingId(followerId, targetUserId)!!
             }
+
+        if (shouldNotify) {
+            notificationWriteService.createFollowNotification(
+                actorUserId = followerId,
+                recipientUserId = targetUserId,
+            )
+        }
 
         return UserFollowResponse.from(userFollow)
     }

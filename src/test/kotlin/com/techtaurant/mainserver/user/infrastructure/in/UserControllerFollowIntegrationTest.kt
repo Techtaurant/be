@@ -1,6 +1,9 @@
 package com.techtaurant.mainserver.user.infrastructure.`in`
 
 import com.techtaurant.mainserver.base.IntegrationTest
+import com.techtaurant.mainserver.notification.enums.NotificationType
+import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRecipientRepository
+import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.entity.User
@@ -9,6 +12,7 @@ import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserFollowRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.restassured.RestAssured.given
+import org.assertj.core.api.Assertions.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasItems
 import org.hamcrest.Matchers.hasSize
@@ -29,6 +33,12 @@ class UserControllerFollowIntegrationTest : IntegrationTest() {
 
     @Autowired
     private lateinit var jwtTokenProvider: JwtTokenProvider
+
+    @Autowired
+    private lateinit var notificationRepository: NotificationRepository
+
+    @Autowired
+    private lateinit var notificationRecipientRepository: NotificationRecipientRepository
 
     private lateinit var testUser: User
     private lateinit var firstTargetUser: User
@@ -58,6 +68,26 @@ class UserControllerFollowIntegrationTest : IntegrationTest() {
             .statusCode(HttpStatus.CREATED.value())
             .body("data.userId", equalTo(firstTargetUser.id.toString()))
             .body("data.name", equalTo(firstTargetUser.name))
+    }
+
+    @Test
+    @DisplayName("사용자 팔로우 시 피팔로우 사용자에게 FOLLOW 알림이 생성된다")
+    fun follow_createsNotificationForTargetUser() {
+        given()
+            .header("Authorization", "Bearer $accessToken")
+            .`when`()
+            .post("/api/users/${firstTargetUser.id}/follow")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+
+        val savedNotification = notificationRepository.findAll().single()
+        val recipientIds =
+            notificationRecipientRepository
+                .findAllByNotificationIdOrderByCreatedAtAsc(savedNotification.id!!)
+                .map { it.user.id }
+
+        assertThat(savedNotification.type).isEqualTo(NotificationType.FOLLOW)
+        assertThat(recipientIds).containsExactly(firstTargetUser.id)
     }
 
     @Test

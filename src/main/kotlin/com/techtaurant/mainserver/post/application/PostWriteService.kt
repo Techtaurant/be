@@ -5,6 +5,7 @@ import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.lock.DistributedLock
 import com.techtaurant.mainserver.common.util.HtmlSanitizer
+import com.techtaurant.mainserver.notification.application.NotificationWriteService
 import com.techtaurant.mainserver.post.dto.CreatePostRequest
 import com.techtaurant.mainserver.post.dto.PostResponse
 import com.techtaurant.mainserver.post.dto.UpdatePostRequest
@@ -18,6 +19,7 @@ import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserStatus
+import com.techtaurant.mainserver.user.infrastructure.out.UserFollowRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -29,8 +31,10 @@ class PostWriteService(
     private val categoryRepository: CategoryRepository,
     private val tagRepository: TagRepository,
     private val userRepository: UserRepository,
+    private val userFollowRepository: UserFollowRepository,
     private val distributedLock: DistributedLock,
     private val attachmentService: AttachmentService,
+    private val notificationWriteService: NotificationWriteService,
 ) {
     companion object {
         private const val MAX_CATEGORY_DEPTH = 5
@@ -103,6 +107,10 @@ class PostWriteService(
                 attachmentIds = attachmentIds,
             )
             savedPost.thumbnailImage = request.thumbnailAttachmentId ?: attachmentIds.firstOrNull()
+        }
+
+        if (status == PostStatusEnum.PUBLISHED) {
+            createFollowerPostNotification(savedPost)
         }
 
         return PostResponse.from(savedPost)
@@ -213,6 +221,20 @@ class PostWriteService(
         return userRepository.findById(userId).orElseThrow {
             ApiException(UserStatus.ID_NOT_FOUND)
         }
+    }
+
+    private fun createFollowerPostNotification(post: Post) {
+        val authorId = post.author.id ?: return
+        val followerIds = userFollowRepository.findFollowerIdsByFollowingId(authorId)
+        if (followerIds.isEmpty()) {
+            return
+        }
+
+        notificationWriteService.createFollowerPostNotification(
+            actorUserId = authorId,
+            recipientUserIds = followerIds,
+            postId = post.id!!,
+        )
     }
 
     private fun filterAttachmentIdsIncludedInContent(

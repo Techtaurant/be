@@ -9,6 +9,7 @@ import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.common.util.HtmlSanitizer
+import com.techtaurant.mainserver.notification.application.NotificationWriteService
 import com.techtaurant.mainserver.post.application.PostDailyStatsService
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.enums.PostStatus
@@ -30,6 +31,7 @@ class CommentWriteService(
     private val postRepository: PostRepository,
     private val userRepository: UserRepository,
     private val postDailyStatsService: PostDailyStatsService,
+    private val notificationWriteService: NotificationWriteService,
 ) {
     /**
      * 댓글을 생성합니다.
@@ -66,8 +68,42 @@ class CommentWriteService(
         parent?.id?.let(commentRepository::incrementReplyCount)
         postRepository.incrementCommentCount(request.postId)
         postDailyStatsService.incrementCommentCount(request.postId, statDate)
+        createCommentNotifications(
+            actorUserId = userId,
+            post = post,
+            parent = parent,
+            savedComment = savedComment,
+        )
 
         return CommentResponse.from(savedComment)
+    }
+
+    private fun createCommentNotifications(
+        actorUserId: UUID,
+        post: Post,
+        parent: Comment?,
+        savedComment: Comment,
+    ) {
+        val replyRecipientIds = collectParentAuthorIds(parent, actorUserId)
+        val postAuthorId = post.author.id
+
+        if (postAuthorId != null && postAuthorId != actorUserId && postAuthorId !in replyRecipientIds) {
+            notificationWriteService.createPostCommentNotification(
+                actorUserId = actorUserId,
+                recipientUserId = postAuthorId,
+                postId = post.id!!,
+                commentId = savedComment.id!!,
+            )
+        }
+
+        replyRecipientIds.forEach { recipientUserId ->
+            notificationWriteService.createCommentReplyNotification(
+                actorUserId = actorUserId,
+                recipientUserId = recipientUserId,
+                postId = post.id!!,
+                commentId = savedComment.id!!,
+            )
+        }
     }
 
     /**
@@ -161,5 +197,24 @@ class CommentWriteService(
         }
 
         return parent
+    }
+
+    private fun collectParentAuthorIds(
+        parent: Comment?,
+        actorUserId: UUID,
+    ): List<UUID> {
+        val authorIds = mutableListOf<UUID>()
+        val visitedAuthorIds = mutableSetOf<UUID>()
+        var current = parent
+
+        while (current != null) {
+            val authorId = current.author.id
+            if (authorId != null && authorId != actorUserId && visitedAuthorIds.add(authorId)) {
+                authorIds.add(authorId)
+            }
+            current = current.parent
+        }
+
+        return authorIds
     }
 }
