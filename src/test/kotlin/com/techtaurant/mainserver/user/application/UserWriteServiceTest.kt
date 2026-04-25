@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.dao.DataIntegrityViolationException
 import java.util.Optional
 import java.util.UUID
+import kotlin.reflect.full.memberFunctions
 
 class UserWriteServiceTest {
     private val userRepository: UserRepository = mockk()
@@ -156,5 +157,36 @@ class UserWriteServiceTest {
             .isInstanceOf(ApiException::class.java)
             .extracting { (it as ApiException).status }
             .isEqualTo(UserStatus.USER_NAME_ALREADY_EXISTS)
+    }
+
+    @Test
+    @DisplayName("역할 변경 메서드는 대상 사용자를 ADMIN으로 변경한다")
+    fun updateUserRole_updatesRole() {
+        val method =
+            UserWriteService::class.memberFunctions.firstOrNull { function ->
+                function.name == "updateUserRole"
+            } ?: error("updateUserRole 메서드가 없습니다")
+
+        method.call(userWriteService, user.id!!, UserRole.ADMIN)
+
+        assertThat(user.role).isEqualTo(UserRole.ADMIN)
+    }
+
+    @Test
+    @DisplayName("역할 변경 대상 사용자가 없으면 USER_NOT_FOUND 예외를 던진다")
+    fun updateUserRole_missingUser_throwsUserNotFound() {
+        val method =
+            UserWriteService::class.memberFunctions.firstOrNull { function ->
+                function.name == "updateUserRole"
+            } ?: error("updateUserRole 메서드가 없습니다")
+        val missingUserId = UUID.randomUUID()
+        every { userRepository.findById(missingUserId) } returns Optional.empty()
+
+        assertThatThrownBy {
+            method.call(userWriteService, missingUserId, UserRole.ADMIN)
+        }
+            .hasCauseInstanceOf(ApiException::class.java)
+            .extracting { (it.cause as ApiException).status }
+            .isEqualTo(UserStatus.USER_NOT_FOUND)
     }
 }

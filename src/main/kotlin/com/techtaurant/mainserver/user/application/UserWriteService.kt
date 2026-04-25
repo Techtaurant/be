@@ -5,6 +5,8 @@ import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.status.DefaultStatus
 import com.techtaurant.mainserver.user.dto.UpdateUserRequest
+import com.techtaurant.mainserver.user.dto.UpdateUserRoleResponse
+import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.dto.UserResponse
 import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
@@ -70,6 +72,21 @@ class UserWriteService(
         }
 
         return userResponseAssembler.assemble(user)
+    }
+
+    @Transactional
+    fun updateUserRole(
+        targetUserId: UUID,
+        role: UserRole,
+    ): UpdateUserRoleResponse {
+        val user =
+            userRepository.findById(targetUserId).orElseThrow {
+                ApiException(UserStatus.USER_NOT_FOUND)
+            }
+
+        user.role = role
+
+        return UpdateUserRoleResponse.from(user)
     }
 
     private fun isUserNameUniqueConstraintViolation(exception: DataIntegrityViolationException): Boolean {
