@@ -21,12 +21,12 @@ class Notification(
     @Column(nullable = false, columnDefinition = "notification_type")
     var type: NotificationType,
     @OneToMany(mappedBy = "notification", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
-    var targets: MutableList<NotificationTarget> = mutableListOf(),
+    var arguments: MutableList<NotificationArgument> = mutableListOf(),
     @OneToMany(mappedBy = "notification", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
     var recipients: MutableList<NotificationRecipient> = mutableListOf(),
 ) : EntityBase() {
-    fun addTarget(target: NotificationTarget) {
-        targets.add(target)
+    fun addArgument(argument: NotificationArgument) {
+        arguments.add(argument)
     }
 
     fun addRecipient(recipient: NotificationRecipient) {

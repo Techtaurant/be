@@ -13,7 +13,7 @@ interface NotificationRecipientRepository : JpaRepository<NotificationRecipient,
     fun findAllByNotificationIdOrderByCreatedAtAsc(notificationId: UUID): List<NotificationRecipient>
 
     @EntityGraph(attributePaths = ["notification"])
-    fun findAllByUserIdOrderByCreatedAtDescIdDesc(
+    fun findAllByRecipientUserIdOrderByCreatedAtDescIdDesc(
         userId: UUID,
         pageable: Pageable,
     ): List<NotificationRecipient>
@@ -23,7 +23,7 @@ interface NotificationRecipientRepository : JpaRepository<NotificationRecipient,
         """
         select nr
         from NotificationRecipient nr
-        where nr.user.id = :userId
+        where nr.recipientUser.id = :userId
           and (nr.createdAt < :cursorCreatedAt or (nr.createdAt = :cursorCreatedAt and nr.id < :cursorId))
         order by nr.createdAt desc, nr.id desc
         """,
@@ -36,7 +36,7 @@ interface NotificationRecipientRepository : JpaRepository<NotificationRecipient,
     ): List<NotificationRecipient>
 
     @EntityGraph(attributePaths = ["notification"])
-    fun findAllByUserIdAndNotificationIdInAndReadAtIsNull(
+    fun findAllByRecipientUserIdAndNotificationIdInAndReadAtIsNull(
         userId: UUID,
         notificationIds: Collection<UUID>,
     ): List<NotificationRecipient>

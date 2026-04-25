@@ -33,7 +33,7 @@ class NotificationRecipient(
     var notification: Notification,
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    var user: User,
+    var recipientUser: User,
     @Column(name = "read_at")
     var readAt: Date? = null,
 ) : EntityBase() {

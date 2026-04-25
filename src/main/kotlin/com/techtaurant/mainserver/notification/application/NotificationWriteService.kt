@@ -4,11 +4,10 @@ import com.techtaurant.mainserver.comment.enums.CommentStatus
 import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
 import com.techtaurant.mainserver.notification.entity.Notification
+import com.techtaurant.mainserver.notification.entity.NotificationArgument
 import com.techtaurant.mainserver.notification.entity.NotificationRecipient
-import com.techtaurant.mainserver.notification.entity.NotificationTarget
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.notification.enums.NotificationStatus
-import com.techtaurant.mainserver.notification.enums.NotificationTargetRole
 import com.techtaurant.mainserver.notification.enums.NotificationTargetType
 import com.techtaurant.mainserver.notification.enums.NotificationType
 import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRepository
@@ -47,11 +46,11 @@ class NotificationWriteService(
         return createNotification(
             type = NotificationType.POST_COMMENT,
             recipients = recipients,
-            targetSpecs =
+            argumentSpecs =
                 listOf(
-                    NotificationTargetSpec(NotificationTargetRole.ACTOR, NotificationTargetType.USER, actor.id!!),
-                    NotificationTargetSpec(NotificationTargetRole.TARGET, NotificationTargetType.POST, postId),
-                    NotificationTargetSpec(NotificationTargetRole.TARGET, NotificationTargetType.COMMENT, commentId),
+                    NotificationArgumentSpec(NotificationTargetType.USER, actor.id!!),
+                    NotificationArgumentSpec(NotificationTargetType.POST, postId),
+                    NotificationArgumentSpec(NotificationTargetType.COMMENT, commentId),
                 ),
         )
     }
@@ -73,11 +72,11 @@ class NotificationWriteService(
         return createNotification(
             type = NotificationType.COMMENT_REPLY,
             recipients = recipients,
-            targetSpecs =
+            argumentSpecs =
                 listOf(
-                    NotificationTargetSpec(NotificationTargetRole.ACTOR, NotificationTargetType.USER, actor.id!!),
-                    NotificationTargetSpec(NotificationTargetRole.TARGET, NotificationTargetType.POST, postId),
-                    NotificationTargetSpec(NotificationTargetRole.TARGET, NotificationTargetType.COMMENT, commentId),
+                    NotificationArgumentSpec(NotificationTargetType.USER, actor.id!!),
+                    NotificationArgumentSpec(NotificationTargetType.POST, postId),
+                    NotificationArgumentSpec(NotificationTargetType.COMMENT, commentId),
                 ),
         )
     }
@@ -96,10 +95,10 @@ class NotificationWriteService(
         return createNotification(
             type = NotificationType.FOLLOWER_POST,
             recipients = recipients,
-            targetSpecs =
+            argumentSpecs =
                 listOf(
-                    NotificationTargetSpec(NotificationTargetRole.ACTOR, NotificationTargetType.USER, actor.id!!),
-                    NotificationTargetSpec(NotificationTargetRole.TARGET, NotificationTargetType.POST, postId),
+                    NotificationArgumentSpec(NotificationTargetType.USER, actor.id!!),
+                    NotificationArgumentSpec(NotificationTargetType.POST, postId),
                 ),
         )
     }
@@ -116,10 +115,9 @@ class NotificationWriteService(
         return createNotification(
             type = NotificationType.FOLLOW,
             recipients = recipients,
-            targetSpecs =
+            argumentSpecs =
                 listOf(
-                    NotificationTargetSpec(NotificationTargetRole.ACTOR, NotificationTargetType.USER, actor.id!!),
-                    NotificationTargetSpec(NotificationTargetRole.TARGET, NotificationTargetType.USER, recipientUserId),
+                    NotificationArgumentSpec(NotificationTargetType.USER, actor.id!!),
                 ),
         )
     }
@@ -127,10 +125,10 @@ class NotificationWriteService(
     private fun createNotification(
         type: NotificationType,
         recipients: List<User>,
-        targetSpecs: List<NotificationTargetSpec>,
+        argumentSpecs: List<NotificationArgumentSpec>,
     ): UUID {
-        if (targetSpecs.isEmpty()) {
-            throw ApiException(NotificationStatus.NOTIFICATION_TARGET_REQUIRED)
+        if (argumentSpecs.isEmpty()) {
+            throw ApiException(NotificationStatus.NOTIFICATION_ARGUMENT_REQUIRED)
         }
 
         val notification =
@@ -138,11 +136,10 @@ class NotificationWriteService(
                 type = type,
             )
 
-        targetSpecs.distinct().forEach { spec ->
-            notification.addTarget(
-                NotificationTarget(
+        argumentSpecs.distinct().forEach { spec ->
+            notification.addArgument(
+                NotificationArgument(
                     notification = notification,
-                    role = spec.role,
                     targetType = spec.targetType,
                     targetId = spec.targetId,
                 ),
@@ -153,7 +150,7 @@ class NotificationWriteService(
             notification.addRecipient(
                 NotificationRecipient(
                     notification = notification,
-                    user = recipient,
+                    recipientUser = recipient,
                 ),
             )
         }
@@ -193,8 +190,7 @@ class NotificationWriteService(
         }
     }
 
-    private data class NotificationTargetSpec(
-        val role: NotificationTargetRole,
+    private data class NotificationArgumentSpec(
         val targetType: NotificationTargetType,
         val targetId: UUID,
     )

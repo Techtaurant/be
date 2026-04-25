@@ -2,9 +2,8 @@ package com.techtaurant.mainserver.notification.infrastructure.`in`
 
 import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.notification.entity.Notification
+import com.techtaurant.mainserver.notification.entity.NotificationArgument
 import com.techtaurant.mainserver.notification.entity.NotificationRecipient
-import com.techtaurant.mainserver.notification.entity.NotificationTarget
-import com.techtaurant.mainserver.notification.enums.NotificationTargetRole
 import com.techtaurant.mainserver.notification.enums.NotificationTargetType
 import com.techtaurant.mainserver.notification.enums.NotificationType
 import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRecipientRepository
@@ -62,7 +61,7 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
 
     @Test
     @DisplayName("내 알림 목록 조회 성공 - 최신순으로 정렬되고 동적으로 생성된 HTML에 프로필 이미지와 게시물 썸네일이 포함된다")
-    fun getMyNotifications_returnsLatestFirstWithReadStateAndTargets() {
+    fun getMyNotifications_returnsLatestFirstWithReadStateAndArguments() {
         val publishedPost = createPost(actorUser, "동적 payload 게시물")
         val olderNotification =
             createNotification(
@@ -109,9 +108,9 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
         assertNull(response.getString("data.content[0].readAt"))
         assertTrue(response.getString("data.content[0].payloadHtml").contains("<img"))
         assertTrue(response.getString("data.content[0].payloadHtml").contains("https://example.com/actor-user.png"))
-        assertEquals(2, response.getList<Any>("data.content[0].targets").size)
-        assertEquals("ACTOR", response.getString("data.content[0].targets[0].role"))
-        assertEquals(actorUser.id.toString(), response.getString("data.content[0].targets[0].targetId"))
+        assertEquals(1, response.getList<Any>("data.content[0].arguments").size)
+        assertEquals("USER", response.getString("data.content[0].arguments[0].targetType"))
+        assertEquals(actorUser.id.toString(), response.getString("data.content[0].arguments[0].targetId"))
         assertEquals(olderNotification.notificationId.toString(), response.getString("data.content[1].id"))
         assertEquals(true, response.getBoolean("data.content[1].isRead"))
         assertNotNull(response.getString("data.content[1].readAt"))
@@ -287,34 +286,34 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
         type: NotificationType,
         createdAt: Instant,
         readAt: Instant? = null,
-        targetType: NotificationTargetType = NotificationTargetType.USER,
-        targetId: UUID = recipient.id!!,
+        targetType: NotificationTargetType? = null,
+        targetId: UUID? = null,
     ): CreatedNotification {
         val notification =
             Notification(
                 type = type,
             )
 
-        notification.addTarget(
-            NotificationTarget(
+        notification.addArgument(
+            NotificationArgument(
                 notification = notification,
-                role = NotificationTargetRole.ACTOR,
                 targetType = NotificationTargetType.USER,
                 targetId = actor.id!!,
             ),
         )
-        notification.addTarget(
-            NotificationTarget(
-                notification = notification,
-                role = NotificationTargetRole.TARGET,
-                targetType = targetType,
-                targetId = targetId,
-            ),
-        )
+        if (targetType != null && targetId != null) {
+            notification.addArgument(
+                NotificationArgument(
+                    notification = notification,
+                    targetType = targetType,
+                    targetId = targetId,
+                ),
+            )
+        }
         notification.addRecipient(
             NotificationRecipient(
                 notification = notification,
-                user = recipient,
+                recipientUser = recipient,
                 readAt = readAt?.let(Date::from),
             ),
         )

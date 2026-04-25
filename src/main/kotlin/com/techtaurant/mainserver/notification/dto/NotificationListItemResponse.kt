@@ -1,8 +1,8 @@
 package com.techtaurant.mainserver.notification.dto
 
 import com.techtaurant.mainserver.notification.entity.NotificationRecipient
-import com.techtaurant.mainserver.notification.entity.NotificationTarget
-import com.techtaurant.mainserver.notification.enums.NotificationTargetRole
+import com.techtaurant.mainserver.notification.entity.NotificationArgument
+import com.techtaurant.mainserver.notification.enums.NotificationTargetType
 import com.techtaurant.mainserver.notification.enums.NotificationType
 import io.swagger.v3.oas.annotations.media.Schema
 import java.util.Date
@@ -22,14 +22,14 @@ data class NotificationListItemResponse(
     val readAt: Date?,
     @field:Schema(description = "알림 생성 시각")
     val createdAt: Date,
-    @field:Schema(description = "알림 대상 목록")
-    val targets: List<NotificationTargetResponse>,
+    @field:Schema(description = "알림 메시지 인자 목록")
+    val arguments: List<NotificationArgumentResponse>,
 ) {
     companion object {
         fun from(
             recipient: NotificationRecipient,
             payloadHtml: String,
-            targets: List<NotificationTarget>,
+            arguments: List<NotificationArgument>,
         ): NotificationListItemResponse {
             val notification = recipient.notification
 
@@ -40,15 +40,15 @@ data class NotificationListItemResponse(
                 isRead = recipient.readAt != null,
                 readAt = recipient.readAt,
                 createdAt = recipient.createdAt,
-                targets =
-                    targets
+                arguments =
+                    arguments
                         .sortedWith(
-                            compareBy<NotificationTarget>(
-                                { if (it.role == NotificationTargetRole.ACTOR) 0 else 1 },
+                            compareBy<NotificationArgument>(
+                                { if (it.targetType == NotificationTargetType.USER) 0 else 1 },
                                 { it.createdAt },
                                 { it.id },
                             ),
-                        ).map(NotificationTargetResponse::from),
+                        ).map(NotificationArgumentResponse::from),
             )
         }
     }

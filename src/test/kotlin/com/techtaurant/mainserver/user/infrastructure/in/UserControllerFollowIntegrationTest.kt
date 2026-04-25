@@ -84,7 +84,7 @@ class UserControllerFollowIntegrationTest : IntegrationTest() {
         val recipientIds =
             notificationRecipientRepository
                 .findAllByNotificationIdOrderByCreatedAtAsc(savedNotification.id!!)
-                .map { it.user.id }
+                .map { it.recipientUser.id }
 
         assertThat(savedNotification.type).isEqualTo(NotificationType.FOLLOW)
         assertThat(recipientIds).containsExactly(firstTargetUser.id)

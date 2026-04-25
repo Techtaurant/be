@@ -5,12 +5,11 @@ import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.notification.dto.NotificationCursor
 import com.techtaurant.mainserver.notification.dto.NotificationListItemResponse
-import com.techtaurant.mainserver.notification.entity.NotificationTarget
-import com.techtaurant.mainserver.notification.enums.NotificationTargetRole
+import com.techtaurant.mainserver.notification.entity.NotificationArgument
 import com.techtaurant.mainserver.notification.enums.NotificationTargetType
 import com.techtaurant.mainserver.notification.enums.NotificationType
 import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRecipientRepository
-import com.techtaurant.mainserver.notification.infrastructure.out.NotificationTargetRepository
+import com.techtaurant.mainserver.notification.infrastructure.out.NotificationArgumentRepository
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.user.application.UserProfileImageResolver
@@ -26,7 +25,7 @@ import java.util.UUID
 @Service
 class NotificationReadService(
     private val notificationRecipientRepository: NotificationRecipientRepository,
-    private val notificationTargetRepository: NotificationTargetRepository,
+    private val notificationArgumentRepository: NotificationArgumentRepository,
     private val notificationPayloadService: NotificationPayloadService,
     private val userRepository: UserRepository,
     private val postRepository: PostRepository,
@@ -58,7 +57,7 @@ class NotificationReadService(
 
         val recipients =
             if (notificationCursor == null) {
-                notificationRecipientRepository.findAllByUserIdOrderByCreatedAtDescIdDesc(
+                notificationRecipientRepository.findAllByRecipientUserIdOrderByCreatedAtDescIdDesc(
                     userId = userId,
                     pageable = PageRequest.of(0, size + 1),
                 )
@@ -81,21 +80,32 @@ class NotificationReadService(
             }
 
         val notificationIds = content.map { it.notification.id!! }
-        val targetsByNotificationId =
+        val rawArgumentsByNotificationId =
             if (notificationIds.isEmpty()) {
                 emptyMap()
             } else {
-                notificationTargetRepository.findAllByNotificationIdInOrderByCreatedAtAsc(notificationIds)
+                notificationArgumentRepository.findAllByNotificationIdInOrderByCreatedAtAsc(notificationIds)
                     .groupBy { it.notification.id!! }
             }
-        val renderContexts = buildRenderContexts(targetsByNotificationId)
+        val argumentsByNotificationId =
+            content.associate { recipient ->
+                val notification = recipient.notification
+                val notificationId = notification.id!!
+                notificationId to
+                    normalizeArguments(
+                        type = notification.type,
+                        recipientUserId = recipient.recipientUser.id!!,
+                        arguments = rawArgumentsByNotificationId[notificationId].orEmpty(),
+                    )
+            }
+        val renderContexts = buildRenderContexts(argumentsByNotificationId)
 
         return CursorPageResponse(
             content =
                 content.map { recipient ->
                     val notification = recipient.notification
                     val notificationId = notification.id!!
-                    val targets = targetsByNotificationId[notificationId].orEmpty()
+                    val arguments = argumentsByNotificationId[notificationId].orEmpty()
                     val renderContext = renderContexts[notificationId] ?: NotificationRenderContext.EMPTY
 
                     NotificationListItemResponse.from(
@@ -107,7 +117,7 @@ class NotificationReadService(
                                 postTitle = renderContext.postTitle,
                                 media = resolvePayloadMedia(notification.type, renderContext),
                             ),
-                        targets = targets,
+                        arguments = arguments,
                     )
                 },
             nextCursor = nextCursor,
@@ -127,7 +137,7 @@ class NotificationReadService(
         }
 
         val unreadRecipients =
-            notificationRecipientRepository.findAllByUserIdAndNotificationIdInAndReadAtIsNull(
+            notificationRecipientRepository.findAllByRecipientUserIdAndNotificationIdInAndReadAtIsNull(
                 userId = userId,
                 notificationIds = distinctNotificationIds,
             )
@@ -142,34 +152,42 @@ class NotificationReadService(
         }
     }
 
-    private fun buildRenderContexts(targetsByNotificationId: Map<UUID, List<NotificationTarget>>): Map<UUID, NotificationRenderContext> {
-        if (targetsByNotificationId.isEmpty()) {
+    private fun normalizeArguments(
+        type: NotificationType,
+        recipientUserId: UUID,
+        arguments: List<NotificationArgument>,
+    ): List<NotificationArgument> =
+        if (type == NotificationType.FOLLOW) {
+            arguments.filterNot { it.targetType == NotificationTargetType.USER && it.targetId == recipientUserId }
+        } else {
+            arguments
+        }
+
+    private fun buildRenderContexts(argumentsByNotificationId: Map<UUID, List<NotificationArgument>>): Map<UUID, NotificationRenderContext> {
+        if (argumentsByNotificationId.isEmpty()) {
             return emptyMap()
         }
 
-        val flattenedTargets = targetsByNotificationId.values.flatten()
+        val flattenedArguments = argumentsByNotificationId.values.flatten()
         val actorUserIds =
-            flattenedTargets
-                .filter { it.role == NotificationTargetRole.ACTOR && it.targetType == NotificationTargetType.USER }
+            flattenedArguments
+                .filter { it.targetType == NotificationTargetType.USER }
                 .map { it.targetId }
                 .distinct()
         val actorsById = findUsersById(actorUserIds)
         val actorProfileImageUrlByUserId = userProfileImageResolver.resolve(actorsById.values.toList())
 
         val postIds =
-            flattenedTargets
+            flattenedArguments
                 .filter { it.targetType == NotificationTargetType.POST }
                 .map { it.targetId }
                 .distinct()
         val postsById = findPostsById(postIds)
         val postThumbnailUrlByPostId = resolvePostThumbnailUrlByPostId(postsById)
 
-        return targetsByNotificationId.mapValues { (_, targets) ->
-            val actorUserId =
-                targets.firstOrNull {
-                    it.role == NotificationTargetRole.ACTOR && it.targetType == NotificationTargetType.USER
-                }?.targetId
-            val postId = targets.firstOrNull { it.targetType == NotificationTargetType.POST }?.targetId
+        return argumentsByNotificationId.mapValues { (_, arguments) ->
+            val actorUserId = arguments.firstOrNull { it.targetType == NotificationTargetType.USER }?.targetId
+            val postId = arguments.firstOrNull { it.targetType == NotificationTargetType.POST }?.targetId
             val actor = actorUserId?.let(actorsById::get)
             val post = postId?.let(postsById::get)
 

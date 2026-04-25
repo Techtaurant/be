@@ -3,12 +3,11 @@ package com.techtaurant.mainserver.notification.application
 import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
-import com.techtaurant.mainserver.notification.enums.NotificationTargetRole
 import com.techtaurant.mainserver.notification.enums.NotificationTargetType
 import com.techtaurant.mainserver.notification.enums.NotificationType
+import com.techtaurant.mainserver.notification.infrastructure.out.NotificationArgumentRepository
 import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRecipientRepository
 import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRepository
-import com.techtaurant.mainserver.notification.infrastructure.out.NotificationTargetRepository
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
@@ -36,7 +35,7 @@ class NotificationWriteServiceTest : IntegrationTest() {
     private lateinit var notificationRepository: NotificationRepository
 
     @Autowired
-    private lateinit var notificationTargetRepository: NotificationTargetRepository
+    private lateinit var notificationArgumentRepository: NotificationArgumentRepository
 
     @Autowired
     private lateinit var notificationRecipientRepository: NotificationRecipientRepository
@@ -66,7 +65,7 @@ class NotificationWriteServiceTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("게시물 댓글 알림 생성 시 payload는 저장하지 않고 target과 recipient만 저장한다")
+    @DisplayName("게시물 댓글 알림 생성 시 payload는 저장하지 않고 argument와 recipient만 저장한다")
     fun createPostCommentNotification_savesNotificationGraph() {
         val notificationId =
             notificationWriteService.createPostCommentNotification(
@@ -78,19 +77,19 @@ class NotificationWriteServiceTest : IntegrationTest() {
             )
 
         val savedNotification = notificationRepository.findById(notificationId).orElseThrow()
-        val savedTargets = notificationTargetRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
+        val savedArguments = notificationArgumentRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
         val savedRecipients = notificationRecipientRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
 
         assertThat(savedNotification.type).isEqualTo(NotificationType.POST_COMMENT)
         assertThat(savedNotification::class.memberProperties.map { it.name }).doesNotContain("payloadHtml")
-        assertThat(savedTargets)
-            .extracting("role", "targetType", "targetId")
+        assertThat(savedArguments)
+            .extracting("targetType", "targetId")
             .containsExactlyInAnyOrder(
-                tuple(NotificationTargetRole.ACTOR, NotificationTargetType.USER, actorUser.id),
-                tuple(NotificationTargetRole.TARGET, NotificationTargetType.POST, post.id),
-                tuple(NotificationTargetRole.TARGET, NotificationTargetType.COMMENT, comment.id),
+                tuple(NotificationTargetType.USER, actorUser.id),
+                tuple(NotificationTargetType.POST, post.id),
+                tuple(NotificationTargetType.COMMENT, comment.id),
             )
-        assertThat(savedRecipients).singleElement().extracting("user.id").isEqualTo(recipientUser.id)
+        assertThat(savedRecipients).singleElement().extracting("recipientUser.id").isEqualTo(recipientUser.id)
     }
 
     @Test
@@ -108,15 +107,15 @@ class NotificationWriteServiceTest : IntegrationTest() {
             )
 
         val savedNotification = notificationRepository.findById(notificationId).orElseThrow()
-        val savedTargets = notificationTargetRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
+        val savedArguments = notificationArgumentRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
 
         assertThat(savedNotification.type).isEqualTo(NotificationType.COMMENT_REPLY)
-        assertThat(savedTargets)
-            .extracting("role", "targetType", "targetId")
+        assertThat(savedArguments)
+            .extracting("targetType", "targetId")
             .containsExactlyInAnyOrder(
-                tuple(NotificationTargetRole.ACTOR, NotificationTargetType.USER, actorUser.id),
-                tuple(NotificationTargetRole.TARGET, NotificationTargetType.POST, post.id),
-                tuple(NotificationTargetRole.TARGET, NotificationTargetType.COMMENT, replyComment.id),
+                tuple(NotificationTargetType.USER, actorUser.id),
+                tuple(NotificationTargetType.POST, post.id),
+                tuple(NotificationTargetType.COMMENT, replyComment.id),
             )
     }
 
@@ -132,23 +131,23 @@ class NotificationWriteServiceTest : IntegrationTest() {
             )
 
         val savedNotification = notificationRepository.findById(notificationId).orElseThrow()
-        val savedTargets = notificationTargetRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
+        val savedArguments = notificationArgumentRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
         val savedRecipients = notificationRecipientRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
 
         assertThat(savedNotification.type).isEqualTo(NotificationType.FOLLOWER_POST)
-        assertThat(savedTargets)
-            .extracting("role", "targetType", "targetId")
+        assertThat(savedArguments)
+            .extracting("targetType", "targetId")
             .containsExactlyInAnyOrder(
-                tuple(NotificationTargetRole.ACTOR, NotificationTargetType.USER, actorUser.id),
-                tuple(NotificationTargetRole.TARGET, NotificationTargetType.POST, post.id),
+                tuple(NotificationTargetType.USER, actorUser.id),
+                tuple(NotificationTargetType.POST, post.id),
             )
         assertThat(savedRecipients).hasSize(2)
-        assertThat(savedRecipients.map { it.user.id }).containsExactly(recipientUser.id, secondRecipientUser.id)
+        assertThat(savedRecipients.map { it.recipientUser.id }).containsExactly(recipientUser.id, secondRecipientUser.id)
     }
 
     @Test
-    @DisplayName("팔로우 알림 생성 시 actor와 팔로우 당한 target user가 함께 저장된다")
-    fun createFollowNotification_savesUserTargets() {
+    @DisplayName("팔로우 알림 생성 시 actor user argument만 저장된다")
+    fun createFollowNotification_savesActorArgumentOnly() {
         val notificationId =
             notificationWriteService.createFollowNotification(
                 actorUserId = actorUser.id!!,
@@ -157,17 +156,14 @@ class NotificationWriteServiceTest : IntegrationTest() {
             )
 
         val savedNotification = notificationRepository.findById(notificationId).orElseThrow()
-        val savedTargets = notificationTargetRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
+        val savedArguments = notificationArgumentRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
         val savedRecipients = notificationRecipientRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
 
         assertThat(savedNotification.type).isEqualTo(NotificationType.FOLLOW)
-        assertThat(savedTargets)
-            .extracting("role", "targetType", "targetId")
-            .containsExactlyInAnyOrder(
-                tuple(NotificationTargetRole.ACTOR, NotificationTargetType.USER, actorUser.id),
-                tuple(NotificationTargetRole.TARGET, NotificationTargetType.USER, recipientUser.id),
-            )
-        assertThat(savedRecipients).singleElement().extracting("user.id").isEqualTo(recipientUser.id)
+        assertThat(savedArguments)
+            .extracting("targetType", "targetId")
+            .containsExactly(tuple(NotificationTargetType.USER, actorUser.id))
+        assertThat(savedRecipients).singleElement().extracting("recipientUser.id").isEqualTo(recipientUser.id)
     }
 
     private fun createUser(prefix: String): User {
@@ -211,9 +207,8 @@ class NotificationWriteServiceTest : IntegrationTest() {
     }
 
     private fun tuple(
-        role: NotificationTargetRole,
         targetType: NotificationTargetType,
         targetId: UUID?,
     ): org.assertj.core.groups.Tuple =
-        org.assertj.core.groups.Tuple.tuple(role, targetType, targetId)
+        org.assertj.core.groups.Tuple.tuple(targetType, targetId)
 }
