@@ -7,15 +7,15 @@ import org.springframework.stereotype.Component
 import java.util.UUID
 
 @Component
-internal class PostCommentNotificationPayloadStrategy(
+internal class CommentReplyNotificationListItemRenderStrategy(
     notificationPayloadService: NotificationPayloadService,
     notificationPayloadResourceResolver: NotificationPayloadResourceResolver,
-) : AbstractActorPostNotificationPayloadStrategy(
+) : AbstractActorPostNotificationListItemRenderStrategy(
         notificationPayloadService = notificationPayloadService,
         notificationPayloadResourceResolver = notificationPayloadResourceResolver,
     ) {
-    override val type: NotificationType = NotificationType.POST_COMMENT
-    override val messageKey: String = "notification.payload.post-comment"
+    override val type: NotificationType = NotificationType.COMMENT_REPLY
+    override val messageKey: String = "notification.payload.comment-reply"
 
     override fun createMedia(
         actor: User?,

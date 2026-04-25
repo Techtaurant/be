@@ -1,5 +1,6 @@
 package com.techtaurant.mainserver.notification.application
 
+import com.techtaurant.mainserver.notification.dto.NotificationListItemResponse
 import com.techtaurant.mainserver.notification.entity.NotificationArgument
 import com.techtaurant.mainserver.notification.enums.NotificationTargetType
 import com.techtaurant.mainserver.notification.enums.NotificationType
@@ -7,20 +8,24 @@ import org.springframework.stereotype.Component
 import java.util.UUID
 
 @Component
-internal class FollowNotificationPayloadStrategy(
+internal class FollowNotificationListItemRenderStrategy(
     private val notificationPayloadService: NotificationPayloadService,
     private val notificationPayloadResourceResolver: NotificationPayloadResourceResolver,
-) : NotificationPayloadRenderStrategy {
+) : NotificationListItemRenderStrategy {
     override val type: NotificationType = NotificationType.FOLLOW
 
-    override fun render(commands: List<NotificationPayloadRenderCommand>): Map<UUID, NotificationPayloadRenderResult> {
+    override fun render(commands: List<NotificationListItemRenderCommand>): Map<UUID, NotificationListItemResponse> {
         if (commands.isEmpty()) {
             return emptyMap()
         }
 
         val normalizedArgumentsByNotificationId =
             commands.associate { command ->
-                command.notificationId to normalizeArguments(command.arguments, command.recipientUserId)
+                command.recipient.notification.id!! to
+                    normalizeArguments(
+                        arguments = command.arguments,
+                        recipientUserId = command.recipient.recipientUser.id!!,
+                    )
             }
         val actorUserIds =
             normalizedArgumentsByNotificationId.values
@@ -30,11 +35,14 @@ internal class FollowNotificationPayloadStrategy(
             notificationPayloadResourceResolver.resolveActorProfileImageUrlByUserId(actorsById)
 
         return commands.associate { command ->
-            val arguments = normalizedArgumentsByNotificationId.getValue(command.notificationId)
+            val recipient = command.recipient
+            val notificationId = recipient.notification.id!!
+            val arguments = normalizedArgumentsByNotificationId.getValue(notificationId)
             val actor = arguments.findTargetId(NotificationTargetType.USER)?.let(actorsById::get)
 
-            command.notificationId to
-                NotificationPayloadRenderResult(
+            notificationId to
+                NotificationListItemResponse.from(
+                    recipient = recipient,
                     payloadHtml =
                         notificationPayloadService.buildPayload(
                             messageKey = "notification.payload.follow",

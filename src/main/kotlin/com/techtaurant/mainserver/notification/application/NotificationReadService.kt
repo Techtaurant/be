@@ -4,6 +4,7 @@ import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.notification.dto.NotificationCursor
 import com.techtaurant.mainserver.notification.dto.NotificationListItemResponse
 import com.techtaurant.mainserver.notification.entity.NotificationRecipient
+import com.techtaurant.mainserver.notification.enums.NotificationType
 import com.techtaurant.mainserver.notification.infrastructure.out.NotificationArgumentRepository
 import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRecipientRepository
 import org.springframework.data.domain.PageRequest
@@ -16,8 +17,11 @@ import java.util.UUID
 class NotificationReadService(
     private val notificationRecipientRepository: NotificationRecipientRepository,
     private val notificationArgumentRepository: NotificationArgumentRepository,
-    private val notificationPayloadRenderer: NotificationPayloadRenderer,
+    notificationListItemRenderStrategies: List<NotificationListItemRenderStrategy>,
 ) {
+    private val notificationListItemRenderStrategyByType =
+        createNotificationListItemRenderStrategyByType(notificationListItemRenderStrategies)
+
     @Transactional(readOnly = true)
     fun getMyNotifications(
         userId: UUID,
@@ -106,34 +110,45 @@ class NotificationReadService(
         val argumentsByNotificationId =
             notificationArgumentRepository.findAllByNotificationIdInOrderByCreatedAtAsc(notificationIds)
                 .groupBy { it.notification.id!! }
-        val renderedPayloadsByNotificationId =
+        val listItemsByNotificationId =
             recipients.groupBy { it.notification.type }
                 .flatMap { (type, recipientsByType) ->
-                    notificationPayloadRenderer
+                    selectNotificationListItemRenderStrategy(type)
                         .render(
-                            type = type,
                             commands =
                                 recipientsByType.map { recipient ->
                                     val notificationId = recipient.notification.id!!
-                                    NotificationPayloadRenderCommand(
-                                        notificationId = notificationId,
-                                        recipientUserId = recipient.recipientUser.id!!,
+                                    NotificationListItemRenderCommand(
+                                        recipient = recipient,
                                         arguments = argumentsByNotificationId[notificationId].orEmpty(),
                                     )
                                 },
                         ).entries
                 }.associate { it.key to it.value }
 
-        return recipients.map { recipient ->
-            val notification = recipient.notification
-            val notificationId = notification.id!!
-            val renderedPayload = renderedPayloadsByNotificationId[notificationId] ?: NotificationPayloadRenderResult.EMPTY
-
-            NotificationListItemResponse.from(
-                recipient = recipient,
-                payloadHtml = renderedPayload.payloadHtml,
-                arguments = renderedPayload.arguments,
-            )
+        return recipients.mapNotNull { recipient ->
+            listItemsByNotificationId[recipient.notification.id!!]
         }
     }
+
+    private fun createNotificationListItemRenderStrategyByType(
+        strategies: List<NotificationListItemRenderStrategy>,
+    ): Map<NotificationType, NotificationListItemRenderStrategy> {
+        val strategiesByType = strategies.groupBy { it.type }
+        val duplicatedTypes = strategiesByType.filterValues { it.size > 1 }.keys
+        require(duplicatedTypes.isEmpty()) {
+            "알림 목록 아이템 렌더 전략이 중복 등록되었습니다: ${duplicatedTypes.joinToString()}"
+        }
+
+        val missingTypes = NotificationType.entries.filterNot { strategiesByType.containsKey(it) }
+        require(missingTypes.isEmpty()) {
+            "알림 목록 아이템 렌더 전략이 누락되었습니다: ${missingTypes.joinToString()}"
+        }
+
+        return strategiesByType.mapValues { (_, strategyGroup) -> strategyGroup.single() }
+    }
+
+    private fun selectNotificationListItemRenderStrategy(
+        type: NotificationType,
+    ): NotificationListItemRenderStrategy = notificationListItemRenderStrategyByType.getValue(type)
 }

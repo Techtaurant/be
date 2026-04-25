@@ -7,10 +7,10 @@ import org.springframework.stereotype.Component
 import java.util.UUID
 
 @Component
-internal class FollowerPostNotificationPayloadStrategy(
+internal class FollowerPostNotificationListItemRenderStrategy(
     notificationPayloadService: NotificationPayloadService,
     notificationPayloadResourceResolver: NotificationPayloadResourceResolver,
-) : AbstractActorPostNotificationPayloadStrategy(
+) : AbstractActorPostNotificationListItemRenderStrategy(
         notificationPayloadService = notificationPayloadService,
         notificationPayloadResourceResolver = notificationPayloadResourceResolver,
     ) {

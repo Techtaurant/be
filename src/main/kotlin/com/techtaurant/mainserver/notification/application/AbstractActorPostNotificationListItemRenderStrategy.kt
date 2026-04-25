@@ -1,17 +1,18 @@
 package com.techtaurant.mainserver.notification.application
 
+import com.techtaurant.mainserver.notification.dto.NotificationListItemResponse
 import com.techtaurant.mainserver.notification.enums.NotificationTargetType
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.user.entity.User
 import java.util.UUID
 
-internal abstract class AbstractActorPostNotificationPayloadStrategy(
+internal abstract class AbstractActorPostNotificationListItemRenderStrategy(
     private val notificationPayloadService: NotificationPayloadService,
     private val notificationPayloadResourceResolver: NotificationPayloadResourceResolver,
-) : NotificationPayloadRenderStrategy {
+) : NotificationListItemRenderStrategy {
     protected abstract val messageKey: String
 
-    final override fun render(commands: List<NotificationPayloadRenderCommand>): Map<UUID, NotificationPayloadRenderResult> {
+    final override fun render(commands: List<NotificationListItemRenderCommand>): Map<UUID, NotificationListItemResponse> {
         if (commands.isEmpty()) {
             return emptyMap()
         }
@@ -27,11 +28,14 @@ internal abstract class AbstractActorPostNotificationPayloadStrategy(
             notificationPayloadResourceResolver.resolvePostThumbnailUrlByPostId(postsById)
 
         return commands.associate { command ->
+            val recipient = command.recipient
+            val notificationId = recipient.notification.id!!
             val actor = command.arguments.findTargetId(NotificationTargetType.USER)?.let(actorsById::get)
             val post = command.arguments.findTargetId(NotificationTargetType.POST)?.let(postsById::get)
 
-            command.notificationId to
-                NotificationPayloadRenderResult(
+            notificationId to
+                NotificationListItemResponse.from(
+                    recipient = recipient,
                     payloadHtml =
                         notificationPayloadService.buildPayload(
                             messageKey = messageKey,
