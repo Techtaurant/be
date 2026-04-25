@@ -4,6 +4,7 @@ import com.techtaurant.mainserver.common.dto.ApiResponse
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.notification.application.NotificationReadService
 import com.techtaurant.mainserver.notification.dto.MarkNotificationsReadRequest
+import com.techtaurant.mainserver.notification.dto.MarkNotificationsReadResponse
 import com.techtaurant.mainserver.notification.dto.NotificationListItemResponse
 import com.techtaurant.mainserver.security.SecurityConstants
 import jakarta.validation.Valid
@@ -38,8 +39,11 @@ class NotificationController(
     override fun markNotificationsRead(
         @AuthenticationPrincipal userId: UUID,
         @Valid @RequestBody request: MarkNotificationsReadRequest,
-    ): ApiResponse<Unit> {
-        notificationReadService.markNotificationsRead(userId, request.notificationIds)
-        return ApiResponse.ok(Unit)
+    ): ApiResponse<MarkNotificationsReadResponse> {
+        return ApiResponse.ok(
+            MarkNotificationsReadResponse(
+                notifications = notificationReadService.markNotificationsRead(userId, request.notificationIds),
+            ),
+        )
     }
 }

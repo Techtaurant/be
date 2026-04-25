@@ -13,8 +13,8 @@ class NotificationControllerSwaggerIntegrationTest : IntegrationTest() {
     private val objectMapper = jacksonObjectMapper()
 
     @Test
-    @DisplayName("알림 다건 읽음 처리 성공 응답은 ApiResponse 래퍼 스키마를 노출한다")
-    fun markNotificationsRead_successResponse_isWrappedWithApiResponseSchema() {
+    @DisplayName("알림 다건 읽음 처리 성공 응답은 읽음 처리된 알림 목록 스키마를 노출한다")
+    fun markNotificationsRead_successResponse_exposesReadNotificationsSchema() {
         val openApi =
             objectMapper.readTree(
                 RestAssured
@@ -50,10 +50,19 @@ class NotificationControllerSwaggerIntegrationTest : IntegrationTest() {
 
         val properties = responseSchema.path("properties")
         val schemaDebug = responseSchema.toPrettyString()
+        val dataSchema = resolveSchema(openApi = openApi, schema = properties.path("data"))
+        val dataProperties = dataSchema.path("properties")
+        val notificationsSchema = resolveSchema(openApi = openApi, schema = dataProperties.path("notifications"))
+        val itemSchema = resolveSchema(openApi = openApi, schema = notificationsSchema.path("items"))
+        val itemProperties = itemSchema.path("properties")
 
         assertTrue(properties.has("status"), "성공 응답 스키마에 status 필드가 있어야 한다: $schemaDebug")
         assertTrue(properties.has("data"), "성공 응답 스키마에 data 필드가 있어야 한다: $schemaDebug")
         assertTrue(properties.has("message"), "성공 응답 스키마에 message 필드가 있어야 한다: $schemaDebug")
+        assertTrue(dataProperties.has("notifications"), "data 스키마에 notifications 필드가 있어야 한다: ${dataSchema.toPrettyString()}")
+        assertTrue(notificationsSchema.path("type").asText() == "array", "notifications 필드는 배열이어야 한다: ${notificationsSchema.toPrettyString()}")
+        assertTrue(itemProperties.has("id"), "알림 항목 스키마에 id 필드가 있어야 한다: ${itemSchema.toPrettyString()}")
+        assertTrue(itemProperties.has("arguments"), "알림 항목 스키마에 arguments 필드가 있어야 한다: ${itemSchema.toPrettyString()}")
     }
 
     private fun resolveSchema(

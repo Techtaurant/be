@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.notification.dto.NotificationCursor
 import com.techtaurant.mainserver.notification.dto.NotificationListItemResponse
 import com.techtaurant.mainserver.notification.entity.NotificationArgument
+import com.techtaurant.mainserver.notification.entity.NotificationRecipient
 import com.techtaurant.mainserver.notification.enums.NotificationTargetType
 import com.techtaurant.mainserver.notification.enums.NotificationType
 import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRecipientRepository
@@ -79,16 +80,55 @@ class NotificationReadService(
                 null
             }
 
-        val notificationIds = content.map { it.notification.id!! }
+        return CursorPageResponse(
+            content = buildNotificationListItems(content),
+            nextCursor = nextCursor,
+            hasNext = hasNext,
+            size = content.size,
+        )
+    }
+
+    @Transactional
+    fun markNotificationsRead(
+        userId: UUID,
+        notificationIds: List<UUID>,
+    ): List<NotificationListItemResponse> {
+        val distinctNotificationIds = notificationIds.distinct()
+        if (distinctNotificationIds.isEmpty()) {
+            return emptyList()
+        }
+
+        val unreadRecipients =
+            notificationRecipientRepository.findAllByRecipientUserIdAndNotificationIdInAndReadAtIsNull(
+                userId = userId,
+                notificationIds = distinctNotificationIds,
+            )
+
+        if (unreadRecipients.isEmpty()) {
+            return emptyList()
+        }
+
+        val unreadRecipientsByNotificationId = unreadRecipients.associateBy { it.notification.id!! }
+        val updatedRecipients = distinctNotificationIds.mapNotNull(unreadRecipientsByNotificationId::get)
+        val readAt = Date()
+        updatedRecipients.forEach { recipient ->
+            recipient.markAsRead(readAt)
+        }
+
+        return buildNotificationListItems(updatedRecipients)
+    }
+
+    private fun buildNotificationListItems(recipients: List<NotificationRecipient>): List<NotificationListItemResponse> {
+        if (recipients.isEmpty()) {
+            return emptyList()
+        }
+
+        val notificationIds = recipients.map { it.notification.id!! }
         val rawArgumentsByNotificationId =
-            if (notificationIds.isEmpty()) {
-                emptyMap()
-            } else {
-                notificationArgumentRepository.findAllByNotificationIdInOrderByCreatedAtAsc(notificationIds)
-                    .groupBy { it.notification.id!! }
-            }
+            notificationArgumentRepository.findAllByNotificationIdInOrderByCreatedAtAsc(notificationIds)
+                .groupBy { it.notification.id!! }
         val argumentsByNotificationId =
-            content.associate { recipient ->
+            recipients.associate { recipient ->
                 val notification = recipient.notification
                 val notificationId = notification.id!!
                 notificationId to
@@ -100,55 +140,23 @@ class NotificationReadService(
             }
         val renderContexts = buildRenderContexts(argumentsByNotificationId)
 
-        return CursorPageResponse(
-            content =
-                content.map { recipient ->
-                    val notification = recipient.notification
-                    val notificationId = notification.id!!
-                    val arguments = argumentsByNotificationId[notificationId].orEmpty()
-                    val renderContext = renderContexts[notificationId] ?: NotificationRenderContext.EMPTY
+        return recipients.map { recipient ->
+            val notification = recipient.notification
+            val notificationId = notification.id!!
+            val arguments = argumentsByNotificationId[notificationId].orEmpty()
+            val renderContext = renderContexts[notificationId] ?: NotificationRenderContext.EMPTY
 
-                    NotificationListItemResponse.from(
-                        recipient = recipient,
-                        payloadHtml =
-                            notificationPayloadService.buildPayload(
-                                type = notification.type,
-                                actorName = renderContext.actorName,
-                                postTitle = renderContext.postTitle,
-                                media = resolvePayloadMedia(notification.type, renderContext),
-                            ),
-                        arguments = arguments,
-                    )
-                },
-            nextCursor = nextCursor,
-            hasNext = hasNext,
-            size = content.size,
-        )
-    }
-
-    @Transactional
-    fun markNotificationsRead(
-        userId: UUID,
-        notificationIds: List<UUID>,
-    ) {
-        val distinctNotificationIds = notificationIds.distinct()
-        if (distinctNotificationIds.isEmpty()) {
-            return
-        }
-
-        val unreadRecipients =
-            notificationRecipientRepository.findAllByRecipientUserIdAndNotificationIdInAndReadAtIsNull(
-                userId = userId,
-                notificationIds = distinctNotificationIds,
+            NotificationListItemResponse.from(
+                recipient = recipient,
+                payloadHtml =
+                    notificationPayloadService.buildPayload(
+                        type = notification.type,
+                        actorName = renderContext.actorName,
+                        postTitle = renderContext.postTitle,
+                        media = resolvePayloadMedia(notification.type, renderContext),
+                    ),
+                arguments = arguments,
             )
-
-        if (unreadRecipients.isEmpty()) {
-            return
-        }
-
-        val readAt = Date()
-        unreadRecipients.forEach { recipient ->
-            recipient.markAsRead(readAt)
         }
     }
 

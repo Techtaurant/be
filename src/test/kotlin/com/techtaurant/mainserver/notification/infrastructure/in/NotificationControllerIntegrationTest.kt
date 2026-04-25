@@ -203,28 +203,37 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
                 createdAt = Instant.parse("2026-04-24T03:00:00Z"),
             )
 
-        RestAssured
-            .given()
-            .contentType(ContentType.JSON)
-            .header("Authorization", "Bearer $accessToken")
-            .body(
-                mapOf(
-                    "notificationIds" to
-                        listOf(
-                            unreadNotification.notificationId,
-                            alreadyReadNotification.notificationId,
-                            otherUsersNotification.notificationId,
-                        ),
-                ),
-            )
-            .`when`()
-            .patch("/api/notifications/read")
-            .then()
-            .statusCode(200)
+        val response =
+            RestAssured
+                .given()
+                .contentType(ContentType.JSON)
+                .header("Authorization", "Bearer $accessToken")
+                .body(
+                    mapOf(
+                        "notificationIds" to
+                            listOf(
+                                unreadNotification.notificationId,
+                                alreadyReadNotification.notificationId,
+                                otherUsersNotification.notificationId,
+                            ),
+                    ),
+                )
+                .`when`()
+                .patch("/api/notifications/read")
+                .then()
+                .statusCode(200)
+                .extract()
+                .jsonPath()
 
         val updatedUnreadRecipient = notificationRecipientRepository.findById(unreadNotification.recipientId).orElseThrow()
         val unchangedReadRecipient = notificationRecipientRepository.findById(alreadyReadNotification.recipientId).orElseThrow()
         val untouchedOtherRecipient = notificationRecipientRepository.findById(otherUsersNotification.recipientId).orElseThrow()
+
+        assertEquals(200, response.getInt("status"))
+        assertEquals(1, response.getList<Any>("data.notifications").size)
+        assertEquals(unreadNotification.notificationId.toString(), response.getString("data.notifications[0].id"))
+        assertEquals(true, response.getBoolean("data.notifications[0].isRead"))
+        assertNotNull(response.getString("data.notifications[0].readAt"))
 
         assertNotNull(updatedUnreadRecipient.readAt)
         assertNotNull(unchangedReadRecipient.readAt)
