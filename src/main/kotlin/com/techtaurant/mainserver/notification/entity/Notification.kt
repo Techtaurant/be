@@ -20,8 +20,6 @@ class Notification(
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "notification_type")
     var type: NotificationType,
-    @Column(name = "payload_html", nullable = false, columnDefinition = "TEXT")
-    var payloadHtml: String,
     @OneToMany(mappedBy = "notification", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)
     var targets: MutableList<NotificationTarget> = mutableListOf(),
     @OneToMany(mappedBy = "notification", cascade = [CascadeType.ALL], orphanRemoval = true, fetch = FetchType.LAZY)

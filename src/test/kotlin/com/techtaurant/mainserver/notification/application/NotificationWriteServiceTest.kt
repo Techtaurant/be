@@ -24,6 +24,7 @@ import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
 import java.util.Locale
 import java.util.UUID
+import kotlin.reflect.full.memberProperties
 
 @Transactional
 @ActiveProfiles("test")
@@ -65,7 +66,7 @@ class NotificationWriteServiceTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("게시물 댓글 알림 생성 시 payload HTML은 sanitize되고 target과 recipient가 저장된다")
+    @DisplayName("게시물 댓글 알림 생성 시 payload는 저장하지 않고 target과 recipient만 저장한다")
     fun createPostCommentNotification_savesNotificationGraph() {
         val notificationId =
             notificationWriteService.createPostCommentNotification(
@@ -81,9 +82,7 @@ class NotificationWriteServiceTest : IntegrationTest() {
         val savedRecipients = notificationRecipientRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
 
         assertThat(savedNotification.type).isEqualTo(NotificationType.POST_COMMENT)
-        assertThat(savedNotification.payloadHtml).contains("<strong>${actorUser.name}</strong>")
-        assertThat(savedNotification.payloadHtml).contains("<strong>${post.title}</strong>")
-        assertThat(savedNotification.payloadHtml).contains("댓글을 남겼습니다")
+        assertThat(savedNotification::class.memberProperties.map { it.name }).doesNotContain("payloadHtml")
         assertThat(savedTargets)
             .extracting("role", "targetType", "targetId")
             .containsExactlyInAnyOrder(
@@ -112,8 +111,6 @@ class NotificationWriteServiceTest : IntegrationTest() {
         val savedTargets = notificationTargetRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
 
         assertThat(savedNotification.type).isEqualTo(NotificationType.COMMENT_REPLY)
-        assertThat(savedNotification.payloadHtml).contains("<strong>${actorUser.name}</strong>")
-        assertThat(savedNotification.payloadHtml).contains("replied to your comment")
         assertThat(savedTargets)
             .extracting("role", "targetType", "targetId")
             .containsExactlyInAnyOrder(
@@ -139,8 +136,6 @@ class NotificationWriteServiceTest : IntegrationTest() {
         val savedRecipients = notificationRecipientRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
 
         assertThat(savedNotification.type).isEqualTo(NotificationType.FOLLOWER_POST)
-        assertThat(savedNotification.payloadHtml).contains("published a new post")
-        assertThat(savedNotification.payloadHtml).contains("<strong>${post.title}</strong>")
         assertThat(savedTargets)
             .extracting("role", "targetType", "targetId")
             .containsExactlyInAnyOrder(
@@ -166,8 +161,6 @@ class NotificationWriteServiceTest : IntegrationTest() {
         val savedRecipients = notificationRecipientRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId)
 
         assertThat(savedNotification.type).isEqualTo(NotificationType.FOLLOW)
-        assertThat(savedNotification.payloadHtml).contains("<strong>${actorUser.name}</strong>")
-        assertThat(savedNotification.payloadHtml).contains("팔로우했습니다")
         assertThat(savedTargets)
             .extracting("role", "targetType", "targetId")
             .containsExactlyInAnyOrder(

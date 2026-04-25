@@ -3,10 +3,10 @@ package com.techtaurant.mainserver.notification.application
 import com.techtaurant.mainserver.comment.enums.CommentStatus
 import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
-import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.notification.entity.Notification
 import com.techtaurant.mainserver.notification.entity.NotificationRecipient
 import com.techtaurant.mainserver.notification.entity.NotificationTarget
+import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.notification.enums.NotificationStatus
 import com.techtaurant.mainserver.notification.enums.NotificationTargetRole
 import com.techtaurant.mainserver.notification.enums.NotificationTargetType
@@ -26,7 +26,6 @@ import java.util.UUID
 @Service
 class NotificationWriteService(
     private val notificationRepository: NotificationRepository,
-    private val notificationPayloadService: NotificationPayloadService,
     private val userRepository: UserRepository,
     private val postRepository: PostRepository,
     private val commentRepository: CommentRepository,
@@ -41,13 +40,12 @@ class NotificationWriteService(
     ): UUID {
         val actor = resolveActor(actorUserId)
         val recipients = resolveRecipients(listOf(recipientUserId))
-        val post = resolvePost(postId)
+        resolvePost(postId)
 
         resolveComment(commentId)
 
         return createNotification(
             type = NotificationType.POST_COMMENT,
-            payloadHtml = notificationPayloadService.buildPostCommentPayload(actor.name, post.title, locale),
             recipients = recipients,
             targetSpecs =
                 listOf(
@@ -68,13 +66,12 @@ class NotificationWriteService(
     ): UUID {
         val actor = resolveActor(actorUserId)
         val recipients = resolveRecipients(listOf(recipientUserId))
-        val post = resolvePost(postId)
+        resolvePost(postId)
 
         resolveComment(commentId)
 
         return createNotification(
             type = NotificationType.COMMENT_REPLY,
-            payloadHtml = notificationPayloadService.buildCommentReplyPayload(actor.name, post.title, locale),
             recipients = recipients,
             targetSpecs =
                 listOf(
@@ -94,11 +91,10 @@ class NotificationWriteService(
     ): UUID {
         val actor = resolveActor(actorUserId)
         val recipients = resolveRecipients(recipientUserIds)
-        val post = resolvePost(postId)
+        resolvePost(postId)
 
         return createNotification(
             type = NotificationType.FOLLOWER_POST,
-            payloadHtml = notificationPayloadService.buildFollowerPostPayload(actor.name, post.title, locale),
             recipients = recipients,
             targetSpecs =
                 listOf(
@@ -119,7 +115,6 @@ class NotificationWriteService(
 
         return createNotification(
             type = NotificationType.FOLLOW,
-            payloadHtml = notificationPayloadService.buildFollowPayload(actor.name, locale),
             recipients = recipients,
             targetSpecs =
                 listOf(
@@ -131,7 +126,6 @@ class NotificationWriteService(
 
     private fun createNotification(
         type: NotificationType,
-        payloadHtml: String,
         recipients: List<User>,
         targetSpecs: List<NotificationTargetSpec>,
     ): UUID {
@@ -142,7 +136,6 @@ class NotificationWriteService(
         val notification =
             Notification(
                 type = type,
-                payloadHtml = requirePayload(payloadHtml),
             )
 
         targetSpecs.distinct().forEach { spec ->
@@ -167,15 +160,6 @@ class NotificationWriteService(
 
         return notificationRepository.save(notification).id!!
     }
-
-    private fun requirePayload(payloadHtml: String): String {
-        if (payloadHtml.isBlank()) {
-            throw ApiException(NotificationStatus.NOTIFICATION_PAYLOAD_REQUIRED)
-        }
-
-        return payloadHtml
-    }
-
     private fun resolveActor(actorUserId: UUID): User {
         return userRepository.findById(actorUserId).orElseThrow {
             ApiException(UserStatus.ID_NOT_FOUND)

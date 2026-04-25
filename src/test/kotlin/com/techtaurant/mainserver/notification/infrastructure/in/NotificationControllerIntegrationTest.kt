@@ -9,6 +9,8 @@ import com.techtaurant.mainserver.notification.enums.NotificationTargetType
 import com.techtaurant.mainserver.notification.enums.NotificationType
 import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRecipientRepository
 import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRepository
+import com.techtaurant.mainserver.post.entity.Post
+import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.entity.User
@@ -23,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import java.time.Instant
 import java.util.Date
 import java.util.UUID
+import kotlin.test.assertTrue
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -37,6 +40,9 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
 
     @Autowired
     private lateinit var userRepository: UserRepository
+
+    @Autowired
+    private lateinit var postRepository: PostRepository
 
     @Autowired
     private lateinit var jwtTokenProvider: JwtTokenProvider
@@ -55,30 +61,30 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("내 알림 목록 조회 성공 - 최신순으로 정렬되고 읽음 상태와 타겟이 함께 반환된다")
+    @DisplayName("내 알림 목록 조회 성공 - 최신순으로 정렬되고 동적으로 생성된 HTML에 프로필 이미지와 게시물 썸네일이 포함된다")
     fun getMyNotifications_returnsLatestFirstWithReadStateAndTargets() {
+        val publishedPost = createPost(actorUser, "동적 payload 게시물")
         val olderNotification =
             createNotification(
                 recipient = currentUser,
                 actor = actorUser,
-                type = NotificationType.POST_COMMENT,
-                payloadHtml = "<strong>${actorUser.name}</strong>님이 댓글을 남겼습니다.",
+                type = NotificationType.FOLLOWER_POST,
                 createdAt = Instant.parse("2026-04-24T01:00:00Z"),
                 readAt = Instant.parse("2026-04-24T01:10:00Z"),
+                targetType = NotificationTargetType.POST,
+                targetId = publishedPost.id!!,
             )
         val newerNotification =
             createNotification(
                 recipient = currentUser,
                 actor = actorUser,
                 type = NotificationType.FOLLOW,
-                payloadHtml = "<strong>${actorUser.name}</strong>님이 회원님을 팔로우했습니다.",
                 createdAt = Instant.parse("2026-04-24T02:00:00Z"),
             )
         createNotification(
             recipient = otherUser,
             actor = actorUser,
             type = NotificationType.FOLLOWER_POST,
-            payloadHtml = "다른 사용자 알림",
             createdAt = Instant.parse("2026-04-24T03:00:00Z"),
         )
 
@@ -101,12 +107,17 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
         assertEquals("FOLLOW", response.getString("data.content[0].type"))
         assertEquals(false, response.getBoolean("data.content[0].isRead"))
         assertNull(response.getString("data.content[0].readAt"))
+        assertTrue(response.getString("data.content[0].payloadHtml").contains("<img"))
+        assertTrue(response.getString("data.content[0].payloadHtml").contains("https://example.com/actor-user.png"))
         assertEquals(2, response.getList<Any>("data.content[0].targets").size)
         assertEquals("ACTOR", response.getString("data.content[0].targets[0].role"))
         assertEquals(actorUser.id.toString(), response.getString("data.content[0].targets[0].targetId"))
         assertEquals(olderNotification.notificationId.toString(), response.getString("data.content[1].id"))
         assertEquals(true, response.getBoolean("data.content[1].isRead"))
         assertNotNull(response.getString("data.content[1].readAt"))
+        assertTrue(response.getString("data.content[1].payloadHtml").contains("<img"))
+        assertTrue(response.getString("data.content[1].payloadHtml").contains("/static/images/post-thumbnail.png"))
+        assertTrue(response.getString("data.content[1].payloadHtml").contains("동적 payload 게시물"))
     }
 
     @Test
@@ -117,21 +128,18 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
                 recipient = currentUser,
                 actor = actorUser,
                 type = NotificationType.FOLLOW,
-                payloadHtml = "가장 오래된 알림",
                 createdAt = Instant.parse("2026-04-24T01:00:00Z"),
             )
         createNotification(
             recipient = currentUser,
             actor = actorUser,
             type = NotificationType.POST_COMMENT,
-            payloadHtml = "중간 알림",
             createdAt = Instant.parse("2026-04-24T02:00:00Z"),
         )
         createNotification(
             recipient = currentUser,
             actor = actorUser,
             type = NotificationType.FOLLOWER_POST,
-            payloadHtml = "가장 최신 알림",
             createdAt = Instant.parse("2026-04-24T03:00:00Z"),
         )
 
@@ -178,7 +186,6 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
                 recipient = currentUser,
                 actor = actorUser,
                 type = NotificationType.FOLLOW,
-                payloadHtml = "읽지 않은 알림",
                 createdAt = Instant.parse("2026-04-24T01:00:00Z"),
             )
         val alreadyReadNotification =
@@ -186,7 +193,6 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
                 recipient = currentUser,
                 actor = actorUser,
                 type = NotificationType.POST_COMMENT,
-                payloadHtml = "이미 읽은 알림",
                 createdAt = Instant.parse("2026-04-24T02:00:00Z"),
                 readAt = Instant.parse("2026-04-24T02:10:00Z"),
             )
@@ -195,7 +201,6 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
                 recipient = otherUser,
                 actor = actorUser,
                 type = NotificationType.FOLLOWER_POST,
-                payloadHtml = "다른 사용자 알림",
                 createdAt = Instant.parse("2026-04-24T03:00:00Z"),
             )
 
@@ -264,18 +269,30 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
             ),
         )
 
+    private fun createPost(
+        author: User,
+        title: String,
+    ): Post =
+        postRepository.save(
+            Post(
+                title = title,
+                content = "<p>본문</p>",
+                author = author,
+            ),
+        )
+
     private fun createNotification(
         recipient: User,
         actor: User,
         type: NotificationType,
-        payloadHtml: String,
         createdAt: Instant,
         readAt: Instant? = null,
+        targetType: NotificationTargetType = NotificationTargetType.USER,
+        targetId: UUID = recipient.id!!,
     ): CreatedNotification {
         val notification =
             Notification(
                 type = type,
-                payloadHtml = payloadHtml,
             )
 
         notification.addTarget(
@@ -290,8 +307,8 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
             NotificationTarget(
                 notification = notification,
                 role = NotificationTargetRole.TARGET,
-                targetType = NotificationTargetType.USER,
-                targetId = recipient.id!!,
+                targetType = targetType,
+                targetId = targetId,
             ),
         )
         notification.addRecipient(

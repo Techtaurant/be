@@ -3,6 +3,7 @@ server:
 
 app:
   default-post-thumbnail-url: /static/images/post-thumbnail.png
+  default-user-thumbnail-url: /static/images/user-thumbnail.png
 
 spring:
   application:
