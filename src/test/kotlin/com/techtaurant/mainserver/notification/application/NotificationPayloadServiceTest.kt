@@ -1,7 +1,6 @@
 package com.techtaurant.mainserver.notification.application
 
 import com.techtaurant.mainserver.config.MessageSourceConfig
-import com.techtaurant.mainserver.notification.enums.NotificationType
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -21,9 +20,8 @@ class NotificationPayloadServiceTest {
     fun buildPayload_withActorProfileImage_returnsWrappedHtml() {
         val payload =
             notificationPayloadService.buildPayload(
-                type = NotificationType.POST_COMMENT,
-                actorName = "민수",
-                postTitle = "JPA 정리",
+                messageKey = "notification.payload.post-comment",
+                messageArguments = listOf("민수", "JPA 정리"),
                 media =
                     NotificationPayloadService.NotificationPayloadMedia(
                         url = "https://cdn.example.com/profile.png",
@@ -46,9 +44,8 @@ class NotificationPayloadServiceTest {
     fun buildPayload_withPostThumbnail_returnsWrappedHtml() {
         val payload =
             notificationPayloadService.buildPayload(
-                type = NotificationType.FOLLOWER_POST,
-                actorName = "Minsu",
-                postTitle = "DDD Start",
+                messageKey = "notification.payload.follower-post",
+                messageArguments = listOf("Minsu", "DDD Start"),
                 media =
                     NotificationPayloadService.NotificationPayloadMedia(
                         url = "/static/images/post-thumbnail.png",
@@ -69,8 +66,8 @@ class NotificationPayloadServiceTest {
     fun buildPayload_sanitizesArgumentsAndSkipsUnsafeMediaUrl() {
         val payload =
             notificationPayloadService.buildPayload(
-                type = NotificationType.FOLLOW,
-                actorName = "<script>alert('xss')</script><b>민수</b>",
+                messageKey = "notification.payload.follow",
+                messageArguments = listOf("<script>alert('xss')</script><b>민수</b>"),
                 media =
                     NotificationPayloadService.NotificationPayloadMedia(
                         url = "javascript:alert('xss')",

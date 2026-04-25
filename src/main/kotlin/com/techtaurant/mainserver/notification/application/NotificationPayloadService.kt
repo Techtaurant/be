@@ -1,7 +1,6 @@
 package com.techtaurant.mainserver.notification.application
 
 import com.techtaurant.mainserver.common.util.HtmlSanitizer
-import com.techtaurant.mainserver.notification.enums.NotificationType
 import org.jsoup.nodes.Element
 import org.springframework.context.MessageSource
 import org.springframework.context.i18n.LocaleContextHolder
@@ -13,23 +12,12 @@ class NotificationPayloadService(
     private val messageSource: MessageSource,
 ) {
     fun buildPayload(
-        type: NotificationType,
-        actorName: String,
-        postTitle: String? = null,
+        messageKey: String,
+        messageArguments: List<String>,
         media: NotificationPayloadMedia? = null,
         locale: Locale? = null,
     ): String {
-        val messageHtml =
-            when (type) {
-                NotificationType.POST_COMMENT ->
-                    buildMessage("notification.payload.post-comment", locale, actorName, postTitle.orEmpty())
-                NotificationType.COMMENT_REPLY ->
-                    buildMessage("notification.payload.comment-reply", locale, actorName, postTitle.orEmpty())
-                NotificationType.FOLLOWER_POST ->
-                    buildMessage("notification.payload.follower-post", locale, actorName, postTitle.orEmpty())
-                NotificationType.FOLLOW ->
-                    buildMessage("notification.payload.follow", locale, actorName)
-            }
+        val messageHtml = buildMessage(messageKey, locale, messageArguments)
 
         val container = Element("div")
         media.toSafeMedia()?.let { safeMedia ->
@@ -47,7 +35,7 @@ class NotificationPayloadService(
     private fun buildMessage(
         key: String,
         locale: Locale?,
-        vararg args: String,
+        args: List<String>,
     ): String {
         val resolvedLocale = locale ?: LocaleContextHolder.getLocale()
         val sanitizedArgs = args.map(HtmlSanitizer::sanitizeTitle).toTypedArray()
