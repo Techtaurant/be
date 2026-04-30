@@ -519,7 +519,7 @@ class CommentWriteServiceTest : IntegrationTest() {
     }
 
     private fun recipientIdsOf(notificationId: UUID): List<UUID?> =
-        notificationRecipientRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId).map { it.user.id }
+        notificationRecipientRepository.findAllByNotificationIdOrderByCreatedAtAsc(notificationId).map { it.recipientUser.id }
 
     private fun createUser(name: String): User {
         val uniqueSuffix = UUID.randomUUID().toString().take(8)
