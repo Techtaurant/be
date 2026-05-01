@@ -6,4 +6,5 @@ enum class UserRole(
 ) {
     USER("ROLE_USER", "USER"),
     ADMIN("ROLE_ADMIN", "ADMIN"),
+    COMPANY("ROLE_COMPANY", "COMPANY"),
 }

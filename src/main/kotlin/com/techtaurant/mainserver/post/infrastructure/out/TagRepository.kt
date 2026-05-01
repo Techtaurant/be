@@ -1,15 +1,22 @@
 package com.techtaurant.mainserver.post.infrastructure.out
 
 import com.techtaurant.mainserver.post.entity.Tag
+import com.techtaurant.mainserver.post.enums.TagTargetType
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
 import java.util.UUID
 
 interface TagRepository : JpaRepository<Tag, UUID> {
-    fun findByName(name: String): Tag?
+    fun findByNameAndTargetType(
+        name: String,
+        targetType: TagTargetType,
+    ): Tag?
 
-    fun findByNameIn(names: List<String>): List<Tag>
+    fun findByNameInAndTargetType(
+        names: Collection<String>,
+        targetType: TagTargetType,
+    ): List<Tag>
 
     @Query(
         value = """
@@ -17,7 +24,8 @@ interface TagRepository : JpaRepository<Tag, UUID> {
                    COALESCE(COUNT(pt.post_id), 0) as postCount
             FROM tags t
             LEFT JOIN post_tags pt ON t.id = pt.tag_id
-            WHERE (:name IS NULL OR t.name ILIKE '%' || :name || '%')
+            WHERE t.target_type = 'POST'
+              AND (:name IS NULL OR t.name ILIKE '%' || :name || '%')
             GROUP BY t.id, t.name, t.created_at, t.updated_at
             ORDER BY postCount DESC, t.id ASC
             LIMIT :limit
@@ -45,7 +53,8 @@ interface TagRepository : JpaRepository<Tag, UUID> {
                    COALESCE(COUNT(pt.post_id), 0) as postCount
             FROM tags t
             LEFT JOIN post_tags pt ON t.id = pt.tag_id
-            WHERE (:name IS NULL OR t.name ILIKE '%' || :name || '%')
+            WHERE t.target_type = 'POST'
+              AND (:name IS NULL OR t.name ILIKE '%' || :name || '%')
             GROUP BY t.id, t.name, t.created_at, t.updated_at
             HAVING COALESCE(COUNT(pt.post_id), 0) < :lastPostCount
                 OR (COALESCE(COUNT(pt.post_id), 0) = :lastPostCount AND t.id > :lastTagId)

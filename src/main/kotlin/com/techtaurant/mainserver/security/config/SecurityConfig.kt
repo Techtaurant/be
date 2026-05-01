@@ -68,6 +68,7 @@ class SecurityConfig(
                     ).hasAnyAuthority(
                         UserRole.ADMIN.key,
                         UserRole.USER.key,
+                        UserRole.COMPANY.key,
                     )
                     .anyRequest().authenticated()
             }

@@ -17,6 +17,7 @@ enum class UserStatus(
     USER_ALREADY_FOLLOWED(HttpStatus.CONFLICT.value(), 1007, "이미 팔로우한 사용자입니다"),
     USER_FOLLOW_NOT_FOUND(HttpStatus.NOT_FOUND.value(), 1008, "팔로우 관계를 찾을 수 없습니다"),
     USER_NAME_ALREADY_EXISTS(HttpStatus.CONFLICT.value(), 1009, "이미 사용 중인 닉네임입니다"),
+    COMPANY_NOT_FOUND(HttpStatus.NOT_FOUND.value(), 1010, "회사를 찾을 수 없습니다"),
     ;
 
     override fun getHttpStatusCode(): Int {
