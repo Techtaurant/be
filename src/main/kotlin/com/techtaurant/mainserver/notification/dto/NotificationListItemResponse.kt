@@ -1,7 +1,7 @@
 package com.techtaurant.mainserver.notification.dto
 
-import com.techtaurant.mainserver.notification.entity.NotificationRecipient
 import com.techtaurant.mainserver.notification.entity.NotificationArgument
+import com.techtaurant.mainserver.notification.entity.NotificationRecipient
 import com.techtaurant.mainserver.notification.enums.NotificationTargetType
 import com.techtaurant.mainserver.notification.enums.NotificationType
 import io.swagger.v3.oas.annotations.media.Schema
@@ -16,6 +16,8 @@ data class NotificationListItemResponse(
     val type: NotificationType,
     @field:Schema(description = "알림 HTML payload")
     val payloadHtml: String,
+    @field:Schema(description = "알림 썸네일 URL")
+    val thumbnailUrl: String,
     @field:Schema(description = "읽음 여부")
     val isRead: Boolean,
     @field:Schema(description = "읽음 시각", nullable = true)
@@ -29,6 +31,7 @@ data class NotificationListItemResponse(
         fun from(
             recipient: NotificationRecipient,
             payloadHtml: String,
+            thumbnailUrl: String,
             arguments: List<NotificationArgument>,
         ): NotificationListItemResponse {
             val notification = recipient.notification
@@ -37,6 +40,7 @@ data class NotificationListItemResponse(
                 id = notification.id!!,
                 type = notification.type,
                 payloadHtml = payloadHtml,
+                thumbnailUrl = thumbnailUrl,
                 isRead = recipient.readAt != null,
                 readAt = recipient.readAt,
                 createdAt = recipient.createdAt,

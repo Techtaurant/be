@@ -52,7 +52,6 @@ class PostListReadServiceTest {
 
     private fun createPostListQueryStrategies(): List<PostListQueryStrategy> =
         listOf(
-            AllVisiblePostsQueryStrategy(postRepository),
             OwnVisiblePostsQueryStrategy(postRepository),
             AuthorPublicPostsQueryStrategy(postRepository),
         )
@@ -152,7 +151,6 @@ class PostListReadServiceTest {
             createPostListReadService(
                 postListQueryStrategies =
                     listOf(
-                        AllVisiblePostsQueryStrategy(postRepository),
                         OwnVisiblePostsQueryStrategy(postRepository),
                     ),
             )
@@ -168,8 +166,7 @@ class PostListReadServiceTest {
             createPostListReadService(
                 postListQueryStrategies =
                     listOf(
-                        AllVisiblePostsQueryStrategy(postRepository),
-                        AllVisiblePostsQueryStrategy(postRepository),
+                        OwnVisiblePostsQueryStrategy(postRepository),
                         OwnVisiblePostsQueryStrategy(postRepository),
                         AuthorPublicPostsQueryStrategy(postRepository),
                     ),

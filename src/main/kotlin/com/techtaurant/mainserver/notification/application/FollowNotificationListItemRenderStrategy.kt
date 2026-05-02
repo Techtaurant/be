@@ -39,6 +39,14 @@ internal class FollowNotificationListItemRenderStrategy(
             val notificationId = recipient.notification.id!!
             val arguments = normalizedArgumentsByNotificationId.getValue(notificationId)
             val actor = arguments.findTargetId(NotificationTargetType.USER)?.let(actorsById::get)
+            val media =
+                NotificationPayloadService.NotificationPayloadMedia(
+                    url =
+                        notificationPayloadResourceResolver.resolveActorProfileImageUrl(
+                            actor,
+                            actorProfileImageUrlByUserId,
+                        ),
+                )
 
             notificationId to
                 NotificationListItemResponse.from(
@@ -47,18 +55,8 @@ internal class FollowNotificationListItemRenderStrategy(
                         notificationPayloadService.buildPayload(
                             messageKey = "notification.payload.follow",
                             messageArguments = listOf(actor?.name.orEmpty()),
-                            media =
-                                NotificationPayloadService.NotificationPayloadMedia(
-                                    url =
-                                        notificationPayloadResourceResolver.resolveActorProfileImageUrl(
-                                            actor,
-                                            actorProfileImageUrlByUserId,
-                                        ),
-                                    alt =
-                                        actor?.name?.takeIf { it.isNotBlank() }?.let { "$it 프로필 이미지" }
-                                            ?: "사용자 프로필 이미지",
-                                ),
                         ),
+                    thumbnailUrl = notificationPayloadService.resolveThumbnailUrl(media),
                     arguments = arguments,
                 )
         }
@@ -67,6 +65,5 @@ internal class FollowNotificationListItemRenderStrategy(
     private fun normalizeArguments(
         arguments: List<NotificationArgument>,
         recipientUserId: UUID,
-    ): List<NotificationArgument> =
-        arguments.filterNot { it.targetType == NotificationTargetType.USER && it.targetId == recipientUserId }
+    ): List<NotificationArgument> = arguments.filterNot { it.targetType == NotificationTargetType.USER && it.targetId == recipientUserId }
 }

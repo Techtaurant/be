@@ -3,12 +3,9 @@ package com.techtaurant.mainserver.notification.infrastructure.`in`
 import com.techtaurant.mainserver.common.dto.ApiResponse
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.common.swagger.ApiCommonBadRequestUnknownAndAuthenticationRequired
-import com.techtaurant.mainserver.notification.dto.MarkNotificationsReadApiResponse
 import com.techtaurant.mainserver.notification.dto.MarkNotificationsReadRequest
 import com.techtaurant.mainserver.notification.dto.MarkNotificationsReadResponse
 import com.techtaurant.mainserver.notification.dto.NotificationListItemResponse
-import io.swagger.v3.oas.annotations.media.Content
-import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.tags.Tag
@@ -43,7 +40,6 @@ interface NotificationControllerDocs {
     @SwaggerApiResponse(
         responseCode = "200",
         description = "읽음 처리 성공",
-        content = [Content(mediaType = "application/json", schema = Schema(implementation = MarkNotificationsReadApiResponse::class))],
     )
     @ApiCommonBadRequestUnknownAndAuthenticationRequired
     fun markNotificationsRead(
