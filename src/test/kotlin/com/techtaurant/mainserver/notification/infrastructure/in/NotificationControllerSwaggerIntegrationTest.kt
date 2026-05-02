@@ -35,18 +35,7 @@ class NotificationControllerSwaggerIntegrationTest : IntegrationTest() {
                 .path("responses")
                 .path("200")
 
-        val responseNode =
-            successResponse
-                .path("content")
-                .path("application/json")
-
-        val responseSchema =
-            resolveSchema(
-                openApi = openApi,
-                schema =
-                    responseNode
-                        .path("schema"),
-            )
+        val responseSchema = resolveSuccessResponseSchema(openApi, successResponse)
 
         val properties = responseSchema.path("properties")
         val schemaDebug = responseSchema.toPrettyString()
@@ -82,18 +71,7 @@ class NotificationControllerSwaggerIntegrationTest : IntegrationTest() {
                 .path("responses")
                 .path("200")
 
-        val responseNode =
-            successResponse
-                .path("content")
-                .path("application/json")
-
-        val responseSchema =
-            resolveSchema(
-                openApi = openApi,
-                schema =
-                    responseNode
-                        .path("schema"),
-            )
+        val responseSchema = resolveSuccessResponseSchema(openApi, successResponse)
 
         val properties = responseSchema.path("properties")
         val schemaDebug = responseSchema.toPrettyString()
@@ -123,5 +101,20 @@ class NotificationControllerSwaggerIntegrationTest : IntegrationTest() {
         }
 
         return schema
+    }
+
+    private fun resolveSuccessResponseSchema(
+        openApi: JsonNode,
+        successResponse: JsonNode,
+    ): JsonNode {
+        val content = successResponse.path("content")
+        val mediaTypeNode =
+            when {
+                content.has("application/json") -> content.path("application/json")
+                content.has("*/*") -> content.path("*/*")
+                else -> content.elements().asSequence().firstOrNull() ?: content.path("application/json")
+            }
+
+        return resolveSchema(openApi, mediaTypeNode.path("schema"))
     }
 }
