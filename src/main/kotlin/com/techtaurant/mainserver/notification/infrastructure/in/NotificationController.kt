@@ -6,10 +6,12 @@ import com.techtaurant.mainserver.notification.application.NotificationReadServi
 import com.techtaurant.mainserver.notification.dto.MarkNotificationsReadRequest
 import com.techtaurant.mainserver.notification.dto.MarkNotificationsReadResponse
 import com.techtaurant.mainserver.notification.dto.NotificationListItemResponse
+import com.techtaurant.mainserver.notification.dto.NotificationUnreadCountResponse
 import com.techtaurant.mainserver.security.SecurityConstants
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import org.springframework.http.MediaType
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
@@ -33,6 +35,13 @@ class NotificationController(
         @RequestParam(defaultValue = "20") @Min(1) @Max(100) size: Int,
     ): ApiResponse<CursorPageResponse<NotificationListItemResponse>> {
         return ApiResponse.ok(notificationReadService.getMyNotifications(userId, cursor, size))
+    }
+
+    @GetMapping("/unread-count", produces = [MediaType.APPLICATION_JSON_VALUE])
+    override fun getMyUnreadNotificationCount(
+        @AuthenticationPrincipal userId: UUID,
+    ): ApiResponse<NotificationUnreadCountResponse> {
+        return ApiResponse.ok(notificationReadService.getMyUnreadNotificationCount(userId))
     }
 
     @PatchMapping("/read")

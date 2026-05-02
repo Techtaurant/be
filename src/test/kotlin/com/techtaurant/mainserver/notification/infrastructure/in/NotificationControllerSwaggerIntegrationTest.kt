@@ -13,6 +13,53 @@ class NotificationControllerSwaggerIntegrationTest : IntegrationTest() {
     private val objectMapper = jacksonObjectMapper()
 
     @Test
+    @DisplayName("안읽은 알림 수 조회 성공 응답은 unreadCount 스키마를 노출한다")
+    fun getMyUnreadNotificationCount_successResponse_exposesUnreadCountSchema() {
+        val openApi =
+            objectMapper.readTree(
+                RestAssured
+                    .given()
+                    .`when`()
+                    .get("/v3/api-docs")
+                    .then()
+                    .statusCode(200)
+                    .extract()
+                    .asString(),
+            )
+
+        val successResponse =
+            openApi
+                .path("paths")
+                .path("/api/notifications/unread-count")
+                .path("get")
+                .path("responses")
+                .path("200")
+
+        val responseNode =
+            successResponse
+                .path("content")
+                .path("application/json")
+
+        val responseSchema =
+            resolveSchema(
+                openApi = openApi,
+                schema =
+                    responseNode
+                        .path("schema"),
+            )
+
+        val properties = responseSchema.path("properties")
+        val schemaDebug = responseSchema.toPrettyString()
+        val dataSchema = resolveSchema(openApi = openApi, schema = properties.path("data"))
+        val dataProperties = dataSchema.path("properties")
+
+        assertTrue(properties.has("status"), "성공 응답 스키마에 status 필드가 있어야 한다: $schemaDebug")
+        assertTrue(properties.has("data"), "성공 응답 스키마에 data 필드가 있어야 한다: $schemaDebug")
+        assertTrue(properties.has("message"), "성공 응답 스키마에 message 필드가 있어야 한다: $schemaDebug")
+        assertTrue(dataProperties.has("unreadCount"), "data 스키마에 unreadCount 필드가 있어야 한다: ${dataSchema.toPrettyString()}")
+    }
+
+    @Test
     @DisplayName("알림 다건 읽음 처리 성공 응답은 읽음 처리된 알림 목록 스키마를 노출한다")
     fun markNotificationsRead_successResponse_exposesReadNotificationsSchema() {
         val openApi =

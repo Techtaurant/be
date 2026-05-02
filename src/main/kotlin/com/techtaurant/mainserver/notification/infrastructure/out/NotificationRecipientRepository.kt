@@ -40,4 +40,6 @@ interface NotificationRecipientRepository : JpaRepository<NotificationRecipient,
         userId: UUID,
         notificationIds: Collection<UUID>,
     ): List<NotificationRecipient>
+
+    fun countByRecipientUserIdAndReadAtIsNull(userId: UUID): Long
 }
