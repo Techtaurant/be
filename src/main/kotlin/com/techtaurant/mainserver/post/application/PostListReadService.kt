@@ -94,7 +94,7 @@ class PostListReadService(
                 categoryId = categoryId,
                 tagIds = normalizedTagIds,
             )
-        val posts = findPosts(postListQueryCriteria)
+        val posts = selectPostListQueryStrategy(postListQueryCriteria).findPosts(postListQueryCriteria)
 
         val hasNext = posts.size > size
         val content = posts.take(size)
@@ -174,8 +174,7 @@ class PostListReadService(
             "게시물 목록 조회 전략이 중복 등록되었습니다: ${duplicatedTypes.joinToString()}"
         }
 
-        val requiredTypes = PostListQueryType.entries.filterNot { it == PostListQueryType.ALL_VISIBLE }
-        val missingTypes = requiredTypes.filterNot { strategiesByType.containsKey(it) }
+        val missingTypes = PostListQueryType.entries.filterNot { strategiesByType.containsKey(it) }
         require(missingTypes.isEmpty()) {
             "게시물 목록 조회 전략이 누락되었습니다: ${missingTypes.joinToString()}"
         }
@@ -185,22 +184,6 @@ class PostListReadService(
 
     private fun selectPostListQueryStrategy(criteria: PostListQueryCriteria): PostListQueryStrategy =
         postListQueryStrategyByType.getValue(criteria.queryType)
-
-    private fun findPosts(criteria: PostListQueryCriteria): List<Post> =
-        when (criteria.queryType) {
-            PostListQueryType.ALL_VISIBLE ->
-                postRepository.findPostsWithConditions(
-                    cursor = criteria.cursor,
-                    size = criteria.querySize,
-                    period = criteria.period,
-                    sortType = criteria.sortType,
-                    visibleToUserId = criteria.currentUserId,
-                    tagIds = criteria.tagIds,
-                    viewerId = criteria.currentUserId,
-                )
-
-            else -> selectPostListQueryStrategy(criteria).findPosts(criteria)
-        }
 
     /**
      * 현재 사용자의 DRAFT 게시물 목록을 커서 기반으로 조회합니다.
