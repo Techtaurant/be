@@ -179,6 +179,50 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
     }
 
     @Test
+    @DisplayName("내 안읽은 알림 수 조회 성공 - 내 미읽음 알림만 카운트한다")
+    fun getMyUnreadNotificationCount_returnsOnlyMyUnreadCount() {
+        createNotification(
+            recipient = currentUser,
+            actor = actorUser,
+            type = NotificationType.FOLLOW,
+            createdAt = Instant.parse("2026-04-24T01:00:00Z"),
+        )
+        createNotification(
+            recipient = currentUser,
+            actor = actorUser,
+            type = NotificationType.POST_COMMENT,
+            createdAt = Instant.parse("2026-04-24T02:00:00Z"),
+        )
+        createNotification(
+            recipient = currentUser,
+            actor = actorUser,
+            type = NotificationType.FOLLOWER_POST,
+            createdAt = Instant.parse("2026-04-24T03:00:00Z"),
+            readAt = Instant.parse("2026-04-24T03:10:00Z"),
+        )
+        createNotification(
+            recipient = otherUser,
+            actor = actorUser,
+            type = NotificationType.FOLLOW,
+            createdAt = Instant.parse("2026-04-24T04:00:00Z"),
+        )
+
+        val response =
+            RestAssured
+                .given()
+                .header("Authorization", "Bearer $accessToken")
+                .`when`()
+                .get("/api/notifications/unread-count")
+                .then()
+                .statusCode(200)
+                .extract()
+                .jsonPath()
+
+        assertEquals(200, response.getInt("status"))
+        assertEquals(2, response.getInt("data.unreadCount"))
+    }
+
+    @Test
     @DisplayName("알림 다건 읽음 처리 성공 - 내 미읽음 알림만 읽음 처리되고 타인 알림 ID는 무시된다")
     fun markNotificationsRead_marksOnlyOwnedUnreadNotifications() {
         val unreadNotification =
@@ -249,6 +293,17 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
             .queryParam("size", 10)
             .`when`()
             .get("/api/notifications")
+            .then()
+            .statusCode(401)
+    }
+
+    @Test
+    @DisplayName("내 안읽은 알림 수 조회 실패 - 인증 없이 요청하면 401을 반환한다")
+    fun getMyUnreadNotificationCount_withoutAuthentication_returns401() {
+        RestAssured
+            .given()
+            .`when`()
+            .get("/api/notifications/unread-count")
             .then()
             .statusCode(401)
     }
