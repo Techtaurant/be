@@ -3,6 +3,7 @@ package com.techtaurant.mainserver.notification.application
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.notification.dto.NotificationCursor
 import com.techtaurant.mainserver.notification.dto.NotificationListItemResponse
+import com.techtaurant.mainserver.notification.dto.NotificationUnreadCountResponse
 import com.techtaurant.mainserver.notification.entity.NotificationRecipient
 import com.techtaurant.mainserver.notification.enums.NotificationType
 import com.techtaurant.mainserver.notification.infrastructure.out.NotificationArgumentRepository
@@ -68,6 +69,13 @@ class NotificationReadService(
             nextCursor = nextCursor,
             hasNext = hasNext,
             size = content.size,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getMyUnreadNotificationCount(userId: UUID): NotificationUnreadCountResponse {
+        return NotificationUnreadCountResponse(
+            unreadCount = notificationRecipientRepository.countByRecipientUserIdAndReadAtIsNull(userId),
         )
     }
 

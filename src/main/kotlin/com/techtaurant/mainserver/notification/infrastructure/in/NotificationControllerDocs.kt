@@ -7,6 +7,7 @@ import com.techtaurant.mainserver.notification.dto.MarkNotificationsReadApiRespo
 import com.techtaurant.mainserver.notification.dto.MarkNotificationsReadRequest
 import com.techtaurant.mainserver.notification.dto.MarkNotificationsReadResponse
 import com.techtaurant.mainserver.notification.dto.NotificationListItemResponse
+import com.techtaurant.mainserver.notification.dto.NotificationUnreadCountResponse
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.Operation
@@ -35,6 +36,15 @@ interface NotificationControllerDocs {
         @Parameter(description = "이전 응답의 nextCursor (첫 페이지는 생략)") cursor: String?,
         @Parameter(description = "페이지 크기 (1-100, 기본값 20)") @Min(1) @Max(100) size: Int,
     ): ApiResponse<CursorPageResponse<NotificationListItemResponse>>
+
+    @Operation(
+        summary = "내 안읽은 알림 수 조회",
+        description = "현재 로그인한 사용자의 읽지 않은 알림 수를 조회합니다.",
+    )
+    @ApiCommonBadRequestUnknownAndAuthenticationRequired
+    fun getMyUnreadNotificationCount(
+        userId: UUID,
+    ): ApiResponse<NotificationUnreadCountResponse>
 
     @Operation(
         summary = "알림 다건 읽음 처리",
