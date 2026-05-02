@@ -24,10 +24,11 @@ import org.springframework.beans.factory.annotation.Autowired
 import java.time.Instant
 import java.util.Date
 import java.util.UUID
-import kotlin.test.assertTrue
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 @DisplayName("알림 API")
 class NotificationControllerIntegrationTest : IntegrationTest() {
@@ -60,7 +61,7 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("내 알림 목록 조회 성공 - 최신순으로 정렬되고 동적으로 생성된 HTML에 프로필 이미지와 게시물 썸네일이 포함된다")
+    @DisplayName("내 알림 목록 조회 성공 - 최신순으로 정렬되고 알림 썸네일은 payloadHtml과 별도 필드로 반환된다")
     fun getMyNotifications_returnsLatestFirstWithReadStateAndArguments() {
         val publishedPost = createPost(actorUser, "동적 payload 게시물")
         val olderNotification =
@@ -106,16 +107,16 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
         assertEquals("FOLLOW", response.getString("data.content[0].type"))
         assertEquals(false, response.getBoolean("data.content[0].isRead"))
         assertNull(response.getString("data.content[0].readAt"))
-        assertTrue(response.getString("data.content[0].payloadHtml").contains("<img"))
-        assertTrue(response.getString("data.content[0].payloadHtml").contains("https://example.com/actor-user.png"))
+        assertFalse(response.getString("data.content[0].payloadHtml").contains("<img"))
+        assertEquals("https://example.com/actor-user.png", response.getString("data.content[0].thumbnailUrl"))
         assertEquals(1, response.getList<Any>("data.content[0].arguments").size)
         assertEquals("USER", response.getString("data.content[0].arguments[0].targetType"))
         assertEquals(actorUser.id.toString(), response.getString("data.content[0].arguments[0].targetId"))
         assertEquals(olderNotification.notificationId.toString(), response.getString("data.content[1].id"))
         assertEquals(true, response.getBoolean("data.content[1].isRead"))
         assertNotNull(response.getString("data.content[1].readAt"))
-        assertTrue(response.getString("data.content[1].payloadHtml").contains("<img"))
-        assertTrue(response.getString("data.content[1].payloadHtml").contains("/static/images/post-thumbnail.png"))
+        assertFalse(response.getString("data.content[1].payloadHtml").contains("<img"))
+        assertTrue(response.getString("data.content[1].thumbnailUrl").contains("/static/images/post-thumbnail.png"))
         assertTrue(response.getString("data.content[1].payloadHtml").contains("동적 payload 게시물"))
     }
 

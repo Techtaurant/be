@@ -32,6 +32,7 @@ internal abstract class AbstractActorPostNotificationListItemRenderStrategy(
             val notificationId = recipient.notification.id!!
             val actor = command.arguments.findTargetId(NotificationTargetType.USER)?.let(actorsById::get)
             val post = command.arguments.findTargetId(NotificationTargetType.POST)?.let(postsById::get)
+            val media = createMedia(actor, post, actorProfileImageUrlByUserId, postThumbnailUrlByPostId)
 
             notificationId to
                 NotificationListItemResponse.from(
@@ -40,8 +41,8 @@ internal abstract class AbstractActorPostNotificationListItemRenderStrategy(
                         notificationPayloadService.buildPayload(
                             messageKey = messageKey,
                             messageArguments = listOf(actor?.name.orEmpty(), post?.title.orEmpty()),
-                            media = createMedia(actor, post, actorProfileImageUrlByUserId, postThumbnailUrlByPostId),
                         ),
+                    thumbnailUrl = notificationPayloadService.resolveThumbnailUrl(media),
                     arguments = command.arguments,
                 )
         }
@@ -60,7 +61,6 @@ internal abstract class AbstractActorPostNotificationListItemRenderStrategy(
     ): NotificationPayloadService.NotificationPayloadMedia =
         NotificationPayloadService.NotificationPayloadMedia(
             url = notificationPayloadResourceResolver.resolveActorProfileImageUrl(actor, actorProfileImageUrlByUserId),
-            alt = actor?.name?.takeIf { it.isNotBlank() }?.let { "$it 프로필 이미지" } ?: "사용자 프로필 이미지",
         )
 
     protected fun createPostThumbnailMedia(
@@ -69,6 +69,5 @@ internal abstract class AbstractActorPostNotificationListItemRenderStrategy(
     ): NotificationPayloadService.NotificationPayloadMedia =
         NotificationPayloadService.NotificationPayloadMedia(
             url = post?.id?.let(postThumbnailUrlByPostId::get) ?: notificationPayloadResourceResolver.defaultPostThumbnailUrl(),
-            alt = post?.title?.let { "$it 썸네일" } ?: "게시물 썸네일",
         )
 }
