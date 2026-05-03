@@ -1,7 +1,6 @@
 package com.techtaurant.mainserver.notification.entity
 
 import com.techtaurant.mainserver.common.base.EntityBase
-import com.techtaurant.mainserver.notification.enums.NotificationTargetRole
 import com.techtaurant.mainserver.notification.enums.NotificationTargetType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -19,26 +18,22 @@ import java.util.UUID
 
 @Entity
 @Table(
-    name = "notification_targets",
+    name = "notification_arguments",
     uniqueConstraints = [
         UniqueConstraint(
-            name = "uk_notification_targets_notification_id_role_target_type_target_id",
-            columnNames = ["notification_id", "role", "target_type", "target_id"],
+            name = "uk_notification_arguments_notification_id_target_type_target_id",
+            columnNames = ["notification_id", "target_type", "target_id"],
         ),
     ],
     indexes = [
-        Index(name = "idx_notification_targets_notification_id", columnList = "notification_id"),
-        Index(name = "idx_notification_targets_target_type_target_id", columnList = "target_type, target_id"),
+        Index(name = "idx_notification_arguments_notification_id", columnList = "notification_id"),
+        Index(name = "idx_notification_arguments_target_type_target_id", columnList = "target_type, target_id"),
     ],
 )
-class NotificationTarget(
+class NotificationArgument(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "notification_id", nullable = false)
     var notification: Notification,
-    @Enumerated(EnumType.STRING)
-    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(nullable = false, columnDefinition = "notification_target_role")
-    var role: NotificationTargetRole,
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "target_type", nullable = false, columnDefinition = "notification_target_type")

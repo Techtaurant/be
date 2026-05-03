@@ -3,12 +3,11 @@ package com.techtaurant.mainserver.notification.application
 import com.techtaurant.mainserver.comment.enums.CommentStatus
 import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
-import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.notification.entity.Notification
+import com.techtaurant.mainserver.notification.entity.NotificationArgument
 import com.techtaurant.mainserver.notification.entity.NotificationRecipient
-import com.techtaurant.mainserver.notification.entity.NotificationTarget
+import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.notification.enums.NotificationStatus
-import com.techtaurant.mainserver.notification.enums.NotificationTargetRole
 import com.techtaurant.mainserver.notification.enums.NotificationTargetType
 import com.techtaurant.mainserver.notification.enums.NotificationType
 import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRepository
@@ -26,7 +25,6 @@ import java.util.UUID
 @Service
 class NotificationWriteService(
     private val notificationRepository: NotificationRepository,
-    private val notificationPayloadService: NotificationPayloadService,
     private val userRepository: UserRepository,
     private val postRepository: PostRepository,
     private val commentRepository: CommentRepository,
@@ -41,19 +39,18 @@ class NotificationWriteService(
     ): UUID {
         val actor = resolveActor(actorUserId)
         val recipients = resolveRecipients(listOf(recipientUserId))
-        val post = resolvePost(postId)
+        resolvePost(postId)
 
         resolveComment(commentId)
 
         return createNotification(
             type = NotificationType.POST_COMMENT,
-            payloadHtml = notificationPayloadService.buildPostCommentPayload(actor.name, post.title, locale),
             recipients = recipients,
-            targetSpecs =
+            argumentSpecs =
                 listOf(
-                    NotificationTargetSpec(NotificationTargetRole.ACTOR, NotificationTargetType.USER, actor.id!!),
-                    NotificationTargetSpec(NotificationTargetRole.TARGET, NotificationTargetType.POST, postId),
-                    NotificationTargetSpec(NotificationTargetRole.TARGET, NotificationTargetType.COMMENT, commentId),
+                    NotificationArgumentSpec(NotificationTargetType.USER, actor.id!!),
+                    NotificationArgumentSpec(NotificationTargetType.POST, postId),
+                    NotificationArgumentSpec(NotificationTargetType.COMMENT, commentId),
                 ),
         )
     }
@@ -68,19 +65,18 @@ class NotificationWriteService(
     ): UUID {
         val actor = resolveActor(actorUserId)
         val recipients = resolveRecipients(listOf(recipientUserId))
-        val post = resolvePost(postId)
+        resolvePost(postId)
 
         resolveComment(commentId)
 
         return createNotification(
             type = NotificationType.COMMENT_REPLY,
-            payloadHtml = notificationPayloadService.buildCommentReplyPayload(actor.name, post.title, locale),
             recipients = recipients,
-            targetSpecs =
+            argumentSpecs =
                 listOf(
-                    NotificationTargetSpec(NotificationTargetRole.ACTOR, NotificationTargetType.USER, actor.id!!),
-                    NotificationTargetSpec(NotificationTargetRole.TARGET, NotificationTargetType.POST, postId),
-                    NotificationTargetSpec(NotificationTargetRole.TARGET, NotificationTargetType.COMMENT, commentId),
+                    NotificationArgumentSpec(NotificationTargetType.USER, actor.id!!),
+                    NotificationArgumentSpec(NotificationTargetType.POST, postId),
+                    NotificationArgumentSpec(NotificationTargetType.COMMENT, commentId),
                 ),
         )
     }
@@ -94,16 +90,15 @@ class NotificationWriteService(
     ): UUID {
         val actor = resolveActor(actorUserId)
         val recipients = resolveRecipients(recipientUserIds)
-        val post = resolvePost(postId)
+        resolvePost(postId)
 
         return createNotification(
             type = NotificationType.FOLLOWER_POST,
-            payloadHtml = notificationPayloadService.buildFollowerPostPayload(actor.name, post.title, locale),
             recipients = recipients,
-            targetSpecs =
+            argumentSpecs =
                 listOf(
-                    NotificationTargetSpec(NotificationTargetRole.ACTOR, NotificationTargetType.USER, actor.id!!),
-                    NotificationTargetSpec(NotificationTargetRole.TARGET, NotificationTargetType.POST, postId),
+                    NotificationArgumentSpec(NotificationTargetType.USER, actor.id!!),
+                    NotificationArgumentSpec(NotificationTargetType.POST, postId),
                 ),
         )
     }
@@ -119,37 +114,32 @@ class NotificationWriteService(
 
         return createNotification(
             type = NotificationType.FOLLOW,
-            payloadHtml = notificationPayloadService.buildFollowPayload(actor.name, locale),
             recipients = recipients,
-            targetSpecs =
+            argumentSpecs =
                 listOf(
-                    NotificationTargetSpec(NotificationTargetRole.ACTOR, NotificationTargetType.USER, actor.id!!),
-                    NotificationTargetSpec(NotificationTargetRole.TARGET, NotificationTargetType.USER, recipientUserId),
+                    NotificationArgumentSpec(NotificationTargetType.USER, actor.id!!),
                 ),
         )
     }
 
     private fun createNotification(
         type: NotificationType,
-        payloadHtml: String,
         recipients: List<User>,
-        targetSpecs: List<NotificationTargetSpec>,
+        argumentSpecs: List<NotificationArgumentSpec>,
     ): UUID {
-        if (targetSpecs.isEmpty()) {
-            throw ApiException(NotificationStatus.NOTIFICATION_TARGET_REQUIRED)
+        if (argumentSpecs.isEmpty()) {
+            throw ApiException(NotificationStatus.NOTIFICATION_ARGUMENT_REQUIRED)
         }
 
         val notification =
             Notification(
                 type = type,
-                payloadHtml = requirePayload(payloadHtml),
             )
 
-        targetSpecs.distinct().forEach { spec ->
-            notification.addTarget(
-                NotificationTarget(
+        argumentSpecs.distinct().forEach { spec ->
+            notification.addArgument(
+                NotificationArgument(
                     notification = notification,
-                    role = spec.role,
                     targetType = spec.targetType,
                     targetId = spec.targetId,
                 ),
@@ -160,22 +150,13 @@ class NotificationWriteService(
             notification.addRecipient(
                 NotificationRecipient(
                     notification = notification,
-                    user = recipient,
+                    recipientUser = recipient,
                 ),
             )
         }
 
         return notificationRepository.save(notification).id!!
     }
-
-    private fun requirePayload(payloadHtml: String): String {
-        if (payloadHtml.isBlank()) {
-            throw ApiException(NotificationStatus.NOTIFICATION_PAYLOAD_REQUIRED)
-        }
-
-        return payloadHtml
-    }
-
     private fun resolveActor(actorUserId: UUID): User {
         return userRepository.findById(actorUserId).orElseThrow {
             ApiException(UserStatus.ID_NOT_FOUND)
@@ -209,8 +190,7 @@ class NotificationWriteService(
         }
     }
 
-    private data class NotificationTargetSpec(
-        val role: NotificationTargetRole,
+    private data class NotificationArgumentSpec(
         val targetType: NotificationTargetType,
         val targetId: UUID,
     )
