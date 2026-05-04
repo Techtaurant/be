@@ -11,6 +11,8 @@ import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.post.entity.Tag
 import com.techtaurant.mainserver.post.enums.TagTargetType
 import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
+import org.jsoup.HttpStatusException
+import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -54,10 +56,12 @@ class LinkBatchRunService(
         var existingLinkCount = 0
         var skippedCount = 0
 
-        for (page in batch.startPage..batch.endPage) {
+        var page = batch.startPage
+        while (true) {
             val pageUrl = buildPageUrl(batch.baseUrl, batch.pageUriTemplate, page)
-            val document = linkDocumentFetcher.fetch(pageUrl)
+            val document = fetchPageOrNull(pageUrl) ?: break
             val items = document.select(batch.itemSelector)
+            var pageNewLinkCount = 0
 
             items.forEach { item ->
                 val snapshot = extractSnapshot(item, batch, pageUrl)
@@ -80,6 +84,7 @@ class LinkBatchRunService(
                         ),
                     )
                     newLinkCount++
+                    pageNewLinkCount++
                 } else {
                     existingLink.title = snapshot.title
                     if (snapshot.summary.isNotBlank()) {
@@ -97,6 +102,11 @@ class LinkBatchRunService(
 
                 collectedCount++
             }
+
+            if (pageNewLinkCount == 0) {
+                break
+            }
+            page++
         }
 
         return LinkBatchRunResponse(
@@ -105,6 +115,17 @@ class LinkBatchRunService(
             existingLinkCount = existingLinkCount,
             skippedCount = skippedCount,
         )
+    }
+
+    private fun fetchPageOrNull(pageUrl: String): Document? {
+        return runCatching { linkDocumentFetcher.fetch(pageUrl) }
+            .getOrElse { exception ->
+                if (exception is HttpStatusException) {
+                    null
+                } else {
+                    throw exception
+                }
+            }
     }
 
     private fun extractSnapshot(

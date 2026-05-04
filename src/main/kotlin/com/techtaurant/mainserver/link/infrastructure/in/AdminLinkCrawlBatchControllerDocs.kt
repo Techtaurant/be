@@ -13,6 +13,10 @@ import com.techtaurant.mainserver.security.jwt.JwtStatus
 import com.techtaurant.mainserver.user.enums.UserStatus
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.ExampleObject
+import io.swagger.v3.oas.annotations.media.Schema
+import io.swagger.v3.oas.annotations.parameters.RequestBody
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import java.util.UUID
@@ -35,13 +39,13 @@ interface AdminLinkCrawlBatchControllerDocs {
 
         Toss 예시:
         - baseUrl: `https://toss.tech`
-        - pageUriTemplate: `/category/engineering?page={page}`
-        - itemSelector: `a[data-log-name='item'][href^='/article/']`
+        - pageUriTemplate: `/?page={page}`
+        - itemSelector: `a[data-log-name='item'][data-log-section_type='new'][data-log-item_type='article'][href^='/article/']`
         - articleLinkSelector: `:self`
         - titleSelector: `div._13swo3b7`
         - summarySelector: `div._13swo3b8`
         - authorSelectors: `span._1gbjvgw2`
-        - publishedAtSelectors: `time`, `meta[property='article:published_time']`
+        - publishedAtSelectors: 비워둘 수 있습니다.
 
         추천 원칙:
         - 절대 XPath(`/html/body/...`)는 피합니다.
@@ -55,12 +59,48 @@ interface AdminLinkCrawlBatchControllerDocs {
         [
             ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED", "ACCESS_DENIED"]),
             ApiErrorCodeResponse(UserStatus::class, ["COMPANY_NOT_FOUND"]),
-            ApiErrorCodeResponse(LinkStatus::class, ["INVALID_LINK_CRAWL_BATCH_PAGE_RANGE", "INVALID_LINK_CRAWL_BATCH_CRON_EXPRESSION"]),
+            ApiErrorCodeResponse(LinkStatus::class, ["INVALID_LINK_CRAWL_BATCH_CRON_EXPRESSION"]),
             ApiErrorCodeResponse(DefaultStatus::class, ["BAD_REQUEST", "UNKNOWN_EXCEPTION"]),
         ],
     )
     fun createBatch(
         @Parameter(description = "회사 사용자 ID") companyUserId: UUID,
+        @RequestBody(
+            description = "링크 수집 배치 등록 요청",
+            required = true,
+            content = [
+                Content(
+                    mediaType = "application/json",
+                    schema = Schema(implementation = CreateLinkCrawlBatchRequest::class),
+                    examples = [
+                        ExampleObject(
+                            name = "Toss Tech",
+                            value = """
+                            {
+                              "name": "토스 테크 링크 수집",
+                              "baseUrl": "https://toss.tech",
+                              "pageUriTemplate": "/?page={page}",
+                              "itemSelector": "a[data-log-name='item'][data-log-section_type='new'][data-log-item_type='article'][href^='/article/']",
+                              "articleLinkSelector": ":self",
+                              "titleSelector": "div._13swo3b7",
+                              "summarySelector": "div._13swo3b8",
+                              "authorSelectors": [
+                                "span._1gbjvgw2"
+                              ],
+                              "publishedAtSelectors": [],
+                              "tagNames": [
+                                "toss-tech"
+                              ],
+                              "cronExpression": "0 0 * * * *",
+                              "startPage": 2,
+                              "active": true
+                            }
+                            """,
+                        ),
+                    ],
+                ),
+            ],
+        )
         @Valid request: CreateLinkCrawlBatchRequest,
     ): ApiResponse<LinkCrawlBatchResponse>
 

@@ -28,7 +28,6 @@ class LinkCrawlBatchAdminService(
     ): LinkCrawlBatchResponse {
         val companyUser = getCompanyUser(companyUserId)
         validateCronExpression(request.cronExpression)
-        validatePageRange(request.startPage, request.endPage)
 
         val batch =
             linkCrawlBatchRepository.save(
@@ -46,7 +45,6 @@ class LinkCrawlBatchAdminService(
                     tagNames = normalizeLines(request.tagNames),
                     cronExpression = request.cronExpression.trim(),
                     startPage = request.startPage,
-                    endPage = request.endPage,
                     active = request.active,
                 ),
             )
@@ -87,11 +85,7 @@ class LinkCrawlBatchAdminService(
             batch.cronExpression = it.trim()
         }
 
-        val updatedStartPage = request.startPage ?: batch.startPage
-        val updatedEndPage = request.endPage ?: batch.endPage
-        validatePageRange(updatedStartPage, updatedEndPage)
-        batch.startPage = updatedStartPage
-        batch.endPage = updatedEndPage
+        request.startPage?.let { batch.startPage = it }
         request.active?.let { batch.active = it }
 
         return LinkCrawlBatchResponse.from(batch)
@@ -108,15 +102,6 @@ class LinkCrawlBatchAdminService(
         }
 
         return user
-    }
-
-    private fun validatePageRange(
-        startPage: Int,
-        endPage: Int,
-    ) {
-        if (startPage > endPage) {
-            throw ApiException(LinkStatus.INVALID_LINK_CRAWL_BATCH_PAGE_RANGE)
-        }
     }
 
     private fun validateCronExpression(cronExpression: String) {

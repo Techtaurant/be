@@ -21,6 +21,8 @@ import org.springframework.http.HttpStatus
 import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -43,10 +45,12 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
     private lateinit var adminAccessToken: String
     private lateinit var httpServer: HttpServer
     private lateinit var crawlerBaseUrl: String
+    private val pageRequestCounts = ConcurrentHashMap<Int, AtomicInteger>()
 
     @BeforeEach
     fun setUpTestData() {
         userRepository.deleteAllInBatch()
+        pageRequestCounts.clear()
 
         adminUser =
             userRepository.save(
@@ -76,29 +80,57 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
 
         httpServer = HttpServer.create(InetSocketAddress(0), 0)
         httpServer.createContext("/category/engineering") { exchange ->
+            val page = resolvePage(exchange.requestURI.query)
+            pageRequestCounts.computeIfAbsent(page) { AtomicInteger() }.incrementAndGet()
+
             val html =
-                """
-                <html>
-                  <body>
-                    <div class="article-card">
-                      <a class="article-link" href="/article/metric-review">
-                        <div class="title">Metric Review, 실행을 이끌다</div>
-                        <div class="summary">인사이트는 있는데 실행이 느릴 때, 지표 리뷰로 실행 리듬을 만든 이야기입니다.</div>
-                        <div class="author">박종익</div>
-                        <time datetime="2026-04-20T10:15:30Z">2026-04-20</time>
-                      </a>
-                    </div>
-                    <div class="article-card">
-                      <a class="article-link" href="/article/starrocks">
-                        <div class="title">StarRocks 운영기</div>
-                        <div class="summary">서비스 쿼리가 밀리기 시작했을 때 우리가 선택한 멀티테넌트 격리 전략을 정리했습니다.</div>
-                        <div class="author">이유진</div>
-                        <time datetime="2026-04-19T09:00:00Z">2026-04-19</time>
-                      </a>
-                    </div>
-                  </body>
-                </html>
-                """.trimIndent()
+                when (page) {
+                    1 ->
+                        """
+                        <html>
+                          <body>
+                            <div class="article-card">
+                              <a class="article-link" href="/article/metric-review">
+                                <div class="title">Metric Review, 실행을 이끌다</div>
+                                <div class="summary">인사이트는 있는데 실행이 느릴 때, 지표 리뷰로 실행 리듬을 만든 이야기입니다.</div>
+                                <div class="author">박종익</div>
+                                <time datetime="2026-04-20T10:15:30Z">2026-04-20</time>
+                              </a>
+                            </div>
+                            <div class="article-card">
+                              <a class="article-link" href="/article/starrocks">
+                                <div class="title">StarRocks 운영기</div>
+                                <div class="summary">서비스 쿼리가 밀리기 시작했을 때 우리가 선택한 멀티테넌트 격리 전략을 정리했습니다.</div>
+                                <div class="author">이유진</div>
+                                <time datetime="2026-04-19T09:00:00Z">2026-04-19</time>
+                              </a>
+                            </div>
+                          </body>
+                        </html>
+                        """.trimIndent()
+                    2 ->
+                        """
+                        <html>
+                          <body>
+                            <div class="article-card">
+                              <a class="article-link" href="/article/cache-layer">
+                                <div class="title">Cache Layer 개선기</div>
+                                <div class="summary">반복 조회 부하를 낮추기 위해 캐시 계층을 재설계한 경험을 정리했습니다.</div>
+                                <div class="author">김도현</div>
+                                <time datetime="2026-04-18T08:30:00Z">2026-04-18</time>
+                              </a>
+                            </div>
+                          </body>
+                        </html>
+                        """.trimIndent()
+                    else -> null
+                }
+
+            if (html == null) {
+                exchange.sendResponseHeaders(HttpStatus.NOT_FOUND.value(), -1)
+                exchange.close()
+                return@createContext
+            }
 
             val bytes = html.toByteArray(StandardCharsets.UTF_8)
             exchange.responseHeaders.add("Content-Type", "text/html; charset=utf-8")
@@ -137,7 +169,6 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                       "tagNames": ["engineering", "backend"],
                       "cronExpression": "0 0 * * * *",
                       "startPage": 1,
-                      "endPage": 1,
                       "active": true
                     }
                     """.trimIndent(),
@@ -156,13 +187,13 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
             .post("/admin/link-crawl-batches/$batchId/run")
             .then()
             .statusCode(HttpStatus.OK.value())
-            .body("data.collectedCount", equalTo(2))
-            .body("data.newLinkCount", equalTo(2))
+            .body("data.collectedCount", equalTo(3))
+            .body("data.newLinkCount", equalTo(3))
             .body("data.existingLinkCount", equalTo(0))
             .body("data.skippedCount", equalTo(0))
 
         val savedLinks = linkRepository.findAllWithTags()
-        assertEquals(2, savedLinks.size)
+        assertEquals(3, savedLinks.size)
         assertTrue(savedLinks.all { it.sourceCompanyUser.id == companyUser.id })
         assertTrue(savedLinks.all { it.tags.map { tag -> tag.name }.containsAll(listOf("engineering", "backend")) })
 
@@ -175,6 +206,9 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
             .body("data.collectedCount", equalTo(2))
             .body("data.newLinkCount", equalTo(0))
             .body("data.existingLinkCount", equalTo(2))
+
+        assertEquals(2, pageRequestCount(1))
+        assertEquals(1, pageRequestCount(2))
     }
 
     @Test
@@ -195,7 +229,6 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                     publishedAtSelectors = "time",
                     cronExpression = "0 0 * * * *",
                     startPage = 1,
-                    endPage = 1,
                     active = true,
                     tagNames = "engineering\nbackend",
                 ),
@@ -229,5 +262,22 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
             .body("data.active", equalTo(false))
             .body("data.tagNames", hasSize<Any>(1))
             .body("data.tagNames[0]", equalTo("infra"))
+    }
+
+    private fun resolvePage(query: String?): Int {
+        return query?.split("&")
+            ?.mapNotNull { parameter ->
+                val parts = parameter.split("=", limit = 2)
+                if (parts.firstOrNull() == "page") {
+                    parts.getOrNull(1)?.toIntOrNull()
+                } else {
+                    null
+                }
+            }?.firstOrNull()
+            ?: 1
+    }
+
+    private fun pageRequestCount(page: Int): Int {
+        return pageRequestCounts[page]?.get() ?: 0
     }
 }

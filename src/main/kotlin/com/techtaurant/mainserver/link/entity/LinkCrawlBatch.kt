@@ -47,8 +47,6 @@ class LinkCrawlBatch(
     var cronExpression: String,
     @Column(name = "start_page", nullable = false)
     var startPage: Int = 1,
-    @Column(name = "end_page", nullable = false)
-    var endPage: Int = 1,
     @Column(nullable = false)
     var active: Boolean = true,
     @Column(name = "last_triggered_at")
