@@ -11,22 +11,19 @@ import io.mockk.mockk
 import io.mockk.verify
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import java.time.Clock
 import java.time.Instant
-import java.time.ZoneOffset
 import java.util.UUID
 
 @DisplayName("LinkBatchScheduler 테스트")
 class LinkBatchSchedulerTest {
     private val linkCrawlBatchRepository: LinkCrawlBatchRepository = mockk()
     private val linkBatchRunService: LinkBatchRunService = mockk()
-    private val fixedClock: Clock = Clock.fixed(Instant.parse("2026-04-25T08:00:30Z"), ZoneOffset.UTC)
+    private val fixedNow: Instant = Instant.parse("2026-04-25T08:00:30Z")
 
     private val scheduler =
         LinkBatchScheduler(
             linkCrawlBatchRepository = linkCrawlBatchRepository,
             linkBatchRunService = linkBatchRunService,
-            clock = fixedClock,
         )
 
     @Test
@@ -36,7 +33,7 @@ class LinkBatchSchedulerTest {
         every { linkCrawlBatchRepository.findAllByActiveTrue() } returns listOf(dueBatch)
         every { linkBatchRunService.run(dueBatch.id!!) } returns mockk()
 
-        scheduler.runDueBatches()
+        scheduler.runDueBatches(fixedNow)
 
         verify(exactly = 1) { linkBatchRunService.run(dueBatch.id!!) }
     }
@@ -58,7 +55,7 @@ class LinkBatchSchedulerTest {
                 skippedCount = 0,
             )
 
-        scheduler.runDueBatches()
+        scheduler.runDueBatches(fixedNow)
 
         verify(exactly = 0) { linkBatchRunService.run(any()) }
     }
