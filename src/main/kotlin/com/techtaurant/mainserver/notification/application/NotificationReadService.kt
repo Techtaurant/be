@@ -156,7 +156,6 @@ class NotificationReadService(
         return strategiesByType.mapValues { (_, strategyGroup) -> strategyGroup.single() }
     }
 
-    private fun selectNotificationListItemRenderStrategy(
-        type: NotificationType,
-    ): NotificationListItemRenderStrategy = notificationListItemRenderStrategyByType.getValue(type)
+    private fun selectNotificationListItemRenderStrategy(type: NotificationType): NotificationListItemRenderStrategy =
+        notificationListItemRenderStrategyByType.getValue(type)
 }

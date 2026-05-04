@@ -6,8 +6,8 @@ import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.status.DefaultStatus
 import com.techtaurant.mainserver.user.dto.UpdateUserRequest
 import com.techtaurant.mainserver.user.dto.UpdateUserRoleResponse
-import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.dto.UserResponse
+import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import org.springframework.dao.DataIntegrityViolationException

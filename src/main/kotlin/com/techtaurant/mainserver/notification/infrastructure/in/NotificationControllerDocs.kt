@@ -39,9 +39,7 @@ interface NotificationControllerDocs {
         description = "현재 로그인한 사용자의 읽지 않은 알림 수를 조회합니다.",
     )
     @ApiCommonBadRequestUnknownAndAuthenticationRequired
-    fun getMyUnreadNotificationCount(
-        userId: UUID,
-    ): ApiResponse<NotificationUnreadCountResponse>
+    fun getMyUnreadNotificationCount(userId: UUID): ApiResponse<NotificationUnreadCountResponse>
 
     @Operation(
         summary = "알림 다건 읽음 처리",

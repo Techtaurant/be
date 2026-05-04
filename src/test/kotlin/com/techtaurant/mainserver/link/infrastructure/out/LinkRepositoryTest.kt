@@ -48,15 +48,15 @@ class LinkRepositoryTest : IntegrationTest() {
         // Given
         val savedLink =
             linkRepository.save(
-            Link(
-                title = "첫 번째 링크",
-                url = "https://toss.tech/article/test-link",
-                summary = "요약입니다",
-                sourceCompanyUser = companyUser,
-                authorName = "작성자",
-                publishedAt = Instant.parse("2026-04-25T10:15:30Z"),
-            ),
-        )
+                Link(
+                    title = "첫 번째 링크",
+                    url = "https://toss.tech/article/test-link",
+                    summary = "요약입니다",
+                    sourceCompanyUser = companyUser,
+                    authorName = "작성자",
+                    publishedAt = Instant.parse("2026-04-25T10:15:30Z"),
+                ),
+            )
 
         // When
         val result =

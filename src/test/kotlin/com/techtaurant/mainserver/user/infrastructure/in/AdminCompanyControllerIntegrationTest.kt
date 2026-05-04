@@ -14,8 +14,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
-import kotlin.test.assertEquals
 import java.util.UUID
+import kotlin.test.assertEquals
 
 @DisplayName("AdminCompanyController 통합 테스트")
 class AdminCompanyControllerIntegrationTest : IntegrationTest() {

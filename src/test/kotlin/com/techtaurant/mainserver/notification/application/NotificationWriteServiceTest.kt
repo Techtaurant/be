@@ -209,6 +209,5 @@ class NotificationWriteServiceTest : IntegrationTest() {
     private fun tuple(
         targetType: NotificationTargetType,
         targetId: UUID?,
-    ): org.assertj.core.groups.Tuple =
-        org.assertj.core.groups.Tuple.tuple(targetType, targetId)
+    ): org.assertj.core.groups.Tuple = org.assertj.core.groups.Tuple.tuple(targetType, targetId)
 }
