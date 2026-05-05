@@ -17,7 +17,7 @@ internal class CommentReplyNotificationListItemRenderStrategy(
     override val type: NotificationType = NotificationType.COMMENT_REPLY
     override val messageKey: String = "notification.payload.comment-reply"
 
-    override fun createMedia(
+    override fun selectThumbnailMedia(
         actor: User?,
         post: Post?,
         actorProfileImageUrlByUserId: Map<UUID, String>,

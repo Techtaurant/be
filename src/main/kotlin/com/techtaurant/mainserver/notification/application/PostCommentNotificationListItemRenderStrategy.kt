@@ -17,7 +17,7 @@ internal class PostCommentNotificationListItemRenderStrategy(
     override val type: NotificationType = NotificationType.POST_COMMENT
     override val messageKey: String = "notification.payload.post-comment"
 
-    override fun createMedia(
+    override fun selectThumbnailMedia(
         actor: User?,
         post: Post?,
         actorProfileImageUrlByUserId: Map<UUID, String>,

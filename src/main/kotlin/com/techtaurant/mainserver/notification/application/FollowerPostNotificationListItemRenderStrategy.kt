@@ -17,7 +17,7 @@ internal class FollowerPostNotificationListItemRenderStrategy(
     override val type: NotificationType = NotificationType.FOLLOWER_POST
     override val messageKey: String = "notification.payload.follower-post"
 
-    override fun createMedia(
+    override fun selectThumbnailMedia(
         actor: User?,
         post: Post?,
         actorProfileImageUrlByUserId: Map<UUID, String>,
