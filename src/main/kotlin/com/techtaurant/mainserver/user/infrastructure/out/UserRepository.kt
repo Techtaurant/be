@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.user.infrastructure.out
 
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.user.entity.User
+import com.techtaurant.mainserver.user.enums.UserRole
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
@@ -30,4 +31,6 @@ interface UserRepository : JpaRepository<User, UUID> {
     fun findByNameContainingIgnoreCaseOrderByNameAsc(
         @Param("name") name: String,
     ): List<User>
+
+    fun findAllByRoleOrderByNameAsc(role: UserRole): List<User>
 }

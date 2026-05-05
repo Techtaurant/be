@@ -5,6 +5,7 @@ enum class OAuthProvider(
 ) {
     GOOGLE("google"),
     DEV_LOCAL("dev-local"),
+    SYSTEM("system"),
     ;
 
     fun getRegistrationId(): String {

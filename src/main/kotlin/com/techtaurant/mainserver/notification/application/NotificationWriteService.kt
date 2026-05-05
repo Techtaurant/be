@@ -1,12 +1,12 @@
 package com.techtaurant.mainserver.notification.application
 
-import com.techtaurant.mainserver.comment.enums.CommentStatus
 import com.techtaurant.mainserver.comment.entity.Comment
+import com.techtaurant.mainserver.comment.enums.CommentStatus
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
+import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.notification.entity.Notification
 import com.techtaurant.mainserver.notification.entity.NotificationArgument
 import com.techtaurant.mainserver.notification.entity.NotificationRecipient
-import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.notification.enums.NotificationStatus
 import com.techtaurant.mainserver.notification.enums.NotificationTargetType
 import com.techtaurant.mainserver.notification.enums.NotificationType
@@ -157,6 +157,7 @@ class NotificationWriteService(
 
         return notificationRepository.save(notification).id!!
     }
+
     private fun resolveActor(actorUserId: UUID): User {
         return userRepository.findById(actorUserId).orElseThrow {
             ApiException(UserStatus.ID_NOT_FOUND)
