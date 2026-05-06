@@ -58,7 +58,7 @@ class OAuth2SuccessHandler(
         // OAuth2 인증 완료 후 authorization request 쿠키 정리
         cookieOAuth2AuthorizationRequestRepository.removeAuthorizationRequestCookies(response)
 
-        val redirectUrl = redirectResolver.resolve(request, OAuth2RedirectResolver.SUCCESS_PATH)
+        val redirectUrl = redirectResolver.resolveSuccessRedirectUrl(request)
         response.sendRedirect(redirectUrl)
     }
 }

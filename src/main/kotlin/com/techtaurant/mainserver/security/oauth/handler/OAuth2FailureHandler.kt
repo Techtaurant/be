@@ -37,7 +37,7 @@ class OAuth2FailureHandler(
         )
 
         val status = OAuthStatus.OAUTH_AUTHENTICATION_FAILED
-        val baseUrl = redirectResolver.resolve(request, OAuth2RedirectResolver.FAILURE_PATH)
+        val baseUrl = redirectResolver.resolveFailureRedirectUrl(request)
 
         val redirectUrl =
             UriComponentsBuilder.fromUriString(baseUrl)

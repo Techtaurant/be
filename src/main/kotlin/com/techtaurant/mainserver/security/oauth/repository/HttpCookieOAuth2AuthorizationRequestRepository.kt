@@ -29,6 +29,10 @@ class HttpCookieOAuth2AuthorizationRequestRepository(
     companion object {
         const val OAUTH2_AUTHORIZATION_REQUEST_COOKIE = "oauth2_auth_request"
         const val OAUTH2_ORIGIN_COOKIE = "oauth2_origin"
+        const val OAUTH2_SUCCESS_REDIRECT_URI_COOKIE = "oauth2_success_redirect_uri"
+        const val OAUTH2_FAILURE_REDIRECT_URI_COOKIE = "oauth2_failure_redirect_uri"
+        const val SUCCESS_REDIRECT_URI_PARAMETER = "redirect-uri"
+        const val FAILURE_REDIRECT_URI_PARAMETER = "failure-redirect-uri"
         private const val COOKIE_EXPIRE_SECONDS = 180
     }
 
@@ -82,6 +86,19 @@ class HttpCookieOAuth2AuthorizationRequestRepository(
         } else {
             logger.warn("saveAuthorizationRequest: origin is null, oauth2_origin cookie NOT set")
         }
+
+        saveRedirectUriCookie(
+            request = request,
+            response = response,
+            parameterName = SUCCESS_REDIRECT_URI_PARAMETER,
+            cookieName = OAUTH2_SUCCESS_REDIRECT_URI_COOKIE,
+        )
+        saveRedirectUriCookie(
+            request = request,
+            response = response,
+            parameterName = FAILURE_REDIRECT_URI_PARAMETER,
+            cookieName = OAUTH2_FAILURE_REDIRECT_URI_COOKIE,
+        )
     }
 
     override fun removeAuthorizationRequest(
@@ -94,6 +111,27 @@ class HttpCookieOAuth2AuthorizationRequestRepository(
     fun removeAuthorizationRequestCookies(response: HttpServletResponse) {
         cookieHelper.deleteCookie(response, OAUTH2_AUTHORIZATION_REQUEST_COOKIE)
         cookieHelper.deleteCookie(response, OAUTH2_ORIGIN_COOKIE)
+        cookieHelper.deleteCookie(response, OAUTH2_SUCCESS_REDIRECT_URI_COOKIE)
+        cookieHelper.deleteCookie(response, OAUTH2_FAILURE_REDIRECT_URI_COOKIE)
+    }
+
+    private fun saveRedirectUriCookie(
+        request: HttpServletRequest,
+        response: HttpServletResponse,
+        parameterName: String,
+        cookieName: String,
+    ) {
+        val redirectUri = request.getParameter(parameterName)?.trim()
+        if (redirectUri.isNullOrBlank()) {
+            return
+        }
+
+        cookieHelper.addCookie(
+            response,
+            cookieName,
+            redirectUri,
+            COOKIE_EXPIRE_SECONDS,
+        )
     }
 
     /**

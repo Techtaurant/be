@@ -6,15 +6,11 @@ import com.techtaurant.mainserver.security.oauth.repository.HttpCookieOAuth2Auth
 import jakarta.servlet.http.HttpServletRequest
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import java.net.URI
 
 /**
  * OAuth2 인증 완료 후 리다이렉트할 URL을 결정한다.
- * 쿠키에 저장된 요청 origin을 기반으로 리다이렉트 URL을 생성하며,
- * CORS 허용 목록에 포함된 origin만 허용하여 오픈 리다이렉트 공격을 방지한다.
- *
- * @param request 현재 HTTP 요청
- * @param path 리다이렉트 경로 (예: /oauth/callback)
- * @return 완성된 리다이렉트 URL
+ * 프론트가 전달한 성공/실패 URI를 우선 사용하고, 허용 origin만 통과시켜 오픈 리다이렉트 공격을 방지한다.
  */
 @Component
 class OAuth2RedirectResolver(
@@ -24,50 +20,132 @@ class OAuth2RedirectResolver(
     private val logger = LoggerFactory.getLogger(OAuth2RedirectResolver::class.java)
 
     companion object {
-        const val SUCCESS_PATH = "/oauth/callback"
-        const val FAILURE_PATH = "/oauth/error"
+        const val DEFAULT_SUCCESS_REDIRECT_URI = "/oauth/callback"
+        const val DEFAULT_FAILURE_REDIRECT_URI = "/oauth/error"
+        private const val DEFAULT_ORIGIN = "http://localhost:3000"
     }
 
-    fun resolve(
-        request: HttpServletRequest,
-        path: String,
-    ): String {
-        val origin =
-            cookieHelper.getCookie(
-                request,
-                HttpCookieOAuth2AuthorizationRequestRepository.OAUTH2_ORIGIN_COOKIE,
-            )
+    fun resolveSuccessRedirectUrl(request: HttpServletRequest): String =
+        resolve(
+            request = request,
+            redirectUriCookieName = HttpCookieOAuth2AuthorizationRequestRepository.OAUTH2_SUCCESS_REDIRECT_URI_COOKIE,
+            fallbackRedirectUri = DEFAULT_SUCCESS_REDIRECT_URI,
+        )
 
+    fun resolveFailureRedirectUrl(request: HttpServletRequest): String =
+        resolve(
+            request = request,
+            redirectUriCookieName = HttpCookieOAuth2AuthorizationRequestRepository.OAUTH2_FAILURE_REDIRECT_URI_COOKIE,
+            fallbackRedirectUri = DEFAULT_FAILURE_REDIRECT_URI,
+        )
+
+    private fun resolve(
+        request: HttpServletRequest,
+        redirectUriCookieName: String,
+        fallbackRedirectUri: String,
+    ): String {
+        val origin = getOriginCookie(request)
+        val redirectUri = cookieHelper.getCookie(request, redirectUriCookieName)
         val allowedOrigins =
             corsProperties.allowedOrigins
                 .split(",")
-                .map { it.trim() }
+                .map { it.trim().trimEnd('/') }
                 .filter { it.isNotEmpty() }
 
         logger.info(
-            "resolve: originCookie={}, allowedOrigins={}, path={}",
+            "resolve: originCookie={}, allowedOrigins={}, redirectUriCookieName={}, redirectUriPresent={}",
             origin,
             allowedOrigins,
-            path,
+            redirectUriCookieName,
+            !redirectUri.isNullOrBlank(),
         )
 
-        val allCookieNames = request.cookies?.map { it.name } ?: emptyList()
-        logger.info("resolve: allCookies={}", allCookieNames)
+        val validOrigin = resolveValidOrigin(origin, allowedOrigins)
+        val redirectUrl =
+            resolveRedirectUrl(
+                redirectUri = redirectUri,
+                validOrigin = validOrigin,
+                allowedOrigins = allowedOrigins,
+            ) ?: buildRedirectUrl(validOrigin, fallbackRedirectUri)
 
-        val validOrigin =
+        logger.info("resolve: redirectUrl={}", redirectUrl)
+        return redirectUrl
+    }
+
+    private fun getOriginCookie(request: HttpServletRequest): String? {
+        return cookieHelper.getCookie(
+            request,
+            HttpCookieOAuth2AuthorizationRequestRepository.OAUTH2_ORIGIN_COOKIE,
+        )?.trim()?.trimEnd('/')
+    }
+
+    private fun resolveValidOrigin(
+        origin: String?,
+        allowedOrigins: List<String>,
+    ): String {
+        if (origin != null && origin in allowedOrigins) {
+            return origin
+        }
+
+        logger.warn(
+            "resolve: origin not in allowedOrigins, falling back. origin={}, allowedOrigins={}",
+            origin,
+            allowedOrigins,
+        )
+        return allowedOrigins.firstOrNull() ?: DEFAULT_ORIGIN
+    }
+
+    private fun resolveRedirectUrl(
+        redirectUri: String?,
+        validOrigin: String,
+        allowedOrigins: List<String>,
+    ): String? {
+        val targetUri = redirectUri?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        if (isInternalPath(targetUri)) {
+            return buildRedirectUrl(validOrigin, targetUri)
+        }
+
+        return resolveAllowedAbsoluteUrl(targetUri, allowedOrigins)
+    }
+
+    private fun isInternalPath(redirectUri: String): Boolean {
+        return redirectUri.startsWith("/") && !redirectUri.startsWith("//")
+    }
+
+    private fun buildRedirectUrl(
+        origin: String,
+        path: String,
+    ): String {
+        return "${origin.trimEnd('/')}$path"
+    }
+
+    private fun resolveAllowedAbsoluteUrl(
+        redirectUri: String,
+        allowedOrigins: List<String>,
+    ): String? {
+        return try {
+            val uri = URI(redirectUri)
+            val origin = uri.toOrigin()
             if (origin != null && origin in allowedOrigins) {
-                origin
+                redirectUri
             } else {
                 logger.warn(
-                    "resolve: origin not in allowedOrigins, falling back. origin={}, allowedOrigins={}",
+                    "resolve: redirectUri origin not allowed. redirectOrigin={}, allowedOrigins={}",
                     origin,
                     allowedOrigins,
                 )
-                allowedOrigins.firstOrNull() ?: "http://localhost:3000"
+                null
             }
+        } catch (e: Exception) {
+            logger.warn("resolve: invalid redirectUri={}", redirectUri)
+            null
+        }
+    }
 
-        val redirectUrl = "$validOrigin$path"
-        logger.info("resolve: redirectUrl={}", redirectUrl)
-        return redirectUrl
+    private fun URI.toOrigin(): String? {
+        val scheme = this.scheme ?: return null
+        val host = this.host ?: return null
+        val port = if (this.port != -1) ":${this.port}" else ""
+        return "$scheme://$host$port".trimEnd('/')
     }
 }
