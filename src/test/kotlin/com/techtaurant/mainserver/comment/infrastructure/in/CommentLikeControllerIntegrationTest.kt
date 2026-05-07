@@ -14,11 +14,14 @@ import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.entity.User
+import com.techtaurant.mainserver.user.entity.UserBan
 import com.techtaurant.mainserver.user.enums.UserRole
+import com.techtaurant.mainserver.user.infrastructure.out.UserBanRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.restassured.RestAssured.given
 import io.restassured.http.ContentType
 import org.assertj.core.api.Assertions.assertThat
+import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -35,6 +38,9 @@ import java.util.UUID
 class CommentLikeControllerIntegrationTest : IntegrationTest() {
     @Autowired
     private lateinit var userRepository: UserRepository
+
+    @Autowired
+    private lateinit var userBanRepository: UserBanRepository
 
     @Autowired
     private lateinit var postRepository: PostRepository
@@ -138,6 +144,57 @@ class CommentLikeControllerIntegrationTest : IntegrationTest() {
         val log = commentLikeLogRepository.findByCommentIdAndUserId(testComment.id!!, testUser.id!!)
         assertThat(log).isNotNull
         assertThat(log?.isLiked).isTrue()
+    }
+
+    @Test
+    @DisplayName("댓글 사용자 데이터 조회 성공 - likeStatus와 isBannedAuthor를 반환한다")
+    fun getCommentUserData_withAuthentication_shouldReturnUserData() {
+        // Given
+        val blockedUser =
+            userRepository.save(
+                User(
+                    name = "차단된사용자",
+                    email = "blocked@example.com",
+                    provider = OAuthProvider.GOOGLE,
+                    identifier = "blocked-id-${UUID.randomUUID()}",
+                    role = UserRole.USER,
+                    profileImageUrl = "https://example.com/blocked-profile.jpg",
+                ),
+            )
+        val blockedComment =
+            commentRepository.save(
+                Comment(
+                    content = "차단된 작성자의 댓글",
+                    post = testPost,
+                    author = blockedUser,
+                    parent = null,
+                    depth = 0,
+                ),
+            )
+        userBanRepository.save(UserBan(user = testUser, bannedUser = blockedUser))
+        commentLikeLogService.recordLike(blockedComment.id!!, testUser.id!!, LikeStatus.LIKE)
+
+        // When & Then
+        given()
+            .header("Authorization", "Bearer $accessToken")
+            .`when`()
+            .get("/api/comments/${blockedComment.id}/user-data")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.commentId", equalTo(blockedComment.id.toString()))
+            .body("data.likeStatus", equalTo("LIKE"))
+            .body("data.isBannedAuthor", equalTo(true))
+    }
+
+    @Test
+    @DisplayName("댓글 사용자 데이터 조회 실패 - 인증되지 않은 사용자")
+    fun getCommentUserData_withoutAuthentication_shouldReturnUnauthorized() {
+        // When & Then
+        given()
+            .`when`()
+            .get("/api/comments/${testComment.id}/user-data")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
     }
 
     @Test

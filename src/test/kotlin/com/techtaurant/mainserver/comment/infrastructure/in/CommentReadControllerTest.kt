@@ -17,6 +17,8 @@ import com.techtaurant.mainserver.user.infrastructure.out.UserBanRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.restassured.RestAssured
 import io.restassured.common.mapper.TypeRef
+import org.hamcrest.Matchers.equalTo
+import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -374,6 +376,60 @@ class CommentReadControllerTest : IntegrationTest() {
         assertEquals(13, maskedComment.content.length)
         assertEquals(null, maskedComment.authorProfileImageUrl)
         assertTrue(maskedComment.authorId != blockedUser.id)
+    }
+
+    @Test
+    @DisplayName("v2 부모 댓글 목록은 사용자별 likeStatus/isBanned와 차단 마스킹을 포함하지 않는다")
+    fun getParentCommentsV2_returnsOnlyPublicFields() {
+        // Given
+        val blockedComment =
+            commentRepository.save(
+                Comment(
+                    content = "차단된 댓글 내용",
+                    post = testPost,
+                    author = blockedUser,
+                    parent = null,
+                    depth = 0,
+                ),
+            )
+        userBanRepository.save(UserBan(user = testUser, bannedUser = blockedUser))
+
+        // When & Then
+        RestAssured
+            .given()
+            .header("Authorization", "Bearer $accessToken")
+            .queryParam("sort", "LATEST")
+            .queryParam("size", 10)
+            .`when`()
+            .get("/open-api/v2/comments/posts/${testPost.id}")
+            .then()
+            .statusCode(200)
+            .body("data.content.find { it.id == '${blockedComment.id}' }.likeStatus", nullValue())
+            .body("data.content.find { it.id == '${blockedComment.id}' }.isBanned", nullValue())
+            .body("data.content.find { it.id == '${blockedComment.id}' }.authorName", equalTo("Blocked User"))
+            .body("data.content.find { it.id == '${blockedComment.id}' }.content", equalTo("차단된 댓글 내용"))
+            .body("data.content.find { it.id == '${blockedComment.id}' }.authorId", equalTo(blockedUser.id.toString()))
+    }
+
+    @Test
+    @DisplayName("v2 대댓글 목록은 사용자별 likeStatus/isBanned를 포함하지 않는다")
+    fun getRepliesV2_returnsOnlyPublicFields() {
+        // Given
+        val parentComment = parentComments[0]
+        val reply = createTestReplies(parentComment).first()
+
+        // When & Then
+        RestAssured
+            .given()
+            .header("Authorization", "Bearer $accessToken")
+            .queryParam("sort", "LATEST")
+            .queryParam("size", 10)
+            .`when`()
+            .get("/open-api/v2/comments/${parentComment.id}/replies")
+            .then()
+            .statusCode(200)
+            .body("data.content.find { it.id == '${reply.id}' }.likeStatus", nullValue())
+            .body("data.content.find { it.id == '${reply.id}' }.isBanned", nullValue())
     }
 
     @Nested

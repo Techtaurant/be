@@ -6,6 +6,8 @@ import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.post.dto.PostDetailAttachmentPresignedUrlResponse
 import com.techtaurant.mainserver.post.dto.PostDetailResponse
+import com.techtaurant.mainserver.post.dto.PostDetailV2Response
+import com.techtaurant.mainserver.post.dto.PostUserDataResponse
 import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
@@ -94,6 +96,65 @@ class PostDetailReadService(
             isRead = isRead,
             authorProfileImageUrl = authorProfileImageUrl,
             attachmentPresignedUrls = attachmentPresignedUrls,
+        )
+    }
+
+    @Transactional
+    fun getPublicPostDetailV2(
+        postId: UUID,
+        ipAddress: String?,
+        userAgent: String?,
+    ): PostDetailV2Response {
+        val post =
+            postRepository.findVisiblePostDetailById(postId, null)
+                ?.takeIf { it.status == PostStatusEnum.PUBLISHED }
+                ?: throw ApiException(PostStatus.POST_NOT_FOUND)
+
+        postViewLogService.recordView(
+            postId = postId,
+            userId = null,
+            ipAddress = ipAddress,
+            userAgent = userAgent,
+        )
+
+        val attachmentPresignedUrls =
+            attachmentService.generatePresignedDownloadUrlMapByReference(postId, AttachmentReferenceType.POST)
+                .map { (attachmentId, presignedUrl) ->
+                    PostDetailAttachmentPresignedUrlResponse.from(attachmentId, presignedUrl)
+                }
+        val authorProfileImageUrl = userProfileImageResolver.resolve(post.author)
+
+        return PostDetailV2Response.from(
+            post = post,
+            authorProfileImageUrl = authorProfileImageUrl,
+            attachmentPresignedUrls = attachmentPresignedUrls,
+        )
+    }
+
+    @Transactional(readOnly = true)
+    fun getPostUserData(
+        postId: UUID,
+        userId: UUID,
+    ): PostUserDataResponse {
+        val post =
+            postRepository.findVisiblePostDetailById(postId, userId)
+                ?: throw ApiException(PostStatus.POST_NOT_FOUND)
+
+        if (post.status != PostStatusEnum.PUBLISHED && post.author.id != userId) {
+            throw ApiException(PostStatus.POST_NOT_FOUND)
+        }
+
+        val likeStatus =
+            postLikeLogRepository.findByPostIdAndUserId(postId, userId)
+                ?.let { log ->
+                    if (log.isLiked) LikeStatus.LIKE else LikeStatus.DISLIKE
+                } ?: LikeStatus.NONE
+        val isRead = postReadLogRepository.existsByPostIdAndUserId(postId, userId)
+
+        return PostUserDataResponse(
+            postId = postId,
+            likeStatus = likeStatus,
+            isRead = isRead,
         )
     }
 }

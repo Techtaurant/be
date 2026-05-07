@@ -8,6 +8,7 @@ import com.techtaurant.mainserver.post.dto.CategoryResponse
 import com.techtaurant.mainserver.post.dto.DraftListItemResponse
 import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.dto.PostListItemResponse
+import com.techtaurant.mainserver.post.dto.PostListItemV2Response
 import com.techtaurant.mainserver.post.dto.PostListTagResponse
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
@@ -161,6 +162,94 @@ class PostListReadService(
         )
     }
 
+    fun getPublicPostsV2(
+        cursor: String?,
+        size: Int,
+        period: PostPeriod = PostPeriod.ALL,
+        sortType: PostSortType = PostSortType.LATEST,
+        authorId: UUID? = null,
+        categoryId: UUID? = null,
+        tagIds: List<UUID>? = null,
+    ): CursorPageResponse<PostListItemV2Response> {
+        val postCursor = cursor?.let { PostCursor.decode(it) }
+        val normalizedTagIds = normalizeTagIds(tagIds)
+
+        if (cursor != null && postCursor == null) {
+            return CursorPageResponse(
+                content = emptyList(),
+                nextCursor = null,
+                hasNext = false,
+                size = 0,
+            )
+        }
+
+        val postListQueryCriteria =
+            PostListQueryCriteria(
+                cursor = postCursor,
+                size = size,
+                period = period,
+                sortType = sortType,
+                currentUserId = null,
+                authorId = authorId,
+                categoryId = categoryId,
+                tagIds = normalizedTagIds,
+            )
+        val posts = selectPostListQueryStrategy(postListQueryCriteria).findPosts(postListQueryCriteria)
+
+        val hasNext = posts.size > size
+        val content = posts.take(size)
+
+        val nextCursor =
+            if (hasNext && content.isNotEmpty()) {
+                PostCursor.from(content.last(), sortType).encode()
+            } else {
+                null
+            }
+
+        val postIds = content.mapNotNull { it.id }
+        val attachmentsByPostId =
+            if (postIds.isNotEmpty()) {
+                attachmentService.getConfirmedAttachmentsByReferenceIds(postIds, AttachmentReferenceType.POST)
+            } else {
+                emptyMap()
+            }
+        val thumbnailAttachmentByPostId =
+            content.associate { post ->
+                val thumbnailAttachment =
+                    attachmentsByPostId[post.id]
+                        .orEmpty()
+                        .let { attachments ->
+                            post.thumbnailImage?.let { thumbnailAttachmentId ->
+                                attachments.firstOrNull { it.id == thumbnailAttachmentId }
+                            } ?: attachments.minByOrNull { it.createdAt }
+                        }
+                post.id!! to thumbnailAttachment
+            }
+        val presignedThumbnailUrlByAttachmentId =
+            thumbnailAttachmentByPostId
+                .values
+                .filterNotNull()
+                .takeIf { it.isNotEmpty() }
+                ?.let { attachmentService.generatePresignedDownloadUrlMapByAttachments(it) }
+                ?: emptyMap()
+        val authorProfileImageUrlByUserId = userProfileImageResolver.resolve(content.map { it.author }.distinctBy { it.id })
+
+        return CursorPageResponse(
+            content =
+                content.map { post ->
+                    convertToV2Response(
+                        post,
+                        thumbnailAttachmentByPostId[post.id],
+                        authorProfileImageUrlByUserId[post.author.id] ?: post.author.getFallbackProfileImageUrl(),
+                        presignedThumbnailUrlByAttachmentId,
+                    )
+                },
+            nextCursor = nextCursor,
+            hasNext = hasNext,
+            size = content.size,
+        )
+    }
+
     private fun normalizeTagIds(tagIds: List<UUID>?): List<UUID>? {
         val normalizedTagIds = tagIds?.distinct()
 
@@ -290,6 +379,33 @@ class PostListReadService(
             thumbnailUrl = thumbnailUrl,
             category = post.category?.let(CategoryResponse::from),
             isRead = isRead,
+            tags = post.tags.map { PostListTagResponse.from(it) },
+            viewCount = post.viewCount,
+            likeCount = post.likeCount,
+            commentCount = post.commentCount,
+            status = post.status,
+            createdAt = post.createdAt,
+            updatedAt = post.updatedAt,
+        )
+    }
+
+    private fun convertToV2Response(
+        post: Post,
+        thumbnailAttachment: Attachment?,
+        authorProfileImageUrl: String,
+        presignedThumbnailUrlByAttachmentId: Map<UUID, String>,
+    ): PostListItemV2Response {
+        val thumbnailUrl = thumbnailAttachment?.id?.let { presignedThumbnailUrlByAttachmentId[it] } ?: "$baseUrl$defaultThumbnailUrl"
+
+        return PostListItemV2Response(
+            id = post.id!!,
+            title = post.title,
+            content = post.content.take(POST_LIST_CONTENT_MAX_LENGTH),
+            authorId = post.author.id!!,
+            authorName = post.author.name,
+            authorProfileImageUrl = authorProfileImageUrl,
+            thumbnailUrl = thumbnailUrl,
+            category = post.category?.let(CategoryResponse::from),
             tags = post.tags.map { PostListTagResponse.from(it) },
             viewCount = post.viewCount,
             likeCount = post.likeCount,

@@ -1,5 +1,6 @@
 package com.techtaurant.mainserver.comment.application
 
+import com.techtaurant.mainserver.comment.dto.CommentListV2Response
 import com.techtaurant.mainserver.comment.dto.CommentListResponse
 import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.common.enums.LikeStatus
@@ -50,6 +51,26 @@ class CommentResponseAssembler(
                     maskedContent = bannedUserMaskingService.maskCommentContent(comment.id!!),
                 )
             }
+        }
+    }
+
+    fun assemblePublicV2(comments: List<Comment>): List<CommentListV2Response> {
+        if (comments.isEmpty()) {
+            return emptyList()
+        }
+
+        val authorProfileImageUrlByUserId =
+            userProfileImageResolver.resolve(
+                comments
+                    .map { it.author }
+                    .distinctBy { it.id },
+            )
+
+        return comments.map { comment ->
+            CommentListV2Response.from(
+                comment = comment,
+                authorProfileImageUrl = authorProfileImageUrlByUserId[comment.author.id] ?: comment.author.getFallbackProfileImageUrl(),
+            )
         }
     }
 }

@@ -3,6 +3,8 @@ package com.techtaurant.mainserver.post.infrastructure.`in`
 import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
+import com.techtaurant.mainserver.post.entity.PostLikeLog
+import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
@@ -14,6 +16,7 @@ import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.restassured.RestAssured.given
 import org.hamcrest.Matchers.hasItem
 import org.hamcrest.Matchers.not
+import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -30,6 +33,9 @@ class PostReadOpenApiControllerIntegrationTest : IntegrationTest() {
     private lateinit var postRepository: PostRepository
 
     @Autowired
+    private lateinit var postLikeLogRepository: PostLikeLogRepository
+
+    @Autowired
     private lateinit var jwtTokenProvider: JwtTokenProvider
 
     @Autowired
@@ -42,6 +48,7 @@ class PostReadOpenApiControllerIntegrationTest : IntegrationTest() {
     @BeforeEach
     fun setUpTestData() {
         userBanRepository.deleteAllInBatch()
+        postLikeLogRepository.deleteAllInBatch()
         postRepository.deleteAllInBatch()
         userRepository.deleteAllInBatch()
         testUser =
@@ -113,6 +120,68 @@ class PostReadOpenApiControllerIntegrationTest : IntegrationTest() {
             .body("data.content.id", hasItem(myPrivatePost.id.toString()))
             .body("data.content.id", hasItem(myPublishedPost.id.toString()))
             .body("data.content.id", not(hasItem(otherPrivatePost.id.toString())))
+    }
+
+    @Test
+    @DisplayName("v2 게시물 목록은 인증 헤더가 있어도 공개 게시물만 반환하고 isRead를 포함하지 않는다")
+    fun getPostsV2_withAuthentication_returnsOnlyPublicFields() {
+        // given
+        val myPrivatePost =
+            postRepository.save(
+                Post(
+                    title = "내 비공개 게시물",
+                    content = "비공개 내용",
+                    author = testUser,
+                    status = PostStatusEnum.PRIVATE,
+                ),
+            )
+        val myPublishedPost =
+            postRepository.save(
+                Post(
+                    title = "내 공개 게시물",
+                    content = "공개 내용",
+                    author = testUser,
+                    status = PostStatusEnum.PUBLISHED,
+                ),
+            )
+
+        // when & then
+        given()
+            .header("Authorization", "Bearer $accessToken")
+            .`when`()
+            .get("/open-api/v2/posts")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.content.id", hasItem(myPublishedPost.id.toString()))
+            .body("data.content.id", not(hasItem(myPrivatePost.id.toString())))
+            .body("data.content[0].isRead", nullValue())
+    }
+
+    @Test
+    @DisplayName("v2 게시물 상세는 likeStatus와 isRead를 포함하지 않는다")
+    fun getPostDetailV2_returnsOnlyPublicFields() {
+        // given
+        val post =
+            postRepository.save(
+                Post(
+                    title = "공개 게시물",
+                    content = "공개 내용",
+                    author = testUser,
+                    status = PostStatusEnum.PUBLISHED,
+                ),
+            )
+        postLikeLogRepository.save(PostLikeLog(post = post, user = testUser, isLiked = true))
+
+        // when & then
+        given()
+            .header("Authorization", "Bearer $accessToken")
+            .`when`()
+            .get("/open-api/v2/posts/${post.id}")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.id", org.hamcrest.Matchers.`is`(post.id.toString()))
+            .body("data.likeStatus", nullValue())
+            .body("data.isRead", nullValue())
     }
 
     @Test

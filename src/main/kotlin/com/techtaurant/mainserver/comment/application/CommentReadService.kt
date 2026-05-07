@@ -2,12 +2,18 @@ package com.techtaurant.mainserver.comment.application
 
 import com.techtaurant.mainserver.comment.dto.CommentCursor
 import com.techtaurant.mainserver.comment.dto.CommentListResponse
+import com.techtaurant.mainserver.comment.dto.CommentListV2Response
+import com.techtaurant.mainserver.comment.dto.CommentUserDataResponse
 import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.enums.CommentSortType
+import com.techtaurant.mainserver.comment.enums.CommentStatus
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentLikeLogRepository
+import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepositoryCustom
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.common.enums.LikeStatus
+import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.user.application.UserBanService
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -20,8 +26,10 @@ import java.util.UUID
 @Transactional(readOnly = true)
 class CommentReadService(
     private val commentRepository: CommentRepositoryCustom,
+    private val commentJpaRepository: CommentRepository,
     private val commentLikeLogRepository: CommentLikeLogRepository,
     private val commentResponseAssembler: CommentResponseAssembler,
+    private val userBanService: UserBanService,
 ) {
     /**
      * 부모 댓글 목록을 커서 기반 페이지네이션으로 조회합니다.
@@ -126,6 +134,114 @@ class CommentReadService(
             nextCursor = nextCursor,
             hasNext = hasNext,
             size = content.size,
+        )
+    }
+
+    fun getPublicParentCommentsV2(
+        postId: UUID,
+        cursor: String?,
+        size: Int,
+        sortType: CommentSortType = CommentSortType.LATEST,
+    ): CursorPageResponse<CommentListV2Response> {
+        val commentCursor = cursor?.let { CommentCursor.decode(it) }
+
+        if (cursor != null && commentCursor == null) {
+            return CursorPageResponse(
+                content = emptyList(),
+                nextCursor = null,
+                hasNext = false,
+                size = 0,
+            )
+        }
+
+        val comments =
+            commentRepository.findParentCommentsWithConditions(
+                postId = postId,
+                cursor = commentCursor,
+                size = size + 1,
+                sortType = sortType,
+            )
+
+        val hasNext = comments.size > size
+        val content = comments.take(size)
+
+        val nextCursor =
+            if (hasNext && content.isNotEmpty()) {
+                CommentCursor.from(content.last(), sortType).encode()
+            } else {
+                null
+            }
+
+        return CursorPageResponse(
+            content = commentResponseAssembler.assemblePublicV2(content),
+            nextCursor = nextCursor,
+            hasNext = hasNext,
+            size = content.size,
+        )
+    }
+
+    fun getPublicRepliesV2(
+        parentId: UUID,
+        cursor: String?,
+        size: Int,
+        sortType: CommentSortType = CommentSortType.LATEST,
+    ): CursorPageResponse<CommentListV2Response> {
+        val commentCursor = cursor?.let { CommentCursor.decode(it) }
+
+        if (cursor != null && commentCursor == null) {
+            return CursorPageResponse(
+                content = emptyList(),
+                nextCursor = null,
+                hasNext = false,
+                size = 0,
+            )
+        }
+
+        val comments =
+            commentRepository.findRepliesWithConditions(
+                parentId = parentId,
+                cursor = commentCursor,
+                size = size + 1,
+                sortType = sortType,
+            )
+
+        val hasNext = comments.size > size
+        val content = comments.take(size)
+
+        val nextCursor =
+            if (hasNext && content.isNotEmpty()) {
+                CommentCursor.from(content.last(), sortType).encode()
+            } else {
+                null
+            }
+
+        return CursorPageResponse(
+            content = commentResponseAssembler.assemblePublicV2(content),
+            nextCursor = nextCursor,
+            hasNext = hasNext,
+            size = content.size,
+        )
+    }
+
+    fun getCommentUserData(
+        commentId: UUID,
+        userId: UUID,
+    ): CommentUserDataResponse {
+        val comment =
+            commentJpaRepository.findById(commentId).orElseThrow {
+                ApiException(CommentStatus.COMMENT_NOT_FOUND)
+            }
+        val likeStatus =
+            commentLikeLogRepository.findByCommentIdAndUserId(commentId, userId)
+                ?.let { log ->
+                    if (log.isLiked) LikeStatus.LIKE else LikeStatus.DISLIKE
+                } ?: LikeStatus.NONE
+        val isBannedAuthor = userBanService.getBannedUserIds(userId).contains(comment.author.id)
+
+        return CommentUserDataResponse(
+            commentId = commentId,
+            likeStatus = likeStatus,
+            isBannedAuthor = isBannedAuthor,
         )
     }
 

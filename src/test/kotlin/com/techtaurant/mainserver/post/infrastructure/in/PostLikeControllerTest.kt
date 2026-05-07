@@ -7,9 +7,11 @@ import com.techtaurant.mainserver.post.dto.RecordPostLikeRequest
 import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostLikeLog
+import com.techtaurant.mainserver.post.entity.PostReadLog
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.CategoryRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
+import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
@@ -19,6 +21,7 @@ import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.restassured.RestAssured
 import io.restassured.common.mapper.TypeRef
 import io.restassured.http.ContentType
+import org.hamcrest.Matchers.equalTo
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -32,6 +35,9 @@ import kotlin.test.assertNotNull
 class PostLikeControllerTest : IntegrationTest() {
     @Autowired
     private lateinit var postLikeLogRepository: PostLikeLogRepository
+
+    @Autowired
+    private lateinit var postReadLogRepository: PostReadLogRepository
 
     @Autowired
     private lateinit var postRepository: PostRepository
@@ -52,6 +58,7 @@ class PostLikeControllerTest : IntegrationTest() {
     @BeforeEach
     fun setup() {
         // Cleanup in correct order (foreign key constraints)
+        postReadLogRepository.deleteAllInBatch()
         postLikeLogRepository.deleteAllInBatch()
         postRepository.deleteAllInBatch()
         categoryRepository.deleteAllInBatch()
@@ -133,6 +140,38 @@ class PostLikeControllerTest : IntegrationTest() {
         // Then: DB에서 좋아요 로그가 삭제되었는지 확인
         val deletedLog = postLikeLogRepository.findById(likeLogId)
         assertFalse(deletedLog.isPresent, "좋아요 로그가 DB에서 삭제되어야 함")
+    }
+
+    @Test
+    @DisplayName("게시물 사용자 데이터 조회 성공 - likeStatus와 isRead를 반환한다")
+    fun getPostUserData_withAuthentication_shouldReturnUserData() {
+        // Given
+        postLikeLogRepository.save(PostLikeLog(post = testPost, user = testUser, isLiked = true))
+        postReadLogRepository.save(PostReadLog(postId = testPost.id!!, user = testUser))
+
+        // When & Then
+        RestAssured
+            .given()
+            .header("Authorization", "Bearer $accessToken")
+            .`when`()
+            .get("/api/posts/${testPost.id}/user-data")
+            .then()
+            .statusCode(200)
+            .body("data.postId", equalTo(testPost.id.toString()))
+            .body("data.likeStatus", equalTo("LIKE"))
+            .body("data.isRead", equalTo(true))
+    }
+
+    @Test
+    @DisplayName("게시물 사용자 데이터 조회 실패 - JWT 토큰 없이 요청하면 401 UNAUTHORIZED 반환")
+    fun getPostUserData_withoutAuthentication_shouldReturn401() {
+        // When & Then
+        RestAssured
+            .given()
+            .`when`()
+            .get("/api/posts/${testPost.id}/user-data")
+            .then()
+            .statusCode(401)
     }
 
     @Test
