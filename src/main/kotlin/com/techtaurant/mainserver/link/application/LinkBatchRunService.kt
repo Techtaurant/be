@@ -51,70 +51,131 @@ class LinkBatchRunService(
         batch: LinkCrawlBatch,
         tags: Set<Tag>,
     ): LinkBatchRunResponse {
-        var collectedCount = 0
-        var newLinkCount = 0
-        var existingLinkCount = 0
-        var skippedCount = 0
-
+        var crawlResult = emptyCrawlResult()
         var page = batch.startPage
+
         while (true) {
-            val pageUrl = buildPageUrl(batch.baseUrl, batch.pageUriTemplate, page)
-            val document = fetchPageOrNull(pageUrl) ?: break
-            val items = document.select(batch.itemSelector)
-            var pageNewLinkCount = 0
+            val pageResult = crawlPage(batch, tags, page) ?: break
+            crawlResult = crawlResult.mergePageResult(pageResult)
 
-            items.forEach { item ->
-                val snapshot = extractSnapshot(item, batch, pageUrl)
-                if (snapshot == null) {
-                    skippedCount++
-                    return@forEach
-                }
-
-                val existingLink = linkRepository.findByUrl(snapshot.url)
-                if (existingLink == null) {
-                    linkRepository.save(
-                        Link(
-                            title = snapshot.title,
-                            url = snapshot.url,
-                            summary = snapshot.summary,
-                            sourceCompanyUser = batch.companyUser,
-                            authorName = snapshot.authorName,
-                            publishedAt = snapshot.publishedAt,
-                            tags = tags.toMutableSet(),
-                        ),
-                    )
-                    newLinkCount++
-                    pageNewLinkCount++
-                } else {
-                    existingLink.title = snapshot.title
-                    if (snapshot.summary.isNotBlank()) {
-                        existingLink.summary = snapshot.summary
-                    }
-                    if (!snapshot.authorName.isNullOrBlank()) {
-                        existingLink.authorName = snapshot.authorName
-                    }
-                    if (snapshot.publishedAt != null) {
-                        existingLink.publishedAt = snapshot.publishedAt
-                    }
-                    existingLink.tags.addAll(tags)
-                    existingLinkCount++
-                }
-
-                collectedCount++
-            }
-
-            if (pageNewLinkCount == 0) {
+            if (!pageResult.hasNewLinks()) {
                 break
             }
             page++
         }
 
-        return LinkBatchRunResponse(
-            collectedCount = collectedCount,
-            newLinkCount = newLinkCount,
-            existingLinkCount = existingLinkCount,
-            skippedCount = skippedCount,
+        return crawlResult
+    }
+
+    private fun crawlPage(
+        batch: LinkCrawlBatch,
+        tags: Set<Tag>,
+        page: Int,
+    ): LinkBatchRunResponse? {
+        val pageUrl = buildPageUrl(batch.baseUrl, batch.pageUriTemplate, page)
+        val document = fetchPageOrNull(pageUrl) ?: return null
+        var pageResult = emptyCrawlResult()
+
+        document.select(batch.itemSelector).forEach { item ->
+            pageResult = pageResult.recordCollectionResult(collectLinkItem(item, batch, tags, pageUrl))
+        }
+
+        return pageResult
+    }
+
+    private fun emptyCrawlResult(): LinkBatchRunResponse =
+        LinkBatchRunResponse(
+            collectedCount = 0,
+            newLinkCount = 0,
+            existingLinkCount = 0,
+            skippedCount = 0,
         )
+
+    private fun LinkBatchRunResponse.recordCollectionResult(result: LinkCollectionResult): LinkBatchRunResponse =
+        when (result) {
+            LinkCollectionResult.CREATED_NEW_LINK ->
+                copy(
+                    collectedCount = collectedCount + 1,
+                    newLinkCount = newLinkCount + 1,
+                )
+            LinkCollectionResult.UPDATED_EXISTING_LINK ->
+                copy(
+                    collectedCount = collectedCount + 1,
+                    existingLinkCount = existingLinkCount + 1,
+                )
+            LinkCollectionResult.SKIPPED ->
+                copy(skippedCount = skippedCount + 1)
+        }
+
+    private fun LinkBatchRunResponse.mergePageResult(pageResult: LinkBatchRunResponse): LinkBatchRunResponse =
+        copy(
+            collectedCount = collectedCount + pageResult.collectedCount,
+            newLinkCount = newLinkCount + pageResult.newLinkCount,
+            existingLinkCount = existingLinkCount + pageResult.existingLinkCount,
+            skippedCount = skippedCount + pageResult.skippedCount,
+        )
+
+    private fun LinkBatchRunResponse.hasNewLinks(): Boolean = newLinkCount > 0
+
+    private fun collectLinkItem(
+        item: Element,
+        batch: LinkCrawlBatch,
+        tags: Set<Tag>,
+        pageUrl: String,
+    ): LinkCollectionResult {
+        val snapshot = extractSnapshot(item, batch, pageUrl) ?: return LinkCollectionResult.SKIPPED
+        return saveNewLinkOrRefreshExistingLink(snapshot, batch, tags)
+    }
+
+    private fun saveNewLinkOrRefreshExistingLink(
+        snapshot: LinkSnapshot,
+        batch: LinkCrawlBatch,
+        tags: Set<Tag>,
+    ): LinkCollectionResult {
+        val existingLink = linkRepository.findByUrl(snapshot.url)
+        if (existingLink == null) {
+            saveNewLink(snapshot, batch, tags)
+            return LinkCollectionResult.CREATED_NEW_LINK
+        }
+
+        refreshExistingLink(existingLink, snapshot, tags)
+        return LinkCollectionResult.UPDATED_EXISTING_LINK
+    }
+
+    private fun saveNewLink(
+        snapshot: LinkSnapshot,
+        batch: LinkCrawlBatch,
+        tags: Set<Tag>,
+    ) {
+        linkRepository.save(
+            Link(
+                title = snapshot.title,
+                url = snapshot.url,
+                summary = snapshot.summary,
+                sourceCompanyUser = batch.companyUser,
+                authorName = snapshot.authorName,
+                publishedAt = snapshot.publishedAt,
+                tags = tags.toMutableSet(),
+            ),
+        )
+    }
+
+    private fun refreshExistingLink(
+        existingLink: Link,
+        snapshot: LinkSnapshot,
+        tags: Set<Tag>,
+    ) {
+        existingLink.title = snapshot.title
+        if (snapshot.summary.isNotBlank()) {
+            existingLink.summary = snapshot.summary
+        }
+        if (!snapshot.authorName.isNullOrBlank()) {
+            existingLink.authorName = snapshot.authorName
+        }
+        if (snapshot.publishedAt != null) {
+            existingLink.publishedAt = snapshot.publishedAt
+        }
+        existingLink.tags.addAll(tags)
     }
 
     private fun fetchPageOrNull(pageUrl: String): Document? {
@@ -265,4 +326,10 @@ class LinkBatchRunService(
         val authorName: String?,
         val publishedAt: Instant?,
     )
+
+    private enum class LinkCollectionResult {
+        CREATED_NEW_LINK,
+        UPDATED_EXISTING_LINK,
+        SKIPPED,
+    }
 }
