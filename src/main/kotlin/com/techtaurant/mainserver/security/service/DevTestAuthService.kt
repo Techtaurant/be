@@ -23,10 +23,10 @@ import org.springframework.transaction.annotation.Transactional
  * 개발 환경 전용 테스트 인증 서비스
  *
  * 테스트 사용자를 조회하거나 생성하고 JWT 토큰을 쿠키로 발급한다.
- * dev 프로파일에서만 빈이 등록된다.
+ * prod 프로파일이 아닌 환경에서만 빈이 등록된다.
  */
 @Service
-@Profile("dev")
+@Profile("!prod")
 class DevTestAuthService(
     private val userRepository: UserRepository,
     private val jwtTokenProvider: JwtTokenProvider,
