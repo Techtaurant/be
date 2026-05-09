@@ -10,6 +10,14 @@ import java.util.UUID
  */
 interface CommentRepositoryCustom {
     /**
+     * 삭제된 댓글을 포함해 댓글 ID 목록에 해당하는 댓글을 조회합니다.
+     *
+     * @param commentIds 댓글 ID 목록
+     * @return 댓글 목록
+     */
+    fun findCommentsByIdsIncludingDeleted(commentIds: List<UUID>): List<Comment>
+
+    /**
      * 부모 댓글 목록 조회 (depth=0)
      *
      * @param postId 게시물 ID

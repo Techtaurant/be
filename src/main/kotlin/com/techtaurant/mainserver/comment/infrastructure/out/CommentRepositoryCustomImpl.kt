@@ -29,6 +29,27 @@ class CommentRepositoryCustomImpl : CommentRepositoryCustom {
     @PersistenceContext
     private lateinit var entityManager: EntityManager
 
+    override fun findCommentsByIdsIncludingDeleted(commentIds: List<UUID>): List<Comment> {
+        if (commentIds.isEmpty()) {
+            return emptyList()
+        }
+
+        return runWithoutActiveCommentFilter {
+            entityManager.createQuery(
+                """
+                SELECT c
+                FROM Comment c
+                JOIN FETCH c.author
+                JOIN FETCH c.post
+                WHERE c.id IN :commentIds
+                """.trimIndent(),
+                Comment::class.java,
+            )
+                .setParameter("commentIds", commentIds)
+                .resultList
+        }
+    }
+
     /**
      * 부모 댓글 목록 조회 (depth=0)
      *

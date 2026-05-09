@@ -1,11 +1,13 @@
 package com.techtaurant.mainserver.comment.application
 
+import com.techtaurant.mainserver.comment.dto.CommentContentListResponse
 import com.techtaurant.mainserver.comment.dto.CommentListResponse
 import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.user.application.BannedUserMaskingService
 import com.techtaurant.mainserver.user.application.UserBanService
 import com.techtaurant.mainserver.user.application.UserProfileImageResolver
+import com.techtaurant.mainserver.user.entity.User
 import org.springframework.stereotype.Component
 import java.util.UUID
 
@@ -15,6 +17,26 @@ class CommentResponseAssembler(
     private val bannedUserMaskingService: BannedUserMaskingService,
     private val userProfileImageResolver: UserProfileImageResolver,
 ) {
+    fun assembleContents(comments: List<Comment>): List<CommentContentListResponse> {
+        if (comments.isEmpty()) {
+            return emptyList()
+        }
+
+        val authorProfileImageUrlByUserId =
+            resolveAuthorProfileImageUrlByUserId(
+                comments
+                    .map { it.author }
+                    .distinctBy { it.id },
+            )
+
+        return comments.map { comment ->
+            CommentContentListResponse.from(
+                comment = comment,
+                authorProfileImageUrl = authorProfileImageUrlByUserId[comment.author.id] ?: comment.author.getFallbackProfileImageUrl(),
+            )
+        }
+    }
+
     fun assemble(
         comments: List<Comment>,
         likeStatusMap: Map<UUID, LikeStatus>,
@@ -26,7 +48,7 @@ class CommentResponseAssembler(
 
         val bannedUserIds = userBanService.getBannedUserIds(userId)
         val authorProfileImageUrlByUserId =
-            userProfileImageResolver.resolve(
+            resolveAuthorProfileImageUrlByUserId(
                 comments
                     .filterNot { bannedUserIds.contains(it.author.id) }
                     .map { it.author }
@@ -52,4 +74,6 @@ class CommentResponseAssembler(
             }
         }
     }
+
+    private fun resolveAuthorProfileImageUrlByUserId(authors: List<User>): Map<UUID, String> = userProfileImageResolver.resolve(authors)
 }
