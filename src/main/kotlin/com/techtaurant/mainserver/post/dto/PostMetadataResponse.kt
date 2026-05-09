@@ -18,8 +18,6 @@ data class PostMetadataResponse(
     val status: PostStatusEnum,
     @field:Schema(description = "게시물 썸네일 이미지 URL")
     val thumbnailUrl: String,
-    @field:Schema(description = "작성자 프로필 이미지 URL")
-    val authorProfileImageUrl: String,
     @field:Schema(description = "게시물 본문 첨부파일 presigned URL 목록")
     val attachmentPresignedUrls: List<PostDetailAttachmentPresignedUrlResponse>,
 )

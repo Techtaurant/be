@@ -13,6 +13,7 @@ import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasItem
 import org.hamcrest.Matchers.not
 import org.hamcrest.Matchers.notNullValue
+import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -88,6 +89,6 @@ class PostMetadataOpenApiControllerIntegrationTest : IntegrationTest() {
             .body("data.find { it.postId == '${publishedPost.id}' }.commentCount", equalTo(1))
             .body("data.find { it.postId == '${publishedPost.id}' }.status", equalTo("PUBLISHED"))
             .body("data.find { it.postId == '${publishedPost.id}' }.thumbnailUrl", notNullValue())
-            .body("data.find { it.postId == '${publishedPost.id}' }.authorProfileImageUrl", equalTo(author.profileImageUrl))
+            .body("data.find { it.postId == '${publishedPost.id}' }.authorProfileImageUrl", nullValue())
     }
 }

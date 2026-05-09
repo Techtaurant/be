@@ -19,8 +19,9 @@ interface CommentReadControllerDocs {
         summary = "부모 댓글 목록 조회",
         description =
             "[Deprecated] 이 API는 공개 콘텐츠, 공개 동적 메타데이터, 로그인 사용자 상태가 하나의 응답에 섞여 있습니다. " +
-                "공개 콘텐츠 목록은 GET /open-api/v2/comments/posts/{postId}, 공개 동적 메타데이터는 " +
-                "GET /open-api/comments/metadata?commentIds=..., 로그인 사용자 상태는 " +
+                "공개 콘텐츠 목록은 GET /open-api/v2/posts/{postId}/comments, 공개 동적 메타데이터는 " +
+                "GET /open-api/comments/metadata?commentIds=..., 작성자 프로필 이미지는 " +
+                "GET /open-api/users/profile-images?userIds=..., 로그인 사용자 상태는 " +
                 "GET /api/comments/me/states?commentIds=... API로 대체되었습니다.",
         deprecated = true,
     )
@@ -42,7 +43,8 @@ interface CommentReadControllerDocs {
         description =
             "[Deprecated] 이 API는 공개 콘텐츠, 공개 동적 메타데이터, 로그인 사용자 상태가 하나의 응답에 섞여 있습니다. " +
                 "공개 콘텐츠 목록은 GET /open-api/v2/comments/{commentId}/replies, 공개 동적 메타데이터는 " +
-                "GET /open-api/comments/metadata?commentIds=..., 로그인 사용자 상태는 " +
+                "GET /open-api/comments/metadata?commentIds=..., 작성자 프로필 이미지는 " +
+                "GET /open-api/users/profile-images?userIds=..., 로그인 사용자 상태는 " +
                 "GET /api/comments/me/states?commentIds=... API로 대체되었습니다.",
         deprecated = true,
     )

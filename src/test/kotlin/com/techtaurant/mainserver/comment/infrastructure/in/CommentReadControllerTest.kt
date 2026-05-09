@@ -399,7 +399,7 @@ class CommentReadControllerTest : IntegrationTest() {
                 .given()
                 .queryParam("size", 10)
                 .`when`()
-                .get("/open-api/v2/comments/posts/${testPost.id}")
+                .get("/open-api/v2/posts/${testPost.id}/comments")
                 .then()
                 .statusCode(200)
                 .extract()
@@ -414,7 +414,6 @@ class CommentReadControllerTest : IntegrationTest() {
                 "postId",
                 "authorId",
                 "authorName",
-                "authorProfileImageUrl",
                 "parentId",
                 "depth",
                 "replyCount",
@@ -422,7 +421,7 @@ class CommentReadControllerTest : IntegrationTest() {
                 "updatedAt",
             )
         assertThat(firstComment.keys)
-            .doesNotContain("likeCount", "isDeleted", "likeStatus", "isBanned")
+            .doesNotContain("authorProfileImageUrl", "likeCount", "isDeleted", "likeStatus", "isBanned")
     }
 
     @Test

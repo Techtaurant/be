@@ -17,8 +17,6 @@ data class CommentContentListResponse(
     val authorId: UUID,
     @field:Schema(description = "작성자 이름")
     val authorName: String,
-    @field:Schema(description = "작성자 프로필 이미지 URL", nullable = true)
-    val authorProfileImageUrl: String?,
     @field:Schema(description = "부모 댓글 ID", nullable = true)
     val parentId: UUID?,
     @field:Schema(description = "댓글 깊이 (0: 댓글, 1: 대댓글)")
@@ -31,17 +29,13 @@ data class CommentContentListResponse(
     val updatedAt: Date,
 ) {
     companion object {
-        fun from(
-            comment: Comment,
-            authorProfileImageUrl: String,
-        ): CommentContentListResponse =
+        fun from(comment: Comment): CommentContentListResponse =
             CommentContentListResponse(
                 id = comment.id!!,
                 content = comment.content,
                 postId = comment.post.id!!,
                 authorId = comment.author.id!!,
                 authorName = comment.author.name,
-                authorProfileImageUrl = authorProfileImageUrl,
                 parentId = comment.parent?.id,
                 depth = comment.depth,
                 replyCount = comment.replyCount,

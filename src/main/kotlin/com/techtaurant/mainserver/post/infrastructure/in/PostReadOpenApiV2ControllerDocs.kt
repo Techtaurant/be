@@ -25,8 +25,9 @@ interface PostReadOpenApiV2ControllerDocs {
         summary = "게시물 정적 콘텐츠 목록 조회",
         description =
             "SSG/ISR 캐싱에 적합한 게시물 정적 콘텐츠 목록을 조회합니다. " +
-                "조회수, 좋아요수, 댓글수, 상태, 썸네일/프로필/첨부 presigned URL은 " +
-                "GET /open-api/posts/metadata?postIds=... API로 분리되었습니다. " +
+                "조회수, 좋아요수, 댓글수, 상태, 썸네일/첨부 presigned URL은 " +
+                "GET /open-api/posts/metadata?postIds=... API로, 작성자 프로필 이미지는 " +
+                "GET /open-api/users/profile-images?userIds=... API로 분리되었습니다. " +
                 "로그인 사용자의 읽음/좋아요/차단 상태는 GET /api/posts/me/states?postIds=... API를 사용하세요.",
     )
     @SwaggerApiResponse(
@@ -49,7 +50,8 @@ interface PostReadOpenApiV2ControllerDocs {
         description =
             "SSG/ISR 캐싱에 적합한 게시물 정적 콘텐츠 상세 정보를 조회합니다. " +
                 "PUBLISHED 게시물만 조회하며 조회수 기록을 남기지 않습니다. " +
-                "동적 metadata는 GET /open-api/posts/metadata?postIds=... API를 사용하세요.",
+                "동적 metadata는 GET /open-api/posts/metadata?postIds=... API를 사용하세요. " +
+                "작성자 프로필 이미지는 GET /open-api/users/profile-images?userIds=... API를 사용하세요.",
     )
     @SwaggerApiResponse(
         responseCode = "200",

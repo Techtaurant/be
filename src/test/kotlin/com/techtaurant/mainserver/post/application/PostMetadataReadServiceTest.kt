@@ -7,7 +7,6 @@ import com.techtaurant.mainserver.attachment.enums.AttachmentStatus
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
-import com.techtaurant.mainserver.user.application.UserProfileImageResolver
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
 import io.mockk.every
@@ -23,13 +22,11 @@ class PostMetadataReadServiceTest {
     private val postRepository: PostRepository = mockk()
     private val publishedPostReadService = PublishedPostReadService(postRepository)
     private val attachmentService: AttachmentService = mockk()
-    private val userProfileImageResolver = UserProfileImageResolver(attachmentService)
 
     private val postMetadataReadService =
         PostMetadataReadService(
             publishedPostReadService = publishedPostReadService,
             attachmentService = attachmentService,
-            userProfileImageResolver = userProfileImageResolver,
             defaultThumbnailUrl = "/static/images/post-thumbnail.png",
             baseUrl = "http://localhost:8080",
         )
@@ -73,10 +70,6 @@ class PostMetadataReadServiceTest {
                 thumbnailAttachment.id!! to "https://cdn.example.com/thumbnail.jpg",
                 bodyAttachment.id!! to "https://cdn.example.com/body.jpg",
             )
-        every {
-            attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(author.id!!), AttachmentReferenceType.USER)
-        } returns emptyMap()
-        every { attachmentService.generatePresignedDownloadUrlMapByAttachments(emptyList()) } returns emptyMap()
 
         // when
         val result = postMetadataReadService.getPostMetadata(listOf(secondPost.id!!, firstPost.id!!))
@@ -87,7 +80,6 @@ class PostMetadataReadServiceTest {
         assertThat(result[0].thumbnailUrl).isEqualTo("http://localhost:8080/static/images/post-thumbnail.png")
         assertThat(result[1].viewCount).isEqualTo(10)
         assertThat(result[1].thumbnailUrl).isEqualTo("https://cdn.example.com/thumbnail.jpg")
-        assertThat(result[1].authorProfileImageUrl).isEqualTo("https://example.com/profile.jpg")
         assertThat(result[1].attachmentPresignedUrls).hasSize(2)
     }
 

@@ -18,13 +18,13 @@ import org.springframework.web.bind.annotation.RestController
 import java.util.UUID
 
 @RestController
-@RequestMapping("${SecurityConstants.OPEN_API_PREFIX}/v2/comments")
+@RequestMapping("${SecurityConstants.OPEN_API_PREFIX}/v2")
 @Validated
 class CommentReadOpenApiV2Controller(
     private val commentReadService: CommentReadService,
 ) : CommentReadOpenApiV2ControllerDocs {
     @ApiErrorResponses(includeValidationError = true)
-    @GetMapping("/posts/{postId}")
+    @GetMapping("/posts/{postId}/comments")
     override fun getParentCommentContents(
         @PathVariable postId: UUID,
         @RequestParam(required = false) cursor: String?,
@@ -35,7 +35,7 @@ class CommentReadOpenApiV2Controller(
     }
 
     @ApiErrorResponses(includeValidationError = true)
-    @GetMapping("/{commentId}/replies")
+    @GetMapping("/comments/{commentId}/replies")
     override fun getReplyContents(
         @PathVariable commentId: UUID,
         @RequestParam(required = false) cursor: String?,

@@ -22,19 +22,7 @@ class CommentResponseAssembler(
             return emptyList()
         }
 
-        val authorProfileImageUrlByUserId =
-            resolveAuthorProfileImageUrlByUserId(
-                comments
-                    .map { it.author }
-                    .distinctBy { it.id },
-            )
-
-        return comments.map { comment ->
-            CommentContentListResponse.from(
-                comment = comment,
-                authorProfileImageUrl = authorProfileImageUrlByUserId[comment.author.id] ?: comment.author.getFallbackProfileImageUrl(),
-            )
-        }
+        return comments.map(CommentContentListResponse::from)
     }
 
     fun assemble(

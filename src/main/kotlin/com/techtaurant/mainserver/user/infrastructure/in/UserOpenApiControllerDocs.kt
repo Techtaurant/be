@@ -11,6 +11,7 @@ import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.user.dto.UserFollowCountResponse
 import com.techtaurant.mainserver.user.dto.UserFollowListItemResponse
+import com.techtaurant.mainserver.user.dto.UserProfileImageResponse
 import com.techtaurant.mainserver.user.dto.UserResponse
 import com.techtaurant.mainserver.user.enums.UserStatus
 import io.swagger.v3.oas.annotations.Operation
@@ -19,6 +20,7 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Size
 import java.util.UUID
 import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 
@@ -40,6 +42,23 @@ interface UserOpenApiControllerDocs {
         @NotBlank
         name: String,
     ): ApiResponse<List<UserResponse>>
+
+    @Operation(
+        summary = "사용자 프로필 이미지 URL 목록 조회",
+        description =
+            "userIds에 해당하는 사용자의 프로필 이미지 URL을 batch로 조회합니다. " +
+                "존재하지 않는 사용자는 응답에서 제외됩니다.",
+    )
+    @SwaggerApiResponse(
+        responseCode = "200",
+        description = "조회 성공",
+    )
+    @ApiCommonBadRequestAndUnknown
+    fun getUserProfileImages(
+        @Parameter(description = "조회할 사용자 ID 목록 (최대 100개)", required = true)
+        @Size(max = 100)
+        userIds: List<UUID>,
+    ): ApiResponse<List<UserProfileImageResponse>>
 
     @Operation(summary = "사용자 팔로워 수/팔로우 수 조회", description = "특정 사용자의 팔로워 수와 팔로우 수를 조회합니다")
     @SwaggerApiResponse(
@@ -91,7 +110,8 @@ interface UserOpenApiControllerDocs {
         description =
             "[Deprecated] 이 API는 정적 콘텐츠, 공개 동적 메타데이터, 로그인 사용자 상태가 하나의 응답에 섞여 있습니다. " +
                 "사용자 게시물 정적 콘텐츠 목록은 GET /open-api/v2/users/{userId}/posts, 공개 동적 메타데이터는 " +
-                "GET /open-api/posts/metadata?postIds=..., 로그인 사용자 상태는 GET /api/posts/me/states?postIds=... API로 대체되었습니다. " +
+                "GET /open-api/posts/metadata?postIds=..., 작성자 프로필 이미지는 GET /open-api/users/profile-images?userIds=..., " +
+                "로그인 사용자 상태는 GET /api/posts/me/states?postIds=... API로 대체되었습니다. " +
                 "기존 호환을 위해 본인 조회 시 PRIVATE 포함 동작은 유지됩니다.",
         deprecated = true,
     )
