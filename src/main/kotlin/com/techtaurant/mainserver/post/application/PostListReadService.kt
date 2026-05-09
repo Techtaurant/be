@@ -1,21 +1,20 @@
 package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.attachment.application.AttachmentService
-import com.techtaurant.mainserver.attachment.entity.Attachment
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.post.dto.CategoryResponse
 import com.techtaurant.mainserver.post.dto.DraftListItemResponse
+import com.techtaurant.mainserver.post.dto.PostContentListItemResponse
 import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.dto.PostListItemResponse
 import com.techtaurant.mainserver.post.dto.PostListTagResponse
+import com.techtaurant.mainserver.post.dto.PostMetadataResponse
+import com.techtaurant.mainserver.post.dto.PostViewerStateResponse
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
-import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
-import com.techtaurant.mainserver.user.application.UserProfileImageResolver
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.Calendar
@@ -29,14 +28,10 @@ import java.util.UUID
 @Transactional(readOnly = true)
 class PostListReadService(
     private val postRepository: PostRepository,
-    private val postReadLogRepository: PostReadLogRepository,
     private val attachmentService: AttachmentService,
-    private val userProfileImageResolver: UserProfileImageResolver,
+    private val postMetadataReadService: PostMetadataReadService,
+    private val postViewerStateReadService: PostViewerStateReadService,
     postListQueryStrategies: List<PostListQueryStrategy>,
-    @param:Value("\${app.default-post-thumbnail-url}")
-    private val defaultThumbnailUrl: String,
-    @param:Value("\${swagger.base-url}")
-    private val baseUrl: String,
 ) {
     companion object {
         private const val STALE_DRAFT_DAYS = 14
@@ -71,16 +66,94 @@ class PostListReadService(
         categoryId: UUID? = null,
         tagIds: List<UUID>? = null,
     ): CursorPageResponse<PostListItemResponse> {
+        val postPage =
+            getPostPage(
+                cursor = cursor,
+                size = size,
+                period = period,
+                sortType = sortType,
+                currentUserId = currentUserId,
+                authorId = authorId,
+                categoryId = categoryId,
+                tagIds = tagIds,
+            )
+        val content = postPage.content
+
+        val metadataByPostId =
+            postMetadataReadService
+                .getPostMetadataForPosts(content)
+                .associateBy { it.postId }
+        val viewerStateByPostId =
+            currentUserId
+                ?.let { postViewerStateReadService.getPostViewerStatesForPosts(it, content) }
+                ?.associateBy { it.postId }
+                .orEmpty()
+
+        return CursorPageResponse(
+            content =
+                content.map { post ->
+                    val postId = post.id!!
+                    convertToResponse(
+                        post = post,
+                        metadata = metadataByPostId.getValue(postId),
+                        viewerState = viewerStateByPostId[postId],
+                    )
+                },
+            nextCursor = postPage.nextCursor,
+            hasNext = postPage.hasNext,
+            size = postPage.size,
+        )
+    }
+
+    /**
+     * 게시물 정적 콘텐츠 목록을 커서 기반 페이지네이션으로 조회합니다.
+     *
+     * 동적 집계, 사용자 상태, presigned URL 생성 없이 SSG/ISR에 적합한 콘텐츠 필드만 반환합니다.
+     */
+    fun getPostContents(
+        cursor: String?,
+        size: Int,
+        period: PostPeriod = PostPeriod.ALL,
+        sortType: PostSortType = PostSortType.LATEST,
+        authorId: UUID? = null,
+        categoryId: UUID? = null,
+        tagIds: List<UUID>? = null,
+    ): CursorPageResponse<PostContentListItemResponse> {
+        val postPage =
+            getPostPage(
+                cursor = cursor,
+                size = size,
+                period = period,
+                sortType = sortType,
+                currentUserId = null,
+                authorId = authorId,
+                categoryId = categoryId,
+                tagIds = tagIds,
+            )
+
+        return CursorPageResponse(
+            content = postPage.content.map(PostContentListItemResponse::from),
+            nextCursor = postPage.nextCursor,
+            hasNext = postPage.hasNext,
+            size = postPage.size,
+        )
+    }
+
+    private fun getPostPage(
+        cursor: String?,
+        size: Int,
+        period: PostPeriod,
+        sortType: PostSortType,
+        currentUserId: UUID?,
+        authorId: UUID?,
+        categoryId: UUID?,
+        tagIds: List<UUID>?,
+    ): CursorPageResponse<Post> {
         val postCursor = cursor?.let { PostCursor.decode(it) }
         val normalizedTagIds = normalizeTagIds(tagIds)
 
         if (cursor != null && postCursor == null) {
-            return CursorPageResponse(
-                content = emptyList(),
-                nextCursor = null,
-                hasNext = false,
-                size = 0,
-            )
+            return emptyPostPage()
         }
 
         val postListQueryCriteria =
@@ -95,7 +168,6 @@ class PostListReadService(
                 tagIds = normalizedTagIds,
             )
         val posts = selectPostListQueryStrategy(postListQueryCriteria).findPosts(postListQueryCriteria)
-
         val hasNext = posts.size > size
         val content = posts.take(size)
 
@@ -106,60 +178,21 @@ class PostListReadService(
                 null
             }
 
-        val readPostIds =
-            if (currentUserId != null && content.isNotEmpty()) {
-                postReadLogRepository.findByUserIdAndPostIdIn(
-                    userId = currentUserId,
-                    postIds = content.mapNotNull { it.id },
-                ).map { it.postId }.toSet()
-            } else {
-                emptySet()
-            }
-
-        val postIds = content.mapNotNull { it.id }
-        val attachmentsByPostId =
-            if (postIds.isNotEmpty()) {
-                attachmentService.getConfirmedAttachmentsByReferenceIds(postIds, AttachmentReferenceType.POST)
-            } else {
-                emptyMap()
-            }
-        val thumbnailAttachmentByPostId =
-            content.associate { post ->
-                val thumbnailAttachment =
-                    attachmentsByPostId[post.id]
-                        .orEmpty()
-                        .let { attachments ->
-                            post.thumbnailImage?.let { thumbnailAttachmentId ->
-                                attachments.firstOrNull { it.id == thumbnailAttachmentId }
-                            } ?: attachments.minByOrNull { it.createdAt }
-                        }
-                post.id!! to thumbnailAttachment
-            }
-        val presignedThumbnailUrlByAttachmentId =
-            thumbnailAttachmentByPostId
-                .values
-                .filterNotNull()
-                .takeIf { it.isNotEmpty() }
-                ?.let { attachmentService.generatePresignedDownloadUrlMapByAttachments(it) }
-                ?: emptyMap()
-        val authorProfileImageUrlByUserId = userProfileImageResolver.resolve(content.map { it.author }.distinctBy { it.id })
-
         return CursorPageResponse(
-            content =
-                content.map { post ->
-                    convertToResponse(
-                        post,
-                        readPostIds.contains(post.id),
-                        thumbnailAttachmentByPostId[post.id],
-                        authorProfileImageUrlByUserId[post.author.id] ?: post.author.getFallbackProfileImageUrl(),
-                        presignedThumbnailUrlByAttachmentId,
-                    )
-                },
+            content = content,
             nextCursor = nextCursor,
             hasNext = hasNext,
             size = content.size,
         )
     }
+
+    private fun emptyPostPage(): CursorPageResponse<Post> =
+        CursorPageResponse(
+            content = emptyList(),
+            nextCursor = null,
+            hasNext = false,
+            size = 0,
+        )
 
     private fun normalizeTagIds(tagIds: List<UUID>?): List<UUID>? {
         val normalizedTagIds = tagIds?.distinct()
@@ -267,34 +300,28 @@ class PostListReadService(
      * 썸네일 URL과 읽음 여부를 계산하여 포함합니다.
      *
      * @param post 게시물 엔티티
-     * @param isRead 현재 사용자가 읽은 게시물인지 여부
-     * @param attachments 게시물의 CONFIRMED 첨부파일 목록 (썸네일 계산용)
      * @return 응답 DTO
      */
     private fun convertToResponse(
         post: Post,
-        isRead: Boolean,
-        thumbnailAttachment: Attachment?,
-        authorProfileImageUrl: String,
-        presignedThumbnailUrlByAttachmentId: Map<UUID, String>,
+        metadata: PostMetadataResponse,
+        viewerState: PostViewerStateResponse?,
     ): PostListItemResponse {
-        val thumbnailUrl = thumbnailAttachment?.id?.let { presignedThumbnailUrlByAttachmentId[it] } ?: "$baseUrl$defaultThumbnailUrl"
-
         return PostListItemResponse(
             id = post.id!!,
             title = post.title,
             content = post.content.take(POST_LIST_CONTENT_MAX_LENGTH),
             authorId = post.author.id!!,
             authorName = post.author.name,
-            authorProfileImageUrl = authorProfileImageUrl,
-            thumbnailUrl = thumbnailUrl,
+            authorProfileImageUrl = metadata.authorProfileImageUrl,
+            thumbnailUrl = metadata.thumbnailUrl,
             category = post.category?.let(CategoryResponse::from),
-            isRead = isRead,
+            isRead = viewerState?.isRead ?: false,
             tags = post.tags.map { PostListTagResponse.from(it) },
-            viewCount = post.viewCount,
-            likeCount = post.likeCount,
-            commentCount = post.commentCount,
-            status = post.status,
+            viewCount = metadata.viewCount,
+            likeCount = metadata.likeCount,
+            commentCount = metadata.commentCount,
+            status = metadata.status,
             createdAt = post.createdAt,
             updatedAt = post.updatedAt,
         )

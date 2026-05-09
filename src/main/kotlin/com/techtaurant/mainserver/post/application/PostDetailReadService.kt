@@ -4,8 +4,10 @@ import com.techtaurant.mainserver.attachment.application.AttachmentService
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.post.dto.PostContentDetailResponse
 import com.techtaurant.mainserver.post.dto.PostDetailAttachmentPresignedUrlResponse
 import com.techtaurant.mainserver.post.dto.PostDetailResponse
+import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
@@ -49,15 +51,7 @@ class PostDetailReadService(
         ipAddress: String?,
         userAgent: String?,
     ): PostDetailResponse {
-        val post =
-            postRepository.findVisiblePostDetailById(postId, userId)
-                ?: throw ApiException(PostStatus.POST_NOT_FOUND)
-
-        if (post.status != PostStatusEnum.PUBLISHED) {
-            if (userId == null || post.author.id != userId) {
-                throw ApiException(PostStatus.POST_NOT_FOUND)
-            }
-        }
+        val post = getVisiblePostDetailById(postId, userId)
 
         postViewLogService.recordView(
             postId = postId,
@@ -95,5 +89,35 @@ class PostDetailReadService(
             authorProfileImageUrl = authorProfileImageUrl,
             attachmentPresignedUrls = attachmentPresignedUrls,
         )
+    }
+
+    /**
+     * 게시물 정적 콘텐츠 상세 정보를 조회합니다.
+     *
+     * 조회수 기록, 사용자 상태 계산, presigned URL 생성 없이 PUBLISHED 게시물 콘텐츠만 반환합니다.
+     */
+    @Transactional(readOnly = true)
+    fun getPublishedPostContentDetail(postId: UUID): PostContentDetailResponse {
+        val post = getVisiblePostDetailById(postId, null)
+
+        return PostContentDetailResponse.from(post)
+    }
+
+    @Transactional(readOnly = true)
+    fun getVisiblePostDetailById(
+        postId: UUID,
+        userId: UUID?,
+    ): Post {
+        val post =
+            postRepository.findVisiblePostDetailById(postId, userId)
+                ?: throw ApiException(PostStatus.POST_NOT_FOUND)
+
+        if (post.status != PostStatusEnum.PUBLISHED) {
+            if (userId == null || post.author.id != userId) {
+                throw ApiException(PostStatus.POST_NOT_FOUND)
+            }
+        }
+
+        return post
     }
 }

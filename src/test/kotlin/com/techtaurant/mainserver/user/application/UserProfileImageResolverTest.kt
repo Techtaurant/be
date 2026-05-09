@@ -76,6 +76,24 @@ class UserProfileImageResolverTest {
         assertThat(resolved).isEqualTo("https://example.com/default-profile.jpg")
     }
 
+    @Test
+    @DisplayName("기본 profileImageUrl이 비어 있으면 기본 사용자 썸네일 URL을 사용한다")
+    fun resolve_blankProfileImageUrl_usesDefaultUserThumbnailUrl() {
+        val userId = UUID.randomUUID()
+        val user = createUser(userId, null, "")
+
+        every {
+            attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(userId), AttachmentReferenceType.USER)
+        } returns emptyMap()
+        every {
+            attachmentService.generatePresignedDownloadUrlMapByAttachments(emptyList())
+        } returns emptyMap()
+
+        val resolved = resolver.resolve(user)
+
+        assertThat(resolved).isEqualTo("http://localhost:8080/static/images/user-thumbnail.png")
+    }
+
     private fun createUser(
         userId: UUID,
         attachmentId: UUID?,

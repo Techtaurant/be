@@ -24,7 +24,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse as SwaggerApiResponse
 interface PostReadOpenApiControllerDocs {
     @Operation(
         summary = "게시물 목록 조회",
-        description = "커서 기반 페이지네이션으로 게시물 목록을 조회합니다. 기간 필터와 정렬 조건을 적용할 수 있습니다. 로그인 시 본인의 DRAFT/PRIVATE 게시물도 포함되며, 비회원도 조회 가능합니다.",
+        description =
+            "[Deprecated] 이 API는 정적 콘텐츠, 공개 동적 메타데이터, 로그인 사용자 상태가 하나의 응답에 섞여 있습니다. " +
+                "정적 콘텐츠 목록은 GET /open-api/v2/posts, 공개 동적 메타데이터는 GET /open-api/posts/metadata?postIds=..., " +
+                "로그인 사용자 상태는 GET /api/posts/me/states?postIds=... API로 대체되었습니다. " +
+                "기존 호환을 위해 커서 기반 페이지네이션과 로그인 시 본인의 PRIVATE 게시물 포함 동작은 유지됩니다.",
+        deprecated = true,
     )
     @SwaggerApiResponse(
         responseCode = "200",
@@ -44,7 +49,12 @@ interface PostReadOpenApiControllerDocs {
 
     @Operation(
         summary = "게시물 상세 조회",
-        description = "게시물 상세 정보를 조회합니다. 조회 시 자동으로 조회 로그가 기록됩니다. 비회원도 조회 가능합니다.",
+        description =
+            "[Deprecated] 이 API는 정적 콘텐츠, 공개 동적 메타데이터, 로그인 사용자 상태가 하나의 응답에 섞여 있으며 조회 시 조회 로그가 기록됩니다. " +
+                "정적 상세 콘텐츠는 GET /open-api/v2/posts/{postId}, 공개 동적 메타데이터는 GET /open-api/posts/metadata?postIds=..., " +
+                "로그인 사용자 상태는 GET /api/posts/me/states?postIds=... API로 대체되었습니다. " +
+                "조회 로그만 분리 기록해야 하는 경우 POST /open-api/posts/{postId}/view-logs API를 사용할 수 있습니다.",
+        deprecated = true,
     )
     @SwaggerApiResponse(
         responseCode = "200",
@@ -58,7 +68,7 @@ interface PostReadOpenApiControllerDocs {
     )
     fun getPostDetail(
         @Parameter(description = "게시물 ID") postId: UUID,
-        request: HttpServletRequest,
-        userId: UUID?,
+        @Parameter(hidden = true) request: HttpServletRequest,
+        @Parameter(hidden = true) userId: UUID?,
     ): ApiResponse<PostDetailResponse>
 }

@@ -12,6 +12,7 @@ import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserBanRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.restassured.RestAssured.given
+import org.assertj.core.api.Assertions.assertThat
 import org.hamcrest.Matchers.hasItem
 import org.hamcrest.Matchers.not
 import org.junit.jupiter.api.BeforeEach
@@ -216,5 +217,31 @@ class PostReadOpenApiControllerIntegrationTest : IntegrationTest() {
             .get("/open-api/posts/${bannedPost.id}")
             .then()
             .statusCode(HttpStatus.NOT_FOUND.value())
+    }
+
+    @Test
+    @DisplayName("게시물 상세 조회는 기존 호환을 위해 조회수를 증가시킨다")
+    fun getPostDetail_incrementsViewCount() {
+        // given
+        val post =
+            postRepository.save(
+                Post(
+                    title = "조회수 분리 게시물",
+                    content = "기존 상세 조회에서도 조회 로그가 기록된다",
+                    author = testUser,
+                    viewCount = 0,
+                    status = PostStatusEnum.PUBLISHED,
+                ),
+            )
+
+        // when & then
+        given()
+            .`when`()
+            .get("/open-api/posts/${post.id}")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+
+        val updatedPost = postRepository.findById(post.id!!).orElseThrow()
+        assertThat(updatedPost.viewCount).isEqualTo(1)
     }
 }

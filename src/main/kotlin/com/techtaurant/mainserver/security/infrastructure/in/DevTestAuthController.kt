@@ -18,10 +18,10 @@ import org.springframework.web.bind.annotation.RestController
 /**
  * 개발 환경 전용 테스트 인증 컨트롤러
  *
- * dev 프로파일에서만 활성화되며, 테스트 사용자로 JWT 토큰을 발급받을 수 있다.
+ * prod 프로파일이 아닌 환경에서 테스트 사용자로 JWT 토큰을 발급받을 수 있다.
  */
 @RestController
-@Profile("dev")
+@Profile("!prod")
 @RequestMapping("${SecurityConstants.OPEN_API_PREFIX}/dev/auth")
 class DevTestAuthController(
     private val devTestAuthService: DevTestAuthService,

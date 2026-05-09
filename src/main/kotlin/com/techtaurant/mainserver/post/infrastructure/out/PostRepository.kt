@@ -98,6 +98,26 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
     ): Post?
 
     /**
+     * 공개 가능한 게시물 목록을 ID 목록으로 조회합니다.
+     *
+     * @param postIds 게시물 ID 목록
+     * @return PUBLISHED 상태의 게시물 목록
+     */
+    @Query(
+        """
+        SELECT DISTINCT p FROM Post p
+        JOIN FETCH p.author
+        LEFT JOIN FETCH p.tags
+        LEFT JOIN FETCH p.category
+        WHERE p.id IN :postIds
+        AND p.status = 'PUBLISHED'
+    """,
+    )
+    fun findPublishedPostsByIdIn(
+        @Param("postIds") postIds: List<UUID>,
+    ): List<Post>
+
+    /**
      * 게시물의 조회수를 원자적으로 1 증가시킵니다.
      *
      * flushAutomatically: 쿼리 실행 '전' 쓰기 지연 저장소의 변경사항을 DB에 반영(동기화).
