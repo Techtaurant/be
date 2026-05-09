@@ -25,11 +25,19 @@ class PostViewerStateReadService(
         postIds: List<UUID>,
     ): List<PostViewerStateResponse> {
         val posts = getPublishedPostsByIds(postIds)
-        if (posts.isEmpty()) {
+
+        return getPostViewerStatesForPosts(userId, posts)
+    }
+
+    fun getPostViewerStatesForPosts(
+        userId: UUID,
+        posts: List<Post>,
+    ): List<PostViewerStateResponse> {
+        val loadedPostIds = posts.mapNotNull { it.id }
+        if (loadedPostIds.isEmpty()) {
             return emptyList()
         }
 
-        val loadedPostIds = posts.mapNotNull { it.id }
         val readPostIds =
             postReadLogRepository
                 .findByUserIdAndPostIdIn(userId = userId, postIds = loadedPostIds)

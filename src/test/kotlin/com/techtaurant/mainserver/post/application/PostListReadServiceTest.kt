@@ -10,9 +10,11 @@ import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostReadLog
 import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
+import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
+import com.techtaurant.mainserver.user.application.UserBanService
 import com.techtaurant.mainserver.user.application.UserProfileImageResolver
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
@@ -31,10 +33,27 @@ import java.util.UUID
 class PostListReadServiceTest {
     private val postRepository: PostRepository = mockk()
     private val postReadLogRepository: PostReadLogRepository = mockk()
+    private val postLikeLogRepository: PostLikeLogRepository = mockk()
     private val attachmentService: AttachmentService = mockk()
-    private val userProfileImageResolver = UserProfileImageResolver(attachmentService)
+    private val userBanService: UserBanService = mockk()
     private val defaultThumbnailUrl = "/static/images/post-thumbnail.png"
     private val baseUrl = "http://localhost:8080"
+    private val userProfileImageResolver = UserProfileImageResolver(attachmentService)
+    private val postMetadataReadService =
+        PostMetadataReadService(
+            postRepository = postRepository,
+            attachmentService = attachmentService,
+            userProfileImageResolver = userProfileImageResolver,
+            defaultThumbnailUrl = defaultThumbnailUrl,
+            baseUrl = baseUrl,
+        )
+    private val postViewerStateReadService =
+        PostViewerStateReadService(
+            postRepository = postRepository,
+            postReadLogRepository = postReadLogRepository,
+            postLikeLogRepository = postLikeLogRepository,
+            userBanService = userBanService,
+        )
 
     private val postListReadService =
         createPostListReadService()
@@ -42,12 +61,10 @@ class PostListReadServiceTest {
     private fun createPostListReadService(postListQueryStrategies: List<PostListQueryStrategy> = createPostListQueryStrategies()) =
         PostListReadService(
             postRepository = postRepository,
-            postReadLogRepository = postReadLogRepository,
             attachmentService = attachmentService,
-            userProfileImageResolver = userProfileImageResolver,
+            postMetadataReadService = postMetadataReadService,
+            postViewerStateReadService = postViewerStateReadService,
             postListQueryStrategies = postListQueryStrategies,
-            defaultThumbnailUrl = defaultThumbnailUrl,
-            baseUrl = baseUrl,
         )
 
     private fun createPostListQueryStrategies(): List<PostListQueryStrategy> =
@@ -191,6 +208,9 @@ class PostListReadServiceTest {
                 attachmentService.getConfirmedAttachmentsByReferenceIds(any(), AttachmentReferenceType.USER)
             } returns emptyMap()
             every { attachmentService.generatePresignedDownloadUrlMapByAttachments(emptyList()) } returns emptyMap()
+            every { postReadLogRepository.findByUserIdAndPostIdIn(any(), any()) } returns emptyList()
+            every { postLikeLogRepository.findByUserIdAndPostIdIn(any(), any()) } returns emptyList()
+            every { userBanService.getBannedUserIds(any()) } returns emptySet()
         }
 
         @Test
@@ -337,8 +357,12 @@ class PostListReadServiceTest {
                 attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(post.id!!), AttachmentReferenceType.POST)
             } returns mapOf(post.id!! to listOf(laterAttachment, firstAttachment))
             every {
-                attachmentService.generatePresignedDownloadUrlMapByAttachments(listOf(firstAttachment))
-            } returns mapOf(firstAttachment.id!! to "https://cdn.example.com/first.jpg")
+                attachmentService.generatePresignedDownloadUrlMapByAttachments(listOf(laterAttachment, firstAttachment))
+            } returns
+                mapOf(
+                    laterAttachment.id!! to "https://cdn.example.com/later.jpg",
+                    firstAttachment.id!! to "https://cdn.example.com/first.jpg",
+                )
 
             // when
             val result = postListReadService.getPosts(cursor = null, size = 20, currentUserId = null)
@@ -375,8 +399,12 @@ class PostListReadServiceTest {
                 attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(post.id!!), AttachmentReferenceType.POST)
             } returns mapOf(post.id!! to listOf(otherAttachment, thumbnailAttachment))
             every {
-                attachmentService.generatePresignedDownloadUrlMapByAttachments(listOf(thumbnailAttachment))
-            } returns mapOf(thumbnailAttachmentId to "https://cdn.example.com/thumbnail.jpg")
+                attachmentService.generatePresignedDownloadUrlMapByAttachments(listOf(otherAttachment, thumbnailAttachment))
+            } returns
+                mapOf(
+                    otherAttachment.id!! to "https://cdn.example.com/other.jpg",
+                    thumbnailAttachmentId to "https://cdn.example.com/thumbnail.jpg",
+                )
 
             // when
             val result = postListReadService.getPosts(cursor = null, size = 20, currentUserId = null)
@@ -436,6 +464,9 @@ class PostListReadServiceTest {
                 attachmentService.getConfirmedAttachmentsByReferenceIds(any(), AttachmentReferenceType.USER)
             } returns emptyMap()
             every { attachmentService.generatePresignedDownloadUrlMapByAttachments(emptyList()) } returns emptyMap()
+            every { postReadLogRepository.findByUserIdAndPostIdIn(any(), any()) } returns emptyList()
+            every { postLikeLogRepository.findByUserIdAndPostIdIn(any(), any()) } returns emptyList()
+            every { userBanService.getBannedUserIds(any()) } returns emptySet()
         }
 
         @Test

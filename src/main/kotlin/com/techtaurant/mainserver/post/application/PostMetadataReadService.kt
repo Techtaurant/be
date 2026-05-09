@@ -26,11 +26,16 @@ class PostMetadataReadService(
 ) {
     fun getPostMetadata(postIds: List<UUID>): List<PostMetadataResponse> {
         val posts = getPublishedPostsByIds(postIds)
-        if (posts.isEmpty()) {
+
+        return getPostMetadataForPosts(posts)
+    }
+
+    fun getPostMetadataForPosts(posts: List<Post>): List<PostMetadataResponse> {
+        val loadedPostIds = posts.mapNotNull { it.id }
+        if (loadedPostIds.isEmpty()) {
             return emptyList()
         }
 
-        val loadedPostIds = posts.mapNotNull { it.id }
         val attachmentsByPostId =
             attachmentService.getConfirmedAttachmentsByReferenceIds(
                 referenceIds = loadedPostIds,
