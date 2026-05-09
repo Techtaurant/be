@@ -6,7 +6,6 @@ import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.post.dto.PostDetailAttachmentPresignedUrlResponse
 import com.techtaurant.mainserver.post.dto.PostMetadataResponse
 import com.techtaurant.mainserver.post.entity.Post
-import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.user.application.UserProfileImageResolver
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -16,7 +15,7 @@ import java.util.UUID
 @Service
 @Transactional(readOnly = true)
 class PostMetadataReadService(
-    private val postRepository: PostRepository,
+    private val publishedPostReadService: PublishedPostReadService,
     private val attachmentService: AttachmentService,
     private val userProfileImageResolver: UserProfileImageResolver,
     @param:Value("\${app.default-post-thumbnail-url}")
@@ -25,12 +24,7 @@ class PostMetadataReadService(
     private val baseUrl: String,
 ) {
     fun getPostMetadata(postIds: List<UUID>): List<PostMetadataResponse> {
-        val normalizedPostIds = postIds.distinct()
-        if (normalizedPostIds.isEmpty()) {
-            return emptyList()
-        }
-
-        val posts = postRepository.findPublishedPostsByIdIn(normalizedPostIds)
+        val posts = publishedPostReadService.getPublishedPostsByIds(postIds)
         if (posts.isEmpty()) {
             return emptyList()
         }
@@ -44,24 +38,22 @@ class PostMetadataReadService(
         val presignedUrlByAttachmentId = generatePresignedUrlByAttachmentId(attachmentsByPostId)
         val authorProfileImageUrlByUserId =
             userProfileImageResolver.resolve(posts.map { it.author }.distinctBy { it.id })
-        val postById = posts.associateBy { it.id!! }
 
-        return normalizedPostIds.mapNotNull { postId ->
-            postById[postId]?.let { post ->
-                val attachments = attachmentsByPostId[postId].orEmpty()
-                val thumbnailUrl = resolveThumbnailUrl(post, attachments, presignedUrlByAttachmentId)
+        return posts.map { post ->
+            val postId = post.id!!
+            val attachments = attachmentsByPostId[postId].orEmpty()
+            val thumbnailUrl = resolveThumbnailUrl(post, attachments, presignedUrlByAttachmentId)
 
-                PostMetadataResponse(
-                    postId = postId,
-                    viewCount = post.viewCount,
-                    likeCount = post.likeCount,
-                    commentCount = post.commentCount,
-                    status = post.status,
-                    thumbnailUrl = thumbnailUrl,
-                    authorProfileImageUrl = authorProfileImageUrlByUserId[post.author.id] ?: post.author.getFallbackProfileImageUrl(),
-                    attachmentPresignedUrls = buildAttachmentPresignedUrls(attachments, presignedUrlByAttachmentId),
-                )
-            }
+            PostMetadataResponse(
+                postId = postId,
+                viewCount = post.viewCount,
+                likeCount = post.likeCount,
+                commentCount = post.commentCount,
+                status = post.status,
+                thumbnailUrl = thumbnailUrl,
+                authorProfileImageUrl = authorProfileImageUrlByUserId[post.author.id] ?: post.author.getFallbackProfileImageUrl(),
+                attachmentPresignedUrls = buildAttachmentPresignedUrls(attachments, presignedUrlByAttachmentId),
+            )
         }
     }
 

@@ -72,40 +72,18 @@ class PostListReadService(
         categoryId: UUID? = null,
         tagIds: List<UUID>? = null,
     ): CursorPageResponse<PostListItemResponse> {
-        val postCursor = cursor?.let { PostCursor.decode(it) }
-        val normalizedTagIds = normalizeTagIds(tagIds)
-
-        if (cursor != null && postCursor == null) {
-            return CursorPageResponse(
-                content = emptyList(),
-                nextCursor = null,
-                hasNext = false,
-                size = 0,
-            )
-        }
-
-        val postListQueryCriteria =
-            PostListQueryCriteria(
-                cursor = postCursor,
+        val postPage =
+            getPostPage(
+                cursor = cursor,
                 size = size,
                 period = period,
                 sortType = sortType,
                 currentUserId = currentUserId,
                 authorId = authorId,
                 categoryId = categoryId,
-                tagIds = normalizedTagIds,
+                tagIds = tagIds,
             )
-        val posts = selectPostListQueryStrategy(postListQueryCriteria).findPosts(postListQueryCriteria)
-
-        val hasNext = posts.size > size
-        val content = posts.take(size)
-
-        val nextCursor =
-            if (hasNext && content.isNotEmpty()) {
-                PostCursor.from(content.last(), sortType).encode()
-            } else {
-                null
-            }
+        val content = postPage.content
 
         val readPostIds =
             if (currentUserId != null && content.isNotEmpty()) {
@@ -156,9 +134,9 @@ class PostListReadService(
                         presignedThumbnailUrlByAttachmentId,
                     )
                 },
-            nextCursor = nextCursor,
-            hasNext = hasNext,
-            size = content.size,
+            nextCursor = postPage.nextCursor,
+            hasNext = postPage.hasNext,
+            size = postPage.size,
         )
     }
 
@@ -176,16 +154,41 @@ class PostListReadService(
         categoryId: UUID? = null,
         tagIds: List<UUID>? = null,
     ): CursorPageResponse<PostContentListItemResponse> {
+        val postPage =
+            getPostPage(
+                cursor = cursor,
+                size = size,
+                period = period,
+                sortType = sortType,
+                currentUserId = null,
+                authorId = authorId,
+                categoryId = categoryId,
+                tagIds = tagIds,
+            )
+
+        return CursorPageResponse(
+            content = postPage.content.map(PostContentListItemResponse::from),
+            nextCursor = postPage.nextCursor,
+            hasNext = postPage.hasNext,
+            size = postPage.size,
+        )
+    }
+
+    private fun getPostPage(
+        cursor: String?,
+        size: Int,
+        period: PostPeriod,
+        sortType: PostSortType,
+        currentUserId: UUID?,
+        authorId: UUID?,
+        categoryId: UUID?,
+        tagIds: List<UUID>?,
+    ): CursorPageResponse<Post> {
         val postCursor = cursor?.let { PostCursor.decode(it) }
         val normalizedTagIds = normalizeTagIds(tagIds)
 
         if (cursor != null && postCursor == null) {
-            return CursorPageResponse(
-                content = emptyList(),
-                nextCursor = null,
-                hasNext = false,
-                size = 0,
-            )
+            return emptyPostPage()
         }
 
         val postListQueryCriteria =
@@ -194,7 +197,7 @@ class PostListReadService(
                 size = size,
                 period = period,
                 sortType = sortType,
-                currentUserId = null,
+                currentUserId = currentUserId,
                 authorId = authorId,
                 categoryId = categoryId,
                 tagIds = normalizedTagIds,
@@ -211,12 +214,20 @@ class PostListReadService(
             }
 
         return CursorPageResponse(
-            content = content.map(PostContentListItemResponse::from),
+            content = content,
             nextCursor = nextCursor,
             hasNext = hasNext,
             size = content.size,
         )
     }
+
+    private fun emptyPostPage(): CursorPageResponse<Post> =
+        CursorPageResponse(
+            content = emptyList(),
+            nextCursor = null,
+            hasNext = false,
+            size = 0,
+        )
 
     private fun normalizeTagIds(tagIds: List<UUID>?): List<UUID>? {
         val normalizedTagIds = tagIds?.distinct()

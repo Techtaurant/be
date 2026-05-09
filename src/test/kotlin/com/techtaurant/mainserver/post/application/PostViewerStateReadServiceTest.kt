@@ -20,13 +20,14 @@ import java.util.UUID
 
 class PostViewerStateReadServiceTest {
     private val postRepository: PostRepository = mockk()
+    private val publishedPostReadService = PublishedPostReadService(postRepository)
     private val postReadLogRepository: PostReadLogRepository = mockk()
     private val postLikeLogRepository: PostLikeLogRepository = mockk()
     private val userBanService: UserBanService = mockk()
 
     private val postViewerStateReadService =
         PostViewerStateReadService(
-            postRepository = postRepository,
+            publishedPostReadService = publishedPostReadService,
             postReadLogRepository = postReadLogRepository,
             postLikeLogRepository = postLikeLogRepository,
             userBanService = userBanService,
@@ -44,9 +45,9 @@ class PostViewerStateReadServiceTest {
         val likeLog = PostLikeLog(post = readPost, user = viewer, isLiked = true)
 
         every { postRepository.findPublishedPostsByIdIn(listOf(bannedPost.id!!, readPost.id!!)) } returns listOf(readPost, bannedPost)
-        every { postReadLogRepository.findByUserIdAndPostIdIn(viewer.id!!, listOf(readPost.id!!, bannedPost.id!!)) } returns
+        every { postReadLogRepository.findByUserIdAndPostIdIn(viewer.id!!, listOf(bannedPost.id!!, readPost.id!!)) } returns
             listOf(PostReadLog(postId = readPost.id!!, user = viewer))
-        every { postLikeLogRepository.findByUserIdAndPostIdIn(viewer.id!!, listOf(readPost.id!!, bannedPost.id!!)) } returns listOf(likeLog)
+        every { postLikeLogRepository.findByUserIdAndPostIdIn(viewer.id!!, listOf(bannedPost.id!!, readPost.id!!)) } returns listOf(likeLog)
         every { userBanService.getBannedUserIds(viewer.id!!) } returns setOf(bannedAuthor.id!!)
 
         // when

@@ -29,6 +29,7 @@ import java.util.UUID
 
 class PostDetailReadServiceTest {
     private val postRepository: PostRepository = mockk()
+    private val publishedPostReadService = PublishedPostReadService(postRepository)
     private val postViewLogService: PostViewLogService = mockk()
     private val postLikeLogRepository: PostLikeLogRepository = mockk()
     private val postReadLogRepository: PostReadLogRepository = mockk()
@@ -38,6 +39,7 @@ class PostDetailReadServiceTest {
     private val postDetailReadService =
         PostDetailReadService(
             postRepository = postRepository,
+            publishedPostReadService = publishedPostReadService,
             postViewLogService = postViewLogService,
             postLikeLogRepository = postLikeLogRepository,
             postReadLogRepository = postReadLogRepository,

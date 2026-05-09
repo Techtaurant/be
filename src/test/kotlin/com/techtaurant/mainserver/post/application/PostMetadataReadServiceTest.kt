@@ -21,12 +21,13 @@ import java.util.UUID
 
 class PostMetadataReadServiceTest {
     private val postRepository: PostRepository = mockk()
+    private val publishedPostReadService = PublishedPostReadService(postRepository)
     private val attachmentService: AttachmentService = mockk()
     private val userProfileImageResolver = UserProfileImageResolver(attachmentService)
 
     private val postMetadataReadService =
         PostMetadataReadService(
-            postRepository = postRepository,
+            publishedPostReadService = publishedPostReadService,
             attachmentService = attachmentService,
             userProfileImageResolver = userProfileImageResolver,
             defaultThumbnailUrl = "/static/images/post-thumbnail.png",
@@ -61,7 +62,7 @@ class PostMetadataReadServiceTest {
         every { postRepository.findPublishedPostsByIdIn(listOf(secondPost.id!!, firstPost.id!!)) } returns listOf(firstPost, secondPost)
         every {
             attachmentService.getConfirmedAttachmentsByReferenceIds(
-                listOf(firstPost.id!!, secondPost.id!!),
+                listOf(secondPost.id!!, firstPost.id!!),
                 AttachmentReferenceType.POST,
             )
         } returns mapOf(firstPost.id!! to listOf(thumbnailAttachment, bodyAttachment))

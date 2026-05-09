@@ -25,6 +25,7 @@ import java.util.UUID
 @Service
 class PostDetailReadService(
     private val postRepository: PostRepository,
+    private val publishedPostReadService: PublishedPostReadService,
     private val postViewLogService: PostViewLogService,
     private val postLikeLogRepository: PostLikeLogRepository,
     private val postReadLogRepository: PostReadLogRepository,
@@ -105,9 +106,7 @@ class PostDetailReadService(
      */
     @Transactional(readOnly = true)
     fun getPublishedPostContentDetail(postId: UUID): PostContentDetailResponse {
-        val post =
-            postRepository.findPublishedPostsByIdIn(listOf(postId)).firstOrNull()
-                ?: throw ApiException(PostStatus.POST_NOT_FOUND)
+        val post = publishedPostReadService.getPublishedPostById(postId) ?: throw ApiException(PostStatus.POST_NOT_FOUND)
 
         return PostContentDetailResponse.from(post)
     }
