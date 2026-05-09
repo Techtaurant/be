@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.post.dto.CategoryResponse
 import com.techtaurant.mainserver.post.dto.DraftListItemResponse
+import com.techtaurant.mainserver.post.dto.PostContentListItemResponse
 import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.dto.PostListItemResponse
 import com.techtaurant.mainserver.post.dto.PostListTagResponse
@@ -155,6 +156,62 @@ class PostListReadService(
                         presignedThumbnailUrlByAttachmentId,
                     )
                 },
+            nextCursor = nextCursor,
+            hasNext = hasNext,
+            size = content.size,
+        )
+    }
+
+    /**
+     * 게시물 정적 콘텐츠 목록을 커서 기반 페이지네이션으로 조회합니다.
+     *
+     * 동적 집계, 사용자 상태, presigned URL 생성 없이 SSG/ISR에 적합한 콘텐츠 필드만 반환합니다.
+     */
+    fun getPostContents(
+        cursor: String?,
+        size: Int,
+        period: PostPeriod = PostPeriod.ALL,
+        sortType: PostSortType = PostSortType.LATEST,
+        authorId: UUID? = null,
+        categoryId: UUID? = null,
+        tagIds: List<UUID>? = null,
+    ): CursorPageResponse<PostContentListItemResponse> {
+        val postCursor = cursor?.let { PostCursor.decode(it) }
+        val normalizedTagIds = normalizeTagIds(tagIds)
+
+        if (cursor != null && postCursor == null) {
+            return CursorPageResponse(
+                content = emptyList(),
+                nextCursor = null,
+                hasNext = false,
+                size = 0,
+            )
+        }
+
+        val postListQueryCriteria =
+            PostListQueryCriteria(
+                cursor = postCursor,
+                size = size,
+                period = period,
+                sortType = sortType,
+                currentUserId = null,
+                authorId = authorId,
+                categoryId = categoryId,
+                tagIds = normalizedTagIds,
+            )
+        val posts = selectPostListQueryStrategy(postListQueryCriteria).findPosts(postListQueryCriteria)
+        val hasNext = posts.size > size
+        val content = posts.take(size)
+
+        val nextCursor =
+            if (hasNext && content.isNotEmpty()) {
+                PostCursor.from(content.last(), sortType).encode()
+            } else {
+                null
+            }
+
+        return CursorPageResponse(
+            content = content.map(PostContentListItemResponse::from),
             nextCursor = nextCursor,
             hasNext = hasNext,
             size = content.size,

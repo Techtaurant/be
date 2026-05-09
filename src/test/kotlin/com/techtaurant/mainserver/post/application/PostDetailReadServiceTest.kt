@@ -203,4 +203,38 @@ class PostDetailReadServiceTest {
             assertThat(result.author.profileImageUrl).isEqualTo("https://cdn.example.com/authors/detail-author.png")
         }
     }
+
+    @Nested
+    @DisplayName("getPublishedPostContentDetail")
+    inner class GetPublishedPostContentDetail {
+        @Test
+        @DisplayName("정적 상세 조회는 조회수 기록과 presigned URL 생성 없이 콘텐츠만 반환한다")
+        fun getPublishedPostContentDetail_returnsStaticContentWithoutSideEffects() {
+            // given
+            val postId = UUID.randomUUID()
+            val post =
+                Post(
+                    title = "게시물",
+                    content = "본문",
+                    author = author,
+                    status = PostStatusEnum.PUBLISHED,
+                ).apply { id = postId }
+
+            every { postRepository.findPublishedPostsByIdIn(listOf(postId)) } returns listOf(post)
+
+            // when
+            val result = postDetailReadService.getPublishedPostContentDetail(postId)
+
+            // then
+            assertThat(result.id).isEqualTo(postId)
+            assertThat(result.title).isEqualTo("게시물")
+            assertThat(result.author.id).isEqualTo(author.id)
+            verify(exactly = 0) {
+                postViewLogService.recordView(any(), any(), any(), any())
+                attachmentService.generatePresignedDownloadUrlMapByReference(any(), any())
+                postLikeLogRepository.findByPostIdAndUserId(any(), any())
+                postReadLogRepository.existsByPostIdAndUserId(any(), any())
+            }
+        }
+    }
 }

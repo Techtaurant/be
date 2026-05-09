@@ -4,6 +4,7 @@ import com.techtaurant.mainserver.attachment.application.AttachmentService
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.post.dto.PostContentDetailResponse
 import com.techtaurant.mainserver.post.dto.PostDetailAttachmentPresignedUrlResponse
 import com.techtaurant.mainserver.post.dto.PostDetailResponse
 import com.techtaurant.mainserver.post.enums.PostStatus
@@ -95,5 +96,19 @@ class PostDetailReadService(
             authorProfileImageUrl = authorProfileImageUrl,
             attachmentPresignedUrls = attachmentPresignedUrls,
         )
+    }
+
+    /**
+     * 게시물 정적 콘텐츠 상세 정보를 조회합니다.
+     *
+     * 조회수 기록, 사용자 상태 계산, presigned URL 생성 없이 PUBLISHED 게시물 콘텐츠만 반환합니다.
+     */
+    @Transactional(readOnly = true)
+    fun getPublishedPostContentDetail(postId: UUID): PostContentDetailResponse {
+        val post =
+            postRepository.findPublishedPostsByIdIn(listOf(postId)).firstOrNull()
+                ?: throw ApiException(PostStatus.POST_NOT_FOUND)
+
+        return PostContentDetailResponse.from(post)
     }
 }

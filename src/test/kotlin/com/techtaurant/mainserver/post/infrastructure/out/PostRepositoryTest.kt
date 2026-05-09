@@ -3,6 +3,7 @@ package com.techtaurant.mainserver.post.infrastructure.out
 import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
+import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
@@ -92,6 +93,46 @@ class PostRepositoryTest : IntegrationTest() {
         // Then
         val updatedPost = postRepository.findById(testPost.id!!).orElseThrow()
         assertThat(updatedPost.commentCount).isEqualTo(initialCount + 1)
+    }
+
+    @Test
+    @DisplayName("findPublishedPostsByIdIn은 PUBLISHED 게시물만 조회한다")
+    fun findPublishedPostsByIdIn_returnsOnlyPublishedPosts() {
+        // Given
+        val publishedPost = testPost
+        val privatePost =
+            postRepository.save(
+                Post(
+                    title = "비공개 게시물",
+                    content = "비공개 내용",
+                    author = testUser,
+                    category = testCategory,
+                    status = PostStatusEnum.PRIVATE,
+                ),
+            )
+        val draftPost =
+            postRepository.save(
+                Post(
+                    title = "임시 저장 게시물",
+                    content = "임시 저장 내용",
+                    author = testUser,
+                    category = testCategory,
+                    status = PostStatusEnum.DRAFT,
+                ),
+            )
+        entityManager.flush()
+        entityManager.clear()
+
+        // When
+        val result =
+            postRepository.findPublishedPostsByIdIn(
+                listOf(publishedPost.id!!, privatePost.id!!, draftPost.id!!),
+            )
+
+        // Then
+        assertThat(result.map { it.id }).containsExactly(publishedPost.id)
+        assertThat(result.single().author.id).isEqualTo(testUser.id)
+        assertThat(result.single().category?.id).isEqualTo(testCategory.id)
     }
 
     @Test

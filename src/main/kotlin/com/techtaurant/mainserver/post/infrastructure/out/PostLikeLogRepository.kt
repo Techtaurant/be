@@ -17,4 +17,16 @@ interface PostLikeLogRepository : JpaRepository<PostLikeLog, UUID> {
         postId: UUID,
         userId: UUID,
     ): PostLikeLog?
+
+    /**
+     * 특정 사용자의 여러 게시글 좋아요 로그를 일괄 조회합니다.
+     *
+     * @param userId 사용자 ID
+     * @param postIds 게시물 ID 목록
+     * @return 좋아요 로그 목록
+     */
+    fun findByUserIdAndPostIdIn(
+        userId: UUID,
+        postIds: List<UUID>,
+    ): List<PostLikeLog>
 }
