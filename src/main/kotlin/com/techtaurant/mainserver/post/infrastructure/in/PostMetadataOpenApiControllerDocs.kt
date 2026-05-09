@@ -17,7 +17,7 @@ interface PostMetadataOpenApiControllerDocs {
         description =
             "postIds에 해당하는 PUBLISHED 게시물의 공개 동적 메타데이터를 batch로 조회합니다. " +
                 "조회수, 좋아요수, 댓글수, 상태, 썸네일/본문 첨부 presigned URL을 반환합니다. " +
-                "작성자 프로필 이미지는 GET /open-api/users/profile-images?userIds=... API를 사용하세요. " +
+                "작성자 이름과 프로필 이미지는 GET /open-api/users/profile-images?userIds=... API를 사용하세요. " +
                 "존재하지 않거나 공개되지 않은 게시물은 응답에서 제외됩니다.",
     )
     @SwaggerApiResponse(

@@ -19,9 +19,9 @@ interface UserPostOpenApiV2ControllerDocs {
     @Operation(
         summary = "사용자 게시물 정적 콘텐츠 목록 조회",
         description =
-            "특정 사용자의 PUBLISHED 게시물 정적 콘텐츠 목록을 커서 기반 페이지네이션으로 조회합니다. " +
+                "특정 사용자의 PUBLISHED 게시물 정적 콘텐츠 목록을 커서 기반 페이지네이션으로 조회합니다. " +
                 "조회수, 좋아요수, 댓글수, 상태, 썸네일/첨부 presigned URL은 " +
-                "GET /open-api/posts/metadata?postIds=... API로, 작성자 프로필 이미지는 " +
+                "GET /open-api/posts/metadata?postIds=... API로, 작성자 이름과 프로필 이미지는 " +
                 "GET /open-api/users/profile-images?userIds=... API로 분리되었습니다. " +
                 "로그인 사용자의 읽음/좋아요/차단 상태는 GET /api/posts/me/states?postIds=... API를 사용하세요.",
     )

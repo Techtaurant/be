@@ -80,6 +80,7 @@ class UserPostOpenApiV2ControllerIntegrationTest : IntegrationTest() {
             .body("data.content.id", hasItem(publishedPost.id.toString()))
             .body("data.content.id", not(hasItem(privatePost.id.toString())))
             .body("data.content[0].viewCount", nullValue())
+            .body("data.content[0].authorName", nullValue())
             .body("data.content[0].thumbnailUrl", nullValue())
     }
 }

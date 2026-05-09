@@ -26,6 +26,7 @@ class UserProfileImageReadService(
             val userId = user.id!!
             UserProfileImageResponse(
                 userId = userId,
+                authorName = user.name,
                 profileImageUrl = profileImageUrlByUserId[userId] ?: user.getFallbackProfileImageUrl(),
             )
         }

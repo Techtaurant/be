@@ -413,7 +413,6 @@ class CommentReadControllerTest : IntegrationTest() {
                 "content",
                 "postId",
                 "authorId",
-                "authorName",
                 "parentId",
                 "depth",
                 "replyCount",
@@ -421,7 +420,7 @@ class CommentReadControllerTest : IntegrationTest() {
                 "updatedAt",
             )
         assertThat(firstComment.keys)
-            .doesNotContain("authorProfileImageUrl", "likeCount", "isDeleted", "likeStatus", "isBanned")
+            .doesNotContain("authorName", "authorProfileImageUrl", "likeCount", "isDeleted", "likeStatus", "isBanned")
     }
 
     @Test

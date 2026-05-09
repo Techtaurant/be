@@ -212,7 +212,7 @@ class UserOpenApiControllerTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("사용자 프로필 이미지 URL을 사용자 ID 순서대로 조회한다")
+    @DisplayName("사용자 프로필 표시 데이터를 사용자 ID 순서대로 조회한다")
     fun getUserProfileImages_returnsProfileImageUrlsInRequestOrder() {
         // given
         val firstUser = createUser("첫 번째 사용자")
@@ -232,6 +232,8 @@ class UserOpenApiControllerTest : IntegrationTest() {
 
         // then
         assertEquals(listOf(secondUser.id.toString(), firstUser.id.toString()), response.jsonPath().getList<String>("data.userId"))
+        assertEquals(secondUser.name, response.jsonPath().getString("data[0].authorName"))
+        assertEquals(firstUser.name, response.jsonPath().getString("data[1].authorName"))
         assertEquals(secondUser.profileImageUrl, response.jsonPath().getString("data[0].profileImageUrl"))
         assertEquals(firstUser.profileImageUrl, response.jsonPath().getString("data[1].profileImageUrl"))
     }
