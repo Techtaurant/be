@@ -50,8 +50,9 @@ interface PostReadOpenApiV2ControllerDocs {
         description =
             "SSG/ISR 캐싱에 적합한 게시물 정적 콘텐츠 상세 정보를 조회합니다. " +
                 "PUBLISHED 게시물만 조회하며 조회수 기록을 남기지 않습니다. " +
-                "동적 metadata는 GET /open-api/posts/metadata?postIds=... API를 사용하세요. " +
-                "작성자 프로필 이미지는 GET /open-api/users/profile-images?userIds=... API를 사용하세요.",
+                "동적 metadata는 GET /open-api/posts/metadata?postIds=..., 작성자 프로필 이미지는 " +
+                "GET /open-api/users/profile-images?userIds=..., 조회 로그 기록은 " +
+                "POST /open-api/posts/{postId}/view-logs API를 사용하세요.",
     )
     @SwaggerApiResponse(
         responseCode = "200",

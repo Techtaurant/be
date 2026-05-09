@@ -1,7 +1,6 @@
 package com.techtaurant.mainserver.post.application
 
 import com.techtaurant.mainserver.attachment.application.AttachmentService
-import com.techtaurant.mainserver.attachment.entity.Attachment
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.post.dto.CategoryResponse
@@ -10,13 +9,13 @@ import com.techtaurant.mainserver.post.dto.PostContentListItemResponse
 import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.dto.PostListItemResponse
 import com.techtaurant.mainserver.post.dto.PostListTagResponse
+import com.techtaurant.mainserver.post.dto.PostMetadataResponse
+import com.techtaurant.mainserver.post.dto.PostViewerStateResponse
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
-import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.user.application.UserProfileImageResolver
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.Calendar
@@ -30,14 +29,11 @@ import java.util.UUID
 @Transactional(readOnly = true)
 class PostListReadService(
     private val postRepository: PostRepository,
-    private val postReadLogRepository: PostReadLogRepository,
     private val attachmentService: AttachmentService,
+    private val postMetadataReadService: PostMetadataReadService,
+    private val postViewerStateReadService: PostViewerStateReadService,
     private val userProfileImageResolver: UserProfileImageResolver,
     postListQueryStrategies: List<PostListQueryStrategy>,
-    @param:Value("\${app.default-post-thumbnail-url}")
-    private val defaultThumbnailUrl: String,
-    @param:Value("\${swagger.base-url}")
-    private val baseUrl: String,
 ) {
     companion object {
         private const val STALE_DRAFT_DAYS = 14
@@ -85,53 +81,28 @@ class PostListReadService(
             )
         val content = postPage.content
 
-        val readPostIds =
-            if (currentUserId != null && content.isNotEmpty()) {
-                postReadLogRepository.findByUserIdAndPostIdIn(
-                    userId = currentUserId,
-                    postIds = content.mapNotNull { it.id },
-                ).map { it.postId }.toSet()
-            } else {
-                emptySet()
-            }
-
-        val postIds = content.mapNotNull { it.id }
-        val attachmentsByPostId =
-            if (postIds.isNotEmpty()) {
-                attachmentService.getConfirmedAttachmentsByReferenceIds(postIds, AttachmentReferenceType.POST)
-            } else {
-                emptyMap()
-            }
-        val thumbnailAttachmentByPostId =
-            content.associate { post ->
-                val thumbnailAttachment =
-                    attachmentsByPostId[post.id]
-                        .orEmpty()
-                        .let { attachments ->
-                            post.thumbnailImage?.let { thumbnailAttachmentId ->
-                                attachments.firstOrNull { it.id == thumbnailAttachmentId }
-                            } ?: attachments.minByOrNull { it.createdAt }
-                        }
-                post.id!! to thumbnailAttachment
-            }
-        val presignedThumbnailUrlByAttachmentId =
-            thumbnailAttachmentByPostId
-                .values
-                .filterNotNull()
-                .takeIf { it.isNotEmpty() }
-                ?.let { attachmentService.generatePresignedDownloadUrlMapByAttachments(it) }
-                ?: emptyMap()
-        val authorProfileImageUrlByUserId = userProfileImageResolver.resolve(content.map { it.author }.distinctBy { it.id })
+        val metadataByPostId =
+            postMetadataReadService
+                .getPostMetadataForPosts(content)
+                .associateBy { it.postId }
+        val viewerStateByPostId =
+            currentUserId
+                ?.let { postViewerStateReadService.getPostViewerStatesForPosts(it, content) }
+                ?.associateBy { it.postId }
+                .orEmpty()
+        val authorProfileImageUrlByUserId =
+            userProfileImageResolver.resolve(content.map { it.author }.distinctBy { it.id })
 
         return CursorPageResponse(
             content =
                 content.map { post ->
+                    val postId = post.id!!
                     convertToResponse(
-                        post,
-                        readPostIds.contains(post.id),
-                        thumbnailAttachmentByPostId[post.id],
-                        authorProfileImageUrlByUserId[post.author.id] ?: post.author.getFallbackProfileImageUrl(),
-                        presignedThumbnailUrlByAttachmentId,
+                        post = post,
+                        metadata = metadataByPostId.getValue(postId),
+                        viewerState = viewerStateByPostId[postId],
+                        authorProfileImageUrl =
+                            authorProfileImageUrlByUserId[post.author.id] ?: post.author.getFallbackProfileImageUrl(),
                     )
                 },
             nextCursor = postPage.nextCursor,
@@ -335,19 +306,14 @@ class PostListReadService(
      * 썸네일 URL과 읽음 여부를 계산하여 포함합니다.
      *
      * @param post 게시물 엔티티
-     * @param isRead 현재 사용자가 읽은 게시물인지 여부
-     * @param attachments 게시물의 CONFIRMED 첨부파일 목록 (썸네일 계산용)
      * @return 응답 DTO
      */
     private fun convertToResponse(
         post: Post,
-        isRead: Boolean,
-        thumbnailAttachment: Attachment?,
+        metadata: PostMetadataResponse,
+        viewerState: PostViewerStateResponse?,
         authorProfileImageUrl: String,
-        presignedThumbnailUrlByAttachmentId: Map<UUID, String>,
     ): PostListItemResponse {
-        val thumbnailUrl = thumbnailAttachment?.id?.let { presignedThumbnailUrlByAttachmentId[it] } ?: "$baseUrl$defaultThumbnailUrl"
-
         return PostListItemResponse(
             id = post.id!!,
             title = post.title,
@@ -355,14 +321,14 @@ class PostListReadService(
             authorId = post.author.id!!,
             authorName = post.author.name,
             authorProfileImageUrl = authorProfileImageUrl,
-            thumbnailUrl = thumbnailUrl,
+            thumbnailUrl = metadata.thumbnailUrl,
             category = post.category?.let(CategoryResponse::from),
-            isRead = isRead,
+            isRead = viewerState?.isRead ?: false,
             tags = post.tags.map { PostListTagResponse.from(it) },
-            viewCount = post.viewCount,
-            likeCount = post.likeCount,
-            commentCount = post.commentCount,
-            status = post.status,
+            viewCount = metadata.viewCount,
+            likeCount = metadata.likeCount,
+            commentCount = metadata.commentCount,
+            status = metadata.status,
             createdAt = post.createdAt,
             updatedAt = post.updatedAt,
         )

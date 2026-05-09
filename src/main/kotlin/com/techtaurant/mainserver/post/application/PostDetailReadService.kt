@@ -7,6 +7,7 @@ import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.post.dto.PostContentDetailResponse
 import com.techtaurant.mainserver.post.dto.PostDetailAttachmentPresignedUrlResponse
 import com.techtaurant.mainserver.post.dto.PostDetailResponse
+import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
@@ -25,7 +26,6 @@ import java.util.UUID
 @Service
 class PostDetailReadService(
     private val postRepository: PostRepository,
-    private val publishedPostReadService: PublishedPostReadService,
     private val postViewLogService: PostViewLogService,
     private val postLikeLogRepository: PostLikeLogRepository,
     private val postReadLogRepository: PostReadLogRepository,
@@ -51,15 +51,7 @@ class PostDetailReadService(
         ipAddress: String?,
         userAgent: String?,
     ): PostDetailResponse {
-        val post =
-            postRepository.findVisiblePostDetailById(postId, userId)
-                ?: throw ApiException(PostStatus.POST_NOT_FOUND)
-
-        if (post.status != PostStatusEnum.PUBLISHED) {
-            if (userId == null || post.author.id != userId) {
-                throw ApiException(PostStatus.POST_NOT_FOUND)
-            }
-        }
+        val post = getVisiblePostDetailById(postId, userId)
 
         postViewLogService.recordView(
             postId = postId,
@@ -106,8 +98,26 @@ class PostDetailReadService(
      */
     @Transactional(readOnly = true)
     fun getPublishedPostContentDetail(postId: UUID): PostContentDetailResponse {
-        val post = publishedPostReadService.getPublishedPostById(postId) ?: throw ApiException(PostStatus.POST_NOT_FOUND)
+        val post = getVisiblePostDetailById(postId, null)
 
         return PostContentDetailResponse.from(post)
+    }
+
+    @Transactional(readOnly = true)
+    fun getVisiblePostDetailById(
+        postId: UUID,
+        userId: UUID?,
+    ): Post {
+        val post =
+            postRepository.findVisiblePostDetailById(postId, userId)
+                ?: throw ApiException(PostStatus.POST_NOT_FOUND)
+
+        if (post.status != PostStatusEnum.PUBLISHED) {
+            if (userId == null || post.author.id != userId) {
+                throw ApiException(PostStatus.POST_NOT_FOUND)
+            }
+        }
+
+        return post
     }
 }

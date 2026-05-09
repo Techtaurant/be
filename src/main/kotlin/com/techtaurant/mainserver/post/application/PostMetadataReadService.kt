@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.post.dto.PostDetailAttachmentPresignedUrlResponse
 import com.techtaurant.mainserver.post.dto.PostMetadataResponse
 import com.techtaurant.mainserver.post.entity.Post
+import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -14,7 +15,7 @@ import java.util.UUID
 @Service
 @Transactional(readOnly = true)
 class PostMetadataReadService(
-    private val publishedPostReadService: PublishedPostReadService,
+    private val postRepository: PostRepository,
     private val attachmentService: AttachmentService,
     @param:Value("\${app.default-post-thumbnail-url}")
     private val defaultThumbnailUrl: String,
@@ -22,12 +23,17 @@ class PostMetadataReadService(
     private val baseUrl: String,
 ) {
     fun getPostMetadata(postIds: List<UUID>): List<PostMetadataResponse> {
-        val posts = publishedPostReadService.getPublishedPostsByIds(postIds)
-        if (posts.isEmpty()) {
+        val posts = getPublishedPostsByIds(postIds)
+
+        return getPostMetadataForPosts(posts)
+    }
+
+    fun getPostMetadataForPosts(posts: List<Post>): List<PostMetadataResponse> {
+        val loadedPostIds = posts.mapNotNull { it.id }
+        if (loadedPostIds.isEmpty()) {
             return emptyList()
         }
 
-        val loadedPostIds = posts.mapNotNull { it.id }
         val attachmentsByPostId =
             attachmentService.getConfirmedAttachmentsByReferenceIds(
                 referenceIds = loadedPostIds,
@@ -50,6 +56,17 @@ class PostMetadataReadService(
                 attachmentPresignedUrls = buildAttachmentPresignedUrls(attachments, presignedUrlByAttachmentId),
             )
         }
+    }
+
+    private fun getPublishedPostsByIds(postIds: List<UUID>): List<Post> {
+        val normalizedPostIds = postIds.distinct()
+        if (normalizedPostIds.isEmpty()) {
+            return emptyList()
+        }
+
+        val postById = postRepository.findPublishedPostsByIdIn(normalizedPostIds).associateBy { it.id!! }
+
+        return normalizedPostIds.mapNotNull { postById[it] }
     }
 
     private fun generatePresignedUrlByAttachmentId(attachmentsByPostId: Map<UUID, List<Attachment>>): Map<UUID, String> {

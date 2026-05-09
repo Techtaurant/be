@@ -20,12 +20,11 @@ import java.util.UUID
 
 class PostMetadataReadServiceTest {
     private val postRepository: PostRepository = mockk()
-    private val publishedPostReadService = PublishedPostReadService(postRepository)
     private val attachmentService: AttachmentService = mockk()
 
     private val postMetadataReadService =
         PostMetadataReadService(
-            publishedPostReadService = publishedPostReadService,
+            postRepository = postRepository,
             attachmentService = attachmentService,
             defaultThumbnailUrl = "/static/images/post-thumbnail.png",
             baseUrl = "http://localhost:8080",

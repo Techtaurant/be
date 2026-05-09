@@ -29,7 +29,6 @@ import java.util.UUID
 
 class PostDetailReadServiceTest {
     private val postRepository: PostRepository = mockk()
-    private val publishedPostReadService = PublishedPostReadService(postRepository)
     private val postViewLogService: PostViewLogService = mockk()
     private val postLikeLogRepository: PostLikeLogRepository = mockk()
     private val postReadLogRepository: PostReadLogRepository = mockk()
@@ -39,7 +38,6 @@ class PostDetailReadServiceTest {
     private val postDetailReadService =
         PostDetailReadService(
             postRepository = postRepository,
-            publishedPostReadService = publishedPostReadService,
             postViewLogService = postViewLogService,
             postLikeLogRepository = postLikeLogRepository,
             postReadLogRepository = postReadLogRepository,
@@ -222,7 +220,7 @@ class PostDetailReadServiceTest {
                     status = PostStatusEnum.PUBLISHED,
                 ).apply { id = postId }
 
-            every { postRepository.findPublishedPostsByIdIn(listOf(postId)) } returns listOf(post)
+            every { postRepository.findVisiblePostDetailById(postId, null) } returns post
 
             // when
             val result = postDetailReadService.getPublishedPostContentDetail(postId)
