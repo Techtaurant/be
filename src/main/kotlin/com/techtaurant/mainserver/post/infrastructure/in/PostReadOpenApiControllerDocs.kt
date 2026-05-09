@@ -52,7 +52,8 @@ interface PostReadOpenApiControllerDocs {
         description =
             "[Deprecated] 이 API는 정적 콘텐츠, 공개 동적 메타데이터, 로그인 사용자 상태가 하나의 응답에 섞여 있으며 조회 시 조회 로그가 기록됩니다. " +
                 "정적 상세 콘텐츠는 GET /open-api/v2/posts/{postId}, 공개 동적 메타데이터는 GET /open-api/posts/metadata?postIds=..., " +
-                "로그인 사용자 상태는 GET /api/posts/me/states?postIds=... API로 대체되었습니다.",
+                "로그인 사용자 상태는 GET /api/posts/me/states?postIds=... API로 대체되었습니다. " +
+                "조회 로그만 분리 기록해야 하는 경우 POST /open-api/posts/{postId}/view-logs API를 사용할 수 있습니다.",
         deprecated = true,
     )
     @SwaggerApiResponse(
@@ -67,7 +68,7 @@ interface PostReadOpenApiControllerDocs {
     )
     fun getPostDetail(
         @Parameter(description = "게시물 ID") postId: UUID,
-        request: HttpServletRequest,
-        userId: UUID?,
+        @Parameter(hidden = true) request: HttpServletRequest,
+        @Parameter(hidden = true) userId: UUID?,
     ): ApiResponse<PostDetailResponse>
 }

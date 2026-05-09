@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.post.dto.PostDetailAttachmentPresignedUrlResponse
 import com.techtaurant.mainserver.post.dto.PostMetadataResponse
 import com.techtaurant.mainserver.post.entity.Post
+import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.user.application.UserProfileImageResolver
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
@@ -15,7 +16,7 @@ import java.util.UUID
 @Service
 @Transactional(readOnly = true)
 class PostMetadataReadService(
-    private val publishedPostReadService: PublishedPostReadService,
+    private val postRepository: PostRepository,
     private val attachmentService: AttachmentService,
     private val userProfileImageResolver: UserProfileImageResolver,
     @param:Value("\${app.default-post-thumbnail-url}")
@@ -24,7 +25,7 @@ class PostMetadataReadService(
     private val baseUrl: String,
 ) {
     fun getPostMetadata(postIds: List<UUID>): List<PostMetadataResponse> {
-        val posts = publishedPostReadService.getPublishedPostsByIds(postIds)
+        val posts = getPublishedPostsByIds(postIds)
         if (posts.isEmpty()) {
             return emptyList()
         }
@@ -55,6 +56,17 @@ class PostMetadataReadService(
                 attachmentPresignedUrls = buildAttachmentPresignedUrls(attachments, presignedUrlByAttachmentId),
             )
         }
+    }
+
+    private fun getPublishedPostsByIds(postIds: List<UUID>): List<Post> {
+        val normalizedPostIds = postIds.distinct()
+        if (normalizedPostIds.isEmpty()) {
+            return emptyList()
+        }
+
+        val postById = postRepository.findPublishedPostsByIdIn(normalizedPostIds).associateBy { it.id!! }
+
+        return normalizedPostIds.mapNotNull { postById[it] }
     }
 
     private fun generatePresignedUrlByAttachmentId(attachmentsByPostId: Map<UUID, List<Attachment>>): Map<UUID, String> {

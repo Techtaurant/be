@@ -20,14 +20,13 @@ import java.util.UUID
 
 class PostViewerStateReadServiceTest {
     private val postRepository: PostRepository = mockk()
-    private val publishedPostReadService = PublishedPostReadService(postRepository)
     private val postReadLogRepository: PostReadLogRepository = mockk()
     private val postLikeLogRepository: PostLikeLogRepository = mockk()
     private val userBanService: UserBanService = mockk()
 
     private val postViewerStateReadService =
         PostViewerStateReadService(
-            publishedPostReadService = publishedPostReadService,
+            postRepository = postRepository,
             postReadLogRepository = postReadLogRepository,
             postLikeLogRepository = postLikeLogRepository,
             userBanService = userBanService,
