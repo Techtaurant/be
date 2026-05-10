@@ -102,7 +102,7 @@ class CommentDeleteIntegrationTest : IntegrationTest() {
         assertThat(deletedComment.deletedAt).isNotNull()
         assertThat(deletedComment.content).isEqualTo(sha256(originalContent))
         assertThat(updatedPost.commentCount).isZero()
-        assertThat(commentRepository.findByPostIdOrderByCreatedAtAsc(post.id!!)).isEmpty()
+        assertThat(commentRepository.findByPostIdAndDeletedAtIsNullOrderByCreatedAtAsc(post.id!!)).isEmpty()
     }
 
     @Test

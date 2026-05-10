@@ -40,16 +40,20 @@ data class CommentCursor(
          * @return 디코딩된 CommentCursor, 실패 시 null
          */
         fun decode(cursor: String): CommentCursor? {
-            val decoded = String(Base64.getUrlDecoder().decode(cursor))
-            val parts = decoded.split(":")
-            if (parts.size != 4) return null
+            return try {
+                val decoded = String(Base64.getUrlDecoder().decode(cursor))
+                val parts = decoded.split(":")
+                if (parts.size != 4) return null
 
-            val sortType = CommentSortType.fromString(parts[0])
-            val sortValue = parts[1].toLongOrNull() ?: return null
-            val timestamp = parts[2].toLongOrNull() ?: return null
-            val uuid = UUID.fromString(parts[3])
+                val sortType = CommentSortType.fromString(parts[0])
+                val sortValue = parts[1].toLongOrNull() ?: return null
+                val timestamp = parts[2].toLongOrNull() ?: return null
+                val uuid = UUID.fromString(parts[3])
 
-            return CommentCursor(sortValue, Date(timestamp), uuid, sortType)
+                CommentCursor(sortValue, Date(timestamp), uuid, sortType)
+            } catch (e: Exception) {
+                null
+            }
         }
 
         /**

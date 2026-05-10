@@ -7,7 +7,6 @@ import com.techtaurant.mainserver.post.dto.PostDetailAttachmentPresignedUrlRespo
 import com.techtaurant.mainserver.post.dto.PostMetadataResponse
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
-import com.techtaurant.mainserver.user.application.UserProfileImageResolver
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -18,7 +17,6 @@ import java.util.UUID
 class PostMetadataReadService(
     private val postRepository: PostRepository,
     private val attachmentService: AttachmentService,
-    private val userProfileImageResolver: UserProfileImageResolver,
     @param:Value("\${app.default-post-thumbnail-url}")
     private val defaultThumbnailUrl: String,
     @param:Value("\${swagger.base-url}")
@@ -42,8 +40,6 @@ class PostMetadataReadService(
                 referenceType = AttachmentReferenceType.POST,
             )
         val presignedUrlByAttachmentId = generatePresignedUrlByAttachmentId(attachmentsByPostId)
-        val authorProfileImageUrlByUserId =
-            userProfileImageResolver.resolve(posts.map { it.author }.distinctBy { it.id })
 
         return posts.map { post ->
             val postId = post.id!!
@@ -57,7 +53,6 @@ class PostMetadataReadService(
                 commentCount = post.commentCount,
                 status = post.status,
                 thumbnailUrl = thumbnailUrl,
-                authorProfileImageUrl = authorProfileImageUrlByUserId[post.author.id] ?: post.author.getFallbackProfileImageUrl(),
                 attachmentPresignedUrls = buildAttachmentPresignedUrls(attachments, presignedUrlByAttachmentId),
             )
         }

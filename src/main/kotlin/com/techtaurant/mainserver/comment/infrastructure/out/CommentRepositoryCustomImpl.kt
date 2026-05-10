@@ -1,7 +1,6 @@
 package com.techtaurant.mainserver.comment.infrastructure.out
 
 import com.techtaurant.mainserver.comment.dto.CommentCursor
-import com.techtaurant.mainserver.comment.entity.ACTIVE_COMMENT_FILTER_NAME
 import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.entity.Comment_
 import com.techtaurant.mainserver.comment.enums.CommentSortType
@@ -15,7 +14,6 @@ import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.JoinType
 import jakarta.persistence.criteria.Predicate
 import jakarta.persistence.criteria.Root
-import org.hibernate.Session
 import org.springframework.stereotype.Repository
 import java.util.UUID
 
@@ -29,91 +27,89 @@ class CommentRepositoryCustomImpl : CommentRepositoryCustom {
     @PersistenceContext
     private lateinit var entityManager: EntityManager
 
+    override fun findCommentsByIdsIncludingDeleted(commentIds: List<UUID>): List<Comment> {
+        if (commentIds.isEmpty()) {
+            return emptyList()
+        }
+
+        return entityManager.createQuery(
+            """
+            SELECT c
+            FROM Comment c
+            JOIN FETCH c.author
+            JOIN FETCH c.post
+            WHERE c.id IN :commentIds
+            """.trimIndent(),
+            Comment::class.java,
+        )
+            .setParameter("commentIds", commentIds)
+            .resultList
+    }
+
     /**
-     * 부모 댓글 목록 조회 (depth=0)
+     * 삭제된 댓글을 포함해 부모 댓글 목록을 조회합니다. (depth=0)
      *
      * N+1 방지를 위해 author, post를 fetch join하며 커서 기반 페이지네이션으로 조회
      */
-    override fun findParentCommentsWithConditions(
+    override fun findParentCommentsIncludingDeletedWithConditions(
         postId: UUID,
         cursor: CommentCursor?,
         size: Int,
         sortType: CommentSortType,
     ): List<Comment> {
-        return runWithoutActiveCommentFilter {
-            val cb = entityManager.criteriaBuilder
-            val cq = cb.createQuery(Comment::class.java)
-            val root = cq.from(Comment::class.java)
+        val cb = entityManager.criteriaBuilder
+        val cq = cb.createQuery(Comment::class.java)
+        val root = cq.from(Comment::class.java)
 
-            root.fetch<Comment, User>(Comment_.AUTHOR)
-            root.fetch<Comment, Post>(Comment_.POST, JoinType.LEFT)
+        root.fetch<Comment, User>(Comment_.AUTHOR)
+        root.fetch<Comment, Post>(Comment_.POST, JoinType.LEFT)
 
-            val predicates = mutableListOf<Predicate>()
+        val predicates = mutableListOf<Predicate>()
 
-            predicates.add(cb.equal(root.get(Comment_.post).get(EntityBase_.id), postId))
-            predicates.add(cb.equal(root.get(Comment_.depth), 0))
+        predicates.add(cb.equal(root.get(Comment_.post).get(EntityBase_.id), postId))
+        predicates.add(cb.equal(root.get(Comment_.depth), 0))
 
-            addCursorCondition(cb, root, cursor, sortType, predicates)
+        addCursorCondition(cb, root, cursor, sortType, predicates)
 
-            cq.where(*predicates.toTypedArray())
-            applyOrdering(cb, cq, root, sortType)
+        cq.where(*predicates.toTypedArray())
+        applyOrdering(cb, cq, root, sortType)
 
-            entityManager.createQuery(cq)
-                .setMaxResults(size)
-                .resultList
-        }
+        return entityManager.createQuery(cq)
+            .setMaxResults(size)
+            .resultList
     }
 
     /**
-     * 대댓글 목록 조회 (depth=1)
+     * 삭제된 댓글을 포함해 대댓글 목록을 조회합니다. (depth=1)
      *
      * N+1 방지를 위해 author, post를 fetch join하며 커서 기반 페이지네이션으로 조회
      */
-    override fun findRepliesWithConditions(
+    override fun findRepliesIncludingDeletedWithConditions(
         parentId: UUID,
         cursor: CommentCursor?,
         size: Int,
         sortType: CommentSortType,
     ): List<Comment> {
-        return runWithoutActiveCommentFilter {
-            val cb = entityManager.criteriaBuilder
-            val cq = cb.createQuery(Comment::class.java)
-            val root = cq.from(Comment::class.java)
+        val cb = entityManager.criteriaBuilder
+        val cq = cb.createQuery(Comment::class.java)
+        val root = cq.from(Comment::class.java)
 
-            root.fetch<Comment, User>(Comment_.AUTHOR)
-            root.fetch<Comment, Post>(Comment_.POST, JoinType.LEFT)
+        root.fetch<Comment, User>(Comment_.AUTHOR)
+        root.fetch<Comment, Post>(Comment_.POST, JoinType.LEFT)
 
-            val predicates = mutableListOf<Predicate>()
+        val predicates = mutableListOf<Predicate>()
 
-            predicates.add(cb.equal(root.get(Comment_.parent).get(EntityBase_.id), parentId))
-            predicates.add(cb.equal(root.get(Comment_.depth), 1))
+        predicates.add(cb.equal(root.get(Comment_.parent).get(EntityBase_.id), parentId))
+        predicates.add(cb.equal(root.get(Comment_.depth), 1))
 
-            addCursorCondition(cb, root, cursor, sortType, predicates)
+        addCursorCondition(cb, root, cursor, sortType, predicates)
 
-            cq.where(*predicates.toTypedArray())
-            applyOrdering(cb, cq, root, sortType)
+        cq.where(*predicates.toTypedArray())
+        applyOrdering(cb, cq, root, sortType)
 
-            entityManager.createQuery(cq)
-                .setMaxResults(size)
-                .resultList
-        }
-    }
-
-    private fun <T> runWithoutActiveCommentFilter(action: () -> T): T {
-        val session = entityManager.unwrap(Session::class.java)
-        val filterWasEnabled = session.getEnabledFilter(ACTIVE_COMMENT_FILTER_NAME) != null
-
-        if (filterWasEnabled) {
-            session.disableFilter(ACTIVE_COMMENT_FILTER_NAME)
-        }
-
-        return try {
-            action()
-        } finally {
-            if (filterWasEnabled) {
-                session.enableFilter(ACTIVE_COMMENT_FILTER_NAME)
-            }
-        }
+        return entityManager.createQuery(cq)
+            .setMaxResults(size)
+            .resultList
     }
 
     /**

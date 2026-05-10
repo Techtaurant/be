@@ -43,7 +43,6 @@ class PostListReadServiceTest {
         PostMetadataReadService(
             postRepository = postRepository,
             attachmentService = attachmentService,
-            userProfileImageResolver = userProfileImageResolver,
             defaultThumbnailUrl = defaultThumbnailUrl,
             baseUrl = baseUrl,
         )
@@ -64,6 +63,7 @@ class PostListReadServiceTest {
             attachmentService = attachmentService,
             postMetadataReadService = postMetadataReadService,
             postViewerStateReadService = postViewerStateReadService,
+            userProfileImageResolver = userProfileImageResolver,
             postListQueryStrategies = postListQueryStrategies,
         )
 

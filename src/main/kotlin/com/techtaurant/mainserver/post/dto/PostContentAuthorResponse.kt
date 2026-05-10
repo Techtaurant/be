@@ -8,14 +8,11 @@ import java.util.UUID
 data class PostContentAuthorResponse(
     @field:Schema(description = "작성자 ID")
     val id: UUID,
-    @field:Schema(description = "작성자 이름")
-    val name: String,
 ) {
     companion object {
         fun from(user: User): PostContentAuthorResponse =
             PostContentAuthorResponse(
                 id = user.id!!,
-                name = user.name,
             )
     }
 }

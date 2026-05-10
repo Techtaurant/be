@@ -13,6 +13,7 @@ import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasItem
 import org.hamcrest.Matchers.not
 import org.hamcrest.Matchers.notNullValue
+import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -78,7 +79,7 @@ class PostMetadataOpenApiControllerIntegrationTest : IntegrationTest() {
         given()
             .queryParam("postIds", publishedPost.id, privatePost.id)
             .`when`()
-            .get("/open-api/posts/metadata")
+            .get("/open-api/posts/metadatas")
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("data.postId", hasItem(publishedPost.id.toString()))
@@ -88,35 +89,6 @@ class PostMetadataOpenApiControllerIntegrationTest : IntegrationTest() {
             .body("data.find { it.postId == '${publishedPost.id}' }.commentCount", equalTo(1))
             .body("data.find { it.postId == '${publishedPost.id}' }.status", equalTo("PUBLISHED"))
             .body("data.find { it.postId == '${publishedPost.id}' }.thumbnailUrl", notNullValue())
-            .body("data.find { it.postId == '${publishedPost.id}' }.authorProfileImageUrl", equalTo(author.profileImageUrl))
-    }
-
-    @Test
-    @DisplayName("metadata 작성자 프로필 이미지가 비어 있으면 기본 사용자 썸네일 URL을 반환한다")
-    fun getPostMetadata_blankAuthorProfileImageUrl_returnsDefaultUserThumbnailUrl() {
-        // given
-        author.profileImageUrl = ""
-        userRepository.save(author)
-        val publishedPost =
-            postRepository.save(
-                Post(
-                    title = "공개 게시물",
-                    content = "본문",
-                    author = author,
-                    status = PostStatusEnum.PUBLISHED,
-                ),
-            )
-
-        // when & then
-        given()
-            .queryParam("postIds", publishedPost.id)
-            .`when`()
-            .get("/open-api/posts/metadata")
-            .then()
-            .statusCode(HttpStatus.OK.value())
-            .body(
-                "data.find { it.postId == '${publishedPost.id}' }.authorProfileImageUrl",
-                equalTo("http://localhost:8080/static/images/user-thumbnail.png"),
-            )
+            .body("data.find { it.postId == '${publishedPost.id}' }.authorProfileImageUrl", nullValue())
     }
 }

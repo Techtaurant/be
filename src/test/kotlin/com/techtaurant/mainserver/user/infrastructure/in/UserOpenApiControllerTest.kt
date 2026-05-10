@@ -211,6 +211,33 @@ class UserOpenApiControllerTest : IntegrationTest() {
         }
     }
 
+    @Test
+    @DisplayName("사용자 프로필 표시 데이터를 사용자 ID 순서대로 조회한다")
+    fun getUserProfileImages_returnsProfileImageUrlsInRequestOrder() {
+        // given
+        val firstUser = createUser("첫 번째 사용자")
+        val secondUser = createUser("두 번째 사용자")
+
+        // when
+        val response =
+            RestAssured
+                .given()
+                .queryParam("userIds", secondUser.id, firstUser.id, UUID.randomUUID())
+                .`when`()
+                .get("/open-api/users/profile-images")
+                .then()
+                .statusCode(200)
+                .extract()
+                .response()
+
+        // then
+        assertEquals(listOf(secondUser.id.toString(), firstUser.id.toString()), response.jsonPath().getList<String>("data.userId"))
+        assertEquals(secondUser.name, response.jsonPath().getString("data[0].authorName"))
+        assertEquals(firstUser.name, response.jsonPath().getString("data[1].authorName"))
+        assertEquals(secondUser.profileImageUrl, response.jsonPath().getString("data[0].profileImageUrl"))
+        assertEquals(firstUser.profileImageUrl, response.jsonPath().getString("data[1].profileImageUrl"))
+    }
+
     @Nested
     @DisplayName("사용자 게시물 목록 조회")
     inner class UserPostsTest {

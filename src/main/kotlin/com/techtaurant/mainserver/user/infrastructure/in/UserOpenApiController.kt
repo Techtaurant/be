@@ -9,13 +9,16 @@ import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.security.SecurityConstants
 import com.techtaurant.mainserver.user.application.UserFollowService
+import com.techtaurant.mainserver.user.application.UserProfileImageReadService
 import com.techtaurant.mainserver.user.application.UserReadService
 import com.techtaurant.mainserver.user.dto.UserFollowCountResponse
 import com.techtaurant.mainserver.user.dto.UserFollowListItemResponse
+import com.techtaurant.mainserver.user.dto.UserProfileImageResponse
 import com.techtaurant.mainserver.user.dto.UserResponse
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Size
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.GetMapping
@@ -32,6 +35,7 @@ class UserOpenApiController(
     private val userReadService: UserReadService,
     private val userFollowService: UserFollowService,
     private val postListReadService: PostListReadService,
+    private val userProfileImageReadService: UserProfileImageReadService,
 ) : UserOpenApiControllerDocs {
     @ApiErrorResponses(includeValidationError = true)
     @GetMapping("/search")
@@ -40,6 +44,13 @@ class UserOpenApiController(
         @RequestParam name: String,
     ): ApiResponse<List<UserResponse>> {
         return ApiResponse.ok(userReadService.searchByName(name))
+    }
+
+    @GetMapping("/profile-images")
+    override fun getUserProfileImages(
+        @RequestParam @Size(max = 100) userIds: List<UUID>,
+    ): ApiResponse<List<UserProfileImageResponse>> {
+        return ApiResponse.ok(userProfileImageReadService.getUserProfileImages(userIds))
     }
 
     @GetMapping("/{userId}/follow-counts")

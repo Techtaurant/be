@@ -3,6 +3,8 @@ package com.techtaurant.mainserver.comment.infrastructure.`in`
 import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.comment.dto.CommentListResponse
 import com.techtaurant.mainserver.comment.entity.Comment
+import com.techtaurant.mainserver.comment.entity.CommentLikeLog
+import com.techtaurant.mainserver.comment.infrastructure.out.CommentLikeLogRepository
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
 import com.techtaurant.mainserver.common.dto.ApiResponse
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
@@ -17,6 +19,7 @@ import com.techtaurant.mainserver.user.infrastructure.out.UserBanRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.restassured.RestAssured
 import io.restassured.common.mapper.TypeRef
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -35,6 +38,9 @@ import kotlin.test.assertTrue
 class CommentReadControllerTest : IntegrationTest() {
     @Autowired
     private lateinit var commentRepository: CommentRepository
+
+    @Autowired
+    private lateinit var commentLikeLogRepository: CommentLikeLogRepository
 
     @Autowired
     private lateinit var postRepository: PostRepository
@@ -374,6 +380,179 @@ class CommentReadControllerTest : IntegrationTest() {
         assertEquals(13, maskedComment.content.length)
         assertEquals(null, maskedComment.authorProfileImageUrl)
         assertTrue(maskedComment.authorId != blockedUser.id)
+    }
+
+    @Test
+    @DisplayName("v2 부모 댓글 목록은 공개 콘텐츠만 반환하고 사용자 상태와 동적 메타데이터를 제외한다")
+    fun getParentCommentContents_excludesViewerStateAndMetadataFields() {
+        // given
+        val deletedComment =
+            parentComments[0].apply {
+                content = sha256(content)
+                deletedAt = Date()
+            }
+        commentRepository.save(deletedComment)
+
+        // when
+        val response =
+            RestAssured
+                .given()
+                .queryParam("size", 10)
+                .`when`()
+                .get("/open-api/v2/posts/${testPost.id}/comments")
+                .then()
+                .statusCode(200)
+                .extract()
+                .response()
+
+        // then
+        val firstComment = response.jsonPath().getMap<String, Any?>("data.content[0]")
+        assertThat(firstComment.keys)
+            .contains(
+                "id",
+                "content",
+                "postId",
+                "authorId",
+                "parentId",
+                "depth",
+                "createdAt",
+                "updatedAt",
+            )
+        assertThat(firstComment.keys)
+            .doesNotContain("authorName", "authorProfileImageUrl", "likeCount", "replyCount", "isDeleted", "likeStatus", "isBanned")
+    }
+
+    @Test
+    @DisplayName("v2 부모 댓글 목록은 잘못된 커서가 전달되면 빈 페이지를 반환한다")
+    fun getParentCommentContents_withMalformedCursor_returnsEmptyPage() {
+        // when
+        val response =
+            RestAssured
+                .given()
+                .queryParam("cursor", "not-base64-cursor")
+                .queryParam("size", 10)
+                .`when`()
+                .get("/open-api/v2/posts/${testPost.id}/comments")
+                .then()
+                .statusCode(200)
+                .extract()
+                .response()
+
+        // then
+        assertThat(response.jsonPath().getList<Any>("data.content")).isEmpty()
+        assertThat(response.jsonPath().getBoolean("data.hasNext")).isFalse()
+        assertThat(response.jsonPath().getInt("data.size")).isZero()
+    }
+
+    @Test
+    @DisplayName("v2 대댓글 목록은 잘못된 커서가 전달되면 빈 페이지를 반환한다")
+    fun getReplyContents_withMalformedCursor_returnsEmptyPage() {
+        // given
+        val parentComment = parentComments[0]
+        createTestReplies(parentComment)
+
+        // when
+        val response =
+            RestAssured
+                .given()
+                .queryParam("cursor", "not-base64-cursor")
+                .queryParam("size", 10)
+                .`when`()
+                .get("/open-api/v2/comments/${parentComment.id}/replies")
+                .then()
+                .statusCode(200)
+                .extract()
+                .response()
+
+        // then
+        assertThat(response.jsonPath().getList<Any>("data.content")).isEmpty()
+        assertThat(response.jsonPath().getBoolean("data.hasNext")).isFalse()
+        assertThat(response.jsonPath().getInt("data.size")).isZero()
+    }
+
+    @Test
+    @DisplayName("댓글 metadatas는 좋아요수, 대댓글수, 삭제 여부를 댓글 ID 순서대로 반환한다")
+    fun getCommentMetadata_returnsLikeCountAndDeletedStateInRequestOrder() {
+        // given
+        val deletedComment =
+            parentComments[0].apply {
+                content = sha256(content)
+                deletedAt = Date()
+            }
+        commentRepository.save(deletedComment)
+        val activeComment = parentComments[2]
+
+        // when
+        val response =
+            RestAssured
+                .given()
+                .queryParam("commentIds", activeComment.id, deletedComment.id)
+                .`when`()
+                .get("/open-api/comments/metadatas")
+                .then()
+                .statusCode(200)
+                .extract()
+                .response()
+
+        // then
+        assertThat(response.jsonPath().getList<String>("data.commentId"))
+            .containsExactly(activeComment.id.toString(), deletedComment.id.toString())
+        assertThat(response.jsonPath().getInt("data.find { it.commentId == '${activeComment.id}' }.likeCount"))
+            .isEqualTo(activeComment.likeCount.toInt())
+        assertThat(response.jsonPath().getInt("data.find { it.commentId == '${activeComment.id}' }.replyCount"))
+            .isEqualTo(activeComment.replyCount.toInt())
+        assertThat(response.jsonPath().getBoolean("data.find { it.commentId == '${activeComment.id}' }.isDeleted"))
+            .isFalse()
+        assertThat(response.jsonPath().getInt("data.find { it.commentId == '${deletedComment.id}' }.likeCount"))
+            .isEqualTo(deletedComment.likeCount.toInt())
+        assertThat(response.jsonPath().getInt("data.find { it.commentId == '${deletedComment.id}' }.replyCount"))
+            .isEqualTo(deletedComment.replyCount.toInt())
+        assertThat(response.jsonPath().getBoolean("data.find { it.commentId == '${deletedComment.id}' }.isDeleted"))
+            .isTrue()
+    }
+
+    @Test
+    @DisplayName("댓글 사용자 상태는 좋아요 상태와 차단 여부를 댓글 ID 순서대로 반환한다")
+    fun getCommentViewerStates_returnsLikeStatusAndBanStateInRequestOrder() {
+        // given
+        val likedComment = parentComments[0]
+        val blockedComment =
+            commentRepository.save(
+                Comment(
+                    content = "차단된 댓글 내용",
+                    post = testPost,
+                    author = blockedUser,
+                    parent = null,
+                    depth = 0,
+                ),
+            )
+        commentLikeLogRepository.save(CommentLikeLog(comment = likedComment, user = testUser, isLiked = true))
+        userBanRepository.save(UserBan(user = testUser, bannedUser = blockedUser))
+
+        // when
+        val response =
+            RestAssured
+                .given()
+                .header("Authorization", "Bearer $accessToken")
+                .queryParam("commentIds", blockedComment.id, likedComment.id)
+                .`when`()
+                .get("/api/comments/me/states")
+                .then()
+                .statusCode(200)
+                .extract()
+                .response()
+
+        // then
+        assertThat(response.jsonPath().getList<String>("data.commentId"))
+            .containsExactly(blockedComment.id.toString(), likedComment.id.toString())
+        assertThat(response.jsonPath().getString("data.find { it.commentId == '${blockedComment.id}' }.likeStatus"))
+            .isEqualTo("NONE")
+        assertThat(response.jsonPath().getBoolean("data.find { it.commentId == '${blockedComment.id}' }.isBanned"))
+            .isTrue()
+        assertThat(response.jsonPath().getString("data.find { it.commentId == '${likedComment.id}' }.likeStatus"))
+            .isEqualTo("LIKE")
+        assertThat(response.jsonPath().getBoolean("data.find { it.commentId == '${likedComment.id}' }.isBanned"))
+            .isFalse()
     }
 
     @Nested

@@ -15,8 +15,6 @@ data class PostContentListItemResponse(
     val content: String,
     @field:Schema(description = "작성자 ID")
     val authorId: UUID,
-    @field:Schema(description = "작성자 이름")
-    val authorName: String,
     @field:Schema(description = "게시물 카테고리")
     val category: PostContentCategoryResponse?,
     @field:Schema(description = "태그 목록")
@@ -35,7 +33,6 @@ data class PostContentListItemResponse(
                 title = post.title,
                 content = post.content.take(CONTENT_MAX_LENGTH),
                 authorId = post.author.id!!,
-                authorName = post.author.name,
                 category = post.category?.let(PostContentCategoryResponse::from),
                 tags = post.tags.map { PostListTagResponse.from(it) },
                 createdAt = post.createdAt,

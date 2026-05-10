@@ -78,6 +78,7 @@ class PostReadOpenApiV2ControllerIntegrationTest : IntegrationTest() {
             .body("data.content[0].commentCount", nullValue())
             .body("data.content[0].status", nullValue())
             .body("data.content[0].thumbnailUrl", nullValue())
+            .body("data.content[0].authorName", nullValue())
             .body("data.content[0].authorProfileImageUrl", nullValue())
             .body("data.content[0].isRead", nullValue())
     }
@@ -104,6 +105,7 @@ class PostReadOpenApiV2ControllerIntegrationTest : IntegrationTest() {
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("data.id", equalTo(post.id.toString()))
+            .body("data.author.name", nullValue())
             .body("data.viewCount", nullValue())
             .body("data.attachmentPresignedUrls", nullValue())
 

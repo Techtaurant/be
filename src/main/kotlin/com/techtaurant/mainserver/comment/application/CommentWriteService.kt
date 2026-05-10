@@ -167,7 +167,7 @@ class CommentWriteService(
     /**
      * 부모 댓글을 검증합니다.
      * parentId가 null인 경우 null을 반환하고,
-     * parentId가 있으면 부모 댓글이 존재하는지, 같은 게시물의 댓글인지, depth가 0인지 확인합니다.
+     * parentId가 있으면 부모 댓글이 존재하는지, 삭제되지 않았는지, 같은 게시물의 댓글인지, depth가 0인지 확인합니다.
      *
      * @param parentId 부모 댓글 ID (nullable)
      * @param postId 현재 게시물 ID
@@ -187,6 +187,10 @@ class CommentWriteService(
             commentRepository.findById(parentId).orElseThrow {
                 ApiException(CommentStatus.COMMENT_NOT_FOUND)
             }
+
+        if (parent.deletedAt != null) {
+            throw ApiException(CommentStatus.COMMENT_ALREADY_DELETED)
+        }
 
         if (parent.post.id != postId) {
             throw ApiException(CommentStatus.COMMENT_PARENT_MISMATCH)

@@ -1,5 +1,6 @@
 package com.techtaurant.mainserver.comment.application
 
+import com.techtaurant.mainserver.comment.dto.CommentContentListResponse
 import com.techtaurant.mainserver.comment.dto.CommentCursor
 import com.techtaurant.mainserver.comment.dto.CommentListResponse
 import com.techtaurant.mainserver.comment.entity.Comment
@@ -39,40 +40,45 @@ class CommentReadService(
         sortType: CommentSortType = CommentSortType.LATEST,
         userId: UUID? = null,
     ): CursorPageResponse<CommentListResponse> {
-        val commentCursor = cursor?.let { CommentCursor.decode(it) }
-
-        if (cursor != null && commentCursor == null) {
-            return CursorPageResponse(
-                content = emptyList(),
-                nextCursor = null,
-                hasNext = false,
-                size = 0,
-            )
-        }
-
-        val comments =
-            commentRepository.findParentCommentsWithConditions(
-                postId = postId,
-                cursor = commentCursor,
-                size = size + 1,
-                sortType = sortType,
-            )
-
-        val hasNext = comments.size > size
-        val content = comments.take(size)
-
-        val nextCursor =
-            if (hasNext && content.isNotEmpty()) {
-                CommentCursor.from(content.last(), sortType).encode()
-            } else {
-                null
+        val commentPage =
+            getCommentPage(cursor, size, sortType) { commentCursor, pageSize ->
+                commentRepository.findParentCommentsIncludingDeletedWithConditions(
+                    postId = postId,
+                    cursor = commentCursor,
+                    size = pageSize,
+                    sortType = sortType,
+                )
             }
 
         return CursorPageResponse(
-            content = mapCommentsWithLikeStatus(content, userId),
-            nextCursor = nextCursor,
-            hasNext = hasNext,
-            size = content.size,
+            content = mapCommentsWithLikeStatus(commentPage.content, userId),
+            nextCursor = commentPage.nextCursor,
+            hasNext = commentPage.hasNext,
+            size = commentPage.size,
+        )
+    }
+
+    fun getParentCommentContents(
+        postId: UUID,
+        cursor: String?,
+        size: Int,
+        sortType: CommentSortType = CommentSortType.LATEST,
+    ): CursorPageResponse<CommentContentListResponse> {
+        val commentPage =
+            getCommentPage(cursor, size, sortType) { commentCursor, pageSize ->
+                commentRepository.findParentCommentsIncludingDeletedWithConditions(
+                    postId = postId,
+                    cursor = commentCursor,
+                    size = pageSize,
+                    sortType = sortType,
+                )
+            }
+
+        return CursorPageResponse(
+            content = commentResponseAssembler.assembleContents(commentPage.content),
+            nextCursor = commentPage.nextCursor,
+            hasNext = commentPage.hasNext,
+            size = commentPage.size,
         )
     }
 
@@ -92,6 +98,54 @@ class CommentReadService(
         sortType: CommentSortType = CommentSortType.LATEST,
         userId: UUID? = null,
     ): CursorPageResponse<CommentListResponse> {
+        val commentPage =
+            getCommentPage(cursor, size, sortType) { commentCursor, pageSize ->
+                commentRepository.findRepliesIncludingDeletedWithConditions(
+                    parentId = parentId,
+                    cursor = commentCursor,
+                    size = pageSize,
+                    sortType = sortType,
+                )
+            }
+
+        return CursorPageResponse(
+            content = mapCommentsWithLikeStatus(commentPage.content, userId),
+            nextCursor = commentPage.nextCursor,
+            hasNext = commentPage.hasNext,
+            size = commentPage.size,
+        )
+    }
+
+    fun getReplyContents(
+        parentId: UUID,
+        cursor: String?,
+        size: Int,
+        sortType: CommentSortType = CommentSortType.LATEST,
+    ): CursorPageResponse<CommentContentListResponse> {
+        val commentPage =
+            getCommentPage(cursor, size, sortType) { commentCursor, pageSize ->
+                commentRepository.findRepliesIncludingDeletedWithConditions(
+                    parentId = parentId,
+                    cursor = commentCursor,
+                    size = pageSize,
+                    sortType = sortType,
+                )
+            }
+
+        return CursorPageResponse(
+            content = commentResponseAssembler.assembleContents(commentPage.content),
+            nextCursor = commentPage.nextCursor,
+            hasNext = commentPage.hasNext,
+            size = commentPage.size,
+        )
+    }
+
+    private fun getCommentPage(
+        cursor: String?,
+        size: Int,
+        sortType: CommentSortType,
+        findComments: (CommentCursor?, Int) -> List<Comment>,
+    ): CursorPageResponse<Comment> {
         val commentCursor = cursor?.let { CommentCursor.decode(it) }
 
         if (cursor != null && commentCursor == null) {
@@ -103,13 +157,7 @@ class CommentReadService(
             )
         }
 
-        val comments =
-            commentRepository.findRepliesWithConditions(
-                parentId = parentId,
-                cursor = commentCursor,
-                size = size + 1,
-                sortType = sortType,
-            )
+        val comments = findComments(commentCursor, size + 1)
 
         val hasNext = comments.size > size
         val content = comments.take(size)
@@ -122,7 +170,7 @@ class CommentReadService(
             }
 
         return CursorPageResponse(
-            content = mapCommentsWithLikeStatus(content, userId),
+            content = content,
             nextCursor = nextCursor,
             hasNext = hasNext,
             size = content.size,

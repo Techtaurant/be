@@ -15,6 +15,7 @@ import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
+import com.techtaurant.mainserver.user.application.UserProfileImageResolver
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.Calendar
@@ -31,6 +32,7 @@ class PostListReadService(
     private val attachmentService: AttachmentService,
     private val postMetadataReadService: PostMetadataReadService,
     private val postViewerStateReadService: PostViewerStateReadService,
+    private val userProfileImageResolver: UserProfileImageResolver,
     postListQueryStrategies: List<PostListQueryStrategy>,
 ) {
     companion object {
@@ -88,6 +90,8 @@ class PostListReadService(
                 ?.let { postViewerStateReadService.getPostViewerStatesForPosts(it, content) }
                 ?.associateBy { it.postId }
                 .orEmpty()
+        val authorProfileImageUrlByUserId =
+            userProfileImageResolver.resolve(content.map { it.author }.distinctBy { it.id })
 
         return CursorPageResponse(
             content =
@@ -97,6 +101,8 @@ class PostListReadService(
                         post = post,
                         metadata = metadataByPostId.getValue(postId),
                         viewerState = viewerStateByPostId[postId],
+                        authorProfileImageUrl =
+                            authorProfileImageUrlByUserId[post.author.id] ?: post.author.getFallbackProfileImageUrl(),
                     )
                 },
             nextCursor = postPage.nextCursor,
@@ -306,6 +312,7 @@ class PostListReadService(
         post: Post,
         metadata: PostMetadataResponse,
         viewerState: PostViewerStateResponse?,
+        authorProfileImageUrl: String,
     ): PostListItemResponse {
         return PostListItemResponse(
             id = post.id!!,
@@ -313,7 +320,7 @@ class PostListReadService(
             content = post.content.take(POST_LIST_CONTENT_MAX_LENGTH),
             authorId = post.author.id!!,
             authorName = post.author.name,
-            authorProfileImageUrl = metadata.authorProfileImageUrl,
+            authorProfileImageUrl = authorProfileImageUrl,
             thumbnailUrl = metadata.thumbnailUrl,
             category = post.category?.let(CategoryResponse::from),
             isRead = viewerState?.isRead ?: false,
