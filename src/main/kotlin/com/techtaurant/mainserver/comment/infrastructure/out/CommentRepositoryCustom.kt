@@ -18,7 +18,7 @@ interface CommentRepositoryCustom {
     fun findCommentsByIdsIncludingDeleted(commentIds: List<UUID>): List<Comment>
 
     /**
-     * 부모 댓글 목록 조회 (depth=0)
+     * 삭제된 댓글을 포함해 부모 댓글 목록을 조회합니다. (depth=0)
      *
      * @param postId 게시물 ID
      * @param cursor 커서 (null이면 첫 페이지)
@@ -26,7 +26,7 @@ interface CommentRepositoryCustom {
      * @param sortType 정렬 타입
      * @return 부모 댓글 목록
      */
-    fun findParentCommentsWithConditions(
+    fun findParentCommentsIncludingDeletedWithConditions(
         postId: UUID,
         cursor: CommentCursor?,
         size: Int,
@@ -34,7 +34,7 @@ interface CommentRepositoryCustom {
     ): List<Comment>
 
     /**
-     * 대댓글 목록 조회 (depth=1)
+     * 삭제된 댓글을 포함해 대댓글 목록을 조회합니다. (depth=1)
      *
      * @param parentId 부모 댓글 ID
      * @param cursor 커서 (null이면 첫 페이지)
@@ -42,7 +42,7 @@ interface CommentRepositoryCustom {
      * @param sortType 정렬 타입
      * @return 대댓글 목록
      */
-    fun findRepliesWithConditions(
+    fun findRepliesIncludingDeletedWithConditions(
         parentId: UUID,
         cursor: CommentCursor?,
         size: Int,

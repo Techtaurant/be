@@ -4,11 +4,7 @@ import com.techtaurant.mainserver.common.base.EntityBase
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.user.entity.User
 import jakarta.persistence.*
-import org.hibernate.annotations.Filter
-import org.hibernate.annotations.FilterDef
 import java.util.Date
-
-const val ACTIVE_COMMENT_FILTER_NAME = "activeCommentFilter"
 
 /**
  * 댓글 엔티티
@@ -27,12 +23,6 @@ const val ACTIVE_COMMENT_FILTER_NAME = "activeCommentFilter"
  */
 @Entity
 @Table(name = "comments")
-@FilterDef(
-    name = ACTIVE_COMMENT_FILTER_NAME,
-    defaultCondition = "deleted_at IS NULL",
-    autoEnabled = true,
-)
-@Filter(name = ACTIVE_COMMENT_FILTER_NAME)
 class Comment(
     @Column(nullable = false, columnDefinition = "TEXT")
     var content: String,

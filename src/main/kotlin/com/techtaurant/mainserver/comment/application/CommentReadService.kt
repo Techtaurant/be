@@ -42,7 +42,7 @@ class CommentReadService(
     ): CursorPageResponse<CommentListResponse> {
         val commentPage =
             getCommentPage(cursor, size, sortType) { commentCursor, pageSize ->
-                commentRepository.findParentCommentsWithConditions(
+                commentRepository.findParentCommentsIncludingDeletedWithConditions(
                     postId = postId,
                     cursor = commentCursor,
                     size = pageSize,
@@ -66,7 +66,7 @@ class CommentReadService(
     ): CursorPageResponse<CommentContentListResponse> {
         val commentPage =
             getCommentPage(cursor, size, sortType) { commentCursor, pageSize ->
-                commentRepository.findParentCommentsWithConditions(
+                commentRepository.findParentCommentsIncludingDeletedWithConditions(
                     postId = postId,
                     cursor = commentCursor,
                     size = pageSize,
@@ -100,7 +100,7 @@ class CommentReadService(
     ): CursorPageResponse<CommentListResponse> {
         val commentPage =
             getCommentPage(cursor, size, sortType) { commentCursor, pageSize ->
-                commentRepository.findRepliesWithConditions(
+                commentRepository.findRepliesIncludingDeletedWithConditions(
                     parentId = parentId,
                     cursor = commentCursor,
                     size = pageSize,
@@ -124,7 +124,7 @@ class CommentReadService(
     ): CursorPageResponse<CommentContentListResponse> {
         val commentPage =
             getCommentPage(cursor, size, sortType) { commentCursor, pageSize ->
-                commentRepository.findRepliesWithConditions(
+                commentRepository.findRepliesIncludingDeletedWithConditions(
                     parentId = parentId,
                     cursor = commentCursor,
                     size = pageSize,
