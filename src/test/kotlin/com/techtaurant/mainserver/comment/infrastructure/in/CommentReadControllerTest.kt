@@ -415,12 +415,11 @@ class CommentReadControllerTest : IntegrationTest() {
                 "authorId",
                 "parentId",
                 "depth",
-                "replyCount",
                 "createdAt",
                 "updatedAt",
             )
         assertThat(firstComment.keys)
-            .doesNotContain("authorName", "authorProfileImageUrl", "likeCount", "isDeleted", "likeStatus", "isBanned")
+            .doesNotContain("authorName", "authorProfileImageUrl", "likeCount", "replyCount", "isDeleted", "likeStatus", "isBanned")
     }
 
     @Test
@@ -472,7 +471,7 @@ class CommentReadControllerTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("댓글 metadata는 좋아요수와 삭제 여부를 댓글 ID 순서대로 반환한다")
+    @DisplayName("댓글 metadatas는 좋아요수, 대댓글수, 삭제 여부를 댓글 ID 순서대로 반환한다")
     fun getCommentMetadata_returnsLikeCountAndDeletedStateInRequestOrder() {
         // given
         val deletedComment =
@@ -489,7 +488,7 @@ class CommentReadControllerTest : IntegrationTest() {
                 .given()
                 .queryParam("commentIds", activeComment.id, deletedComment.id)
                 .`when`()
-                .get("/open-api/comments/metadata")
+                .get("/open-api/comments/metadatas")
                 .then()
                 .statusCode(200)
                 .extract()
@@ -500,10 +499,14 @@ class CommentReadControllerTest : IntegrationTest() {
             .containsExactly(activeComment.id.toString(), deletedComment.id.toString())
         assertThat(response.jsonPath().getInt("data.find { it.commentId == '${activeComment.id}' }.likeCount"))
             .isEqualTo(activeComment.likeCount.toInt())
+        assertThat(response.jsonPath().getInt("data.find { it.commentId == '${activeComment.id}' }.replyCount"))
+            .isEqualTo(activeComment.replyCount.toInt())
         assertThat(response.jsonPath().getBoolean("data.find { it.commentId == '${activeComment.id}' }.isDeleted"))
             .isFalse()
         assertThat(response.jsonPath().getInt("data.find { it.commentId == '${deletedComment.id}' }.likeCount"))
             .isEqualTo(deletedComment.likeCount.toInt())
+        assertThat(response.jsonPath().getInt("data.find { it.commentId == '${deletedComment.id}' }.replyCount"))
+            .isEqualTo(deletedComment.replyCount.toInt())
         assertThat(response.jsonPath().getBoolean("data.find { it.commentId == '${deletedComment.id}' }.isDeleted"))
             .isTrue()
     }

@@ -20,8 +20,8 @@ class PostMetadataOpenApiController(
     private val postMetadataReadService: PostMetadataReadService,
 ) : PostMetadataOpenApiControllerDocs {
     @ApiErrorResponses(includeValidationError = true)
-    @GetMapping("/metadata")
-    override fun getPostMetadata(
+    @GetMapping("/metadatas")
+    override fun getPostMetadatas(
         @RequestParam @Size(max = 100) postIds: List<UUID>,
     ): ApiResponse<List<PostMetadataResponse>> {
         return ApiResponse.ok(postMetadataReadService.getPostMetadata(postIds))

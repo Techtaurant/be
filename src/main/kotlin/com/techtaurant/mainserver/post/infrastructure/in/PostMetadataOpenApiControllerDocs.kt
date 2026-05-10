@@ -25,7 +25,7 @@ interface PostMetadataOpenApiControllerDocs {
         description = "조회 성공",
     )
     @ApiCommonBadRequestAndUnknown
-    fun getPostMetadata(
+    fun getPostMetadatas(
         @Parameter(description = "조회할 게시물 ID 목록 (최대 100개)", required = true)
         @Size(max = 100)
         postIds: List<UUID>,

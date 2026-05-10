@@ -19,13 +19,13 @@ class CommentMetadataReadServiceTest {
     private val commentMetadataReadService = CommentMetadataReadService(commentRepository)
 
     @Test
-    @DisplayName("metadata는 좋아요수와 삭제 여부를 요청 댓글 ID 순서대로 반환한다")
+    @DisplayName("metadata는 좋아요수, 대댓글수, 삭제 여부를 요청 댓글 ID 순서대로 반환한다")
     fun getCommentMetadata_returnsLikeCountAndDeletedStateInRequestOrder() {
         // given
         val author = createUser("작성자")
         val post = createPost(author)
-        val activeComment = createComment(post = post, author = author, likeCount = 7)
-        val deletedComment = createComment(post = post, author = author, likeCount = 3).apply { deletedAt = Date() }
+        val activeComment = createComment(post = post, author = author, likeCount = 7, replyCount = 2)
+        val deletedComment = createComment(post = post, author = author, likeCount = 3, replyCount = 1).apply { deletedAt = Date() }
 
         every {
             commentRepository.findCommentsByIdsIncludingDeleted(listOf(deletedComment.id!!, activeComment.id!!))
@@ -37,8 +37,10 @@ class CommentMetadataReadServiceTest {
         // then
         assertThat(result.map { it.commentId }).containsExactly(deletedComment.id, activeComment.id)
         assertThat(result[0].likeCount).isEqualTo(3)
+        assertThat(result[0].replyCount).isEqualTo(1)
         assertThat(result[0].isDeleted).isTrue()
         assertThat(result[1].likeCount).isEqualTo(7)
+        assertThat(result[1].replyCount).isEqualTo(2)
         assertThat(result[1].isDeleted).isFalse()
     }
 
@@ -63,11 +65,13 @@ class CommentMetadataReadServiceTest {
         post: Post,
         author: User,
         likeCount: Long,
+        replyCount: Long,
     ): Comment =
         Comment(
             content = "댓글",
             post = post,
             author = author,
             likeCount = likeCount,
+            replyCount = replyCount,
         ).apply { id = UUID.randomUUID() }
 }

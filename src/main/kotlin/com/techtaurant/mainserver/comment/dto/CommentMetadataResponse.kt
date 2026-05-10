@@ -10,6 +10,8 @@ data class CommentMetadataResponse(
     val commentId: UUID,
     @field:Schema(description = "좋아요 수")
     val likeCount: Long,
+    @field:Schema(description = "대댓글 수")
+    val replyCount: Long,
     @field:Schema(description = "삭제 여부")
     val isDeleted: Boolean,
 ) {
@@ -18,6 +20,7 @@ data class CommentMetadataResponse(
             CommentMetadataResponse(
                 commentId = comment.id!!,
                 likeCount = comment.likeCount,
+                replyCount = comment.replyCount,
                 isDeleted = comment.deletedAt != null,
             )
     }

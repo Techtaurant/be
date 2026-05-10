@@ -19,8 +19,6 @@ data class CommentContentListResponse(
     val parentId: UUID?,
     @field:Schema(description = "댓글 깊이 (0: 댓글, 1: 대댓글)")
     val depth: Int,
-    @field:Schema(description = "대댓글 수")
-    val replyCount: Long,
     @field:Schema(description = "생성 시각")
     val createdAt: Date,
     @field:Schema(description = "수정 시각")
@@ -35,7 +33,6 @@ data class CommentContentListResponse(
                 authorId = comment.author.id!!,
                 parentId = comment.parent?.id,
                 depth = comment.depth,
-                replyCount = comment.replyCount,
                 createdAt = comment.createdAt,
                 updatedAt = comment.updatedAt,
             )

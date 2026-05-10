@@ -20,8 +20,8 @@ class CommentMetadataOpenApiController(
     private val commentMetadataReadService: CommentMetadataReadService,
 ) : CommentMetadataOpenApiControllerDocs {
     @ApiErrorResponses(includeValidationError = true)
-    @GetMapping("/metadata")
-    override fun getCommentMetadata(
+    @GetMapping("/metadatas")
+    override fun getCommentMetadatas(
         @RequestParam @Size(max = 100) commentIds: List<UUID>,
     ): ApiResponse<List<CommentMetadataResponse>> {
         return ApiResponse.ok(commentMetadataReadService.getCommentMetadata(commentIds))

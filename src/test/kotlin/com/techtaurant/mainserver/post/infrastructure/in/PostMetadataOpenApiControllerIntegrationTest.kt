@@ -79,7 +79,7 @@ class PostMetadataOpenApiControllerIntegrationTest : IntegrationTest() {
         given()
             .queryParam("postIds", publishedPost.id, privatePost.id)
             .`when`()
-            .get("/open-api/posts/metadata")
+            .get("/open-api/posts/metadatas")
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("data.postId", hasItem(publishedPost.id.toString()))
