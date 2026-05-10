@@ -424,6 +424,54 @@ class CommentReadControllerTest : IntegrationTest() {
     }
 
     @Test
+    @DisplayName("v2 부모 댓글 목록은 잘못된 커서가 전달되면 빈 페이지를 반환한다")
+    fun getParentCommentContents_withMalformedCursor_returnsEmptyPage() {
+        // when
+        val response =
+            RestAssured
+                .given()
+                .queryParam("cursor", "not-base64-cursor")
+                .queryParam("size", 10)
+                .`when`()
+                .get("/open-api/v2/posts/${testPost.id}/comments")
+                .then()
+                .statusCode(200)
+                .extract()
+                .response()
+
+        // then
+        assertThat(response.jsonPath().getList<Any>("data.content")).isEmpty()
+        assertThat(response.jsonPath().getBoolean("data.hasNext")).isFalse()
+        assertThat(response.jsonPath().getInt("data.size")).isZero()
+    }
+
+    @Test
+    @DisplayName("v2 대댓글 목록은 잘못된 커서가 전달되면 빈 페이지를 반환한다")
+    fun getReplyContents_withMalformedCursor_returnsEmptyPage() {
+        // given
+        val parentComment = parentComments[0]
+        createTestReplies(parentComment)
+
+        // when
+        val response =
+            RestAssured
+                .given()
+                .queryParam("cursor", "not-base64-cursor")
+                .queryParam("size", 10)
+                .`when`()
+                .get("/open-api/v2/comments/${parentComment.id}/replies")
+                .then()
+                .statusCode(200)
+                .extract()
+                .response()
+
+        // then
+        assertThat(response.jsonPath().getList<Any>("data.content")).isEmpty()
+        assertThat(response.jsonPath().getBoolean("data.hasNext")).isFalse()
+        assertThat(response.jsonPath().getInt("data.size")).isZero()
+    }
+
+    @Test
     @DisplayName("댓글 metadata는 좋아요수와 삭제 여부를 댓글 ID 순서대로 반환한다")
     fun getCommentMetadata_returnsLikeCountAndDeletedStateInRequestOrder() {
         // given
