@@ -44,7 +44,6 @@ interface AdminLinkCrawlBatchControllerDocs {
         - articleLinkSelector: `:self`
         - titleSelector: `div._13swo3b7`
         - summarySelector: `div._13swo3b8`
-        - authorSelectors: `span._1gbjvgw2`
         - publishedAtSelectors: 비워둘 수 있습니다.
 
         추천 원칙:
@@ -84,9 +83,6 @@ interface AdminLinkCrawlBatchControllerDocs {
                               "articleLinkSelector": ":self",
                               "titleSelector": "div._13swo3b7",
                               "summarySelector": "div._13swo3b8",
-                              "authorSelectors": [
-                                "span._1gbjvgw2"
-                              ],
                               "publishedAtSelectors": [],
                               "tagNames": [
                                 "toss-tech"

@@ -69,7 +69,6 @@ class LinkControllerIntegrationTest : IntegrationTest() {
                     url = "https://toss.tech/article/metric-review",
                     summary = "지표 리뷰를 실행으로 연결한 사례입니다.",
                     sourceCompanyUser = companyUser,
-                    authorName = "박종익",
                 ),
             )
 
@@ -80,7 +79,6 @@ class LinkControllerIntegrationTest : IntegrationTest() {
                     url = "https://toss.tech/article/starrocks",
                     summary = "멀티테넌트 워크로드 격리 전략을 소개합니다.",
                     sourceCompanyUser = companyUser,
-                    authorName = "이유진",
                 ),
             )
     }

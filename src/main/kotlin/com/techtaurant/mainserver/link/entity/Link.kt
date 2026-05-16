@@ -23,15 +23,13 @@ import java.time.Instant
 class Link(
     @Column(nullable = false, length = 200)
     var title: String,
-    @Column(nullable = false, length = 1000)
+    @Column(nullable = false, length = 2048)
     var url: String,
-    @Column(nullable = false, length = 80)
+    @Column(nullable = false, columnDefinition = "TEXT")
     var summary: String,
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "source_company_user_id", nullable = false)
     var sourceCompanyUser: User,
-    @Column(name = "author_name", length = 255)
-    var authorName: String? = null,
     @Column(name = "published_at")
     var publishedAt: Instant? = null,
     @ManyToMany(fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
