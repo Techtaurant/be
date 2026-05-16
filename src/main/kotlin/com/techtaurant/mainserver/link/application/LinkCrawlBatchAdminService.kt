@@ -40,7 +40,6 @@ class LinkCrawlBatchAdminService(
                     articleLinkSelector = request.articleLinkSelector.trim(),
                     titleSelector = request.titleSelector.trim(),
                     summarySelector = request.summarySelector?.trim()?.takeIf { it.isNotEmpty() },
-                    authorSelectors = normalizeLines(request.authorSelectors),
                     publishedAtSelectors = normalizeLines(request.publishedAtSelectors),
                     tagNames = normalizeLines(request.tagNames),
                     cronExpression = request.cronExpression.trim(),
@@ -77,7 +76,6 @@ class LinkCrawlBatchAdminService(
         request.articleLinkSelector?.let { batch.articleLinkSelector = it.trim() }
         request.titleSelector?.let { batch.titleSelector = it.trim() }
         request.summarySelector?.let { batch.summarySelector = it.trim().takeIf(String::isNotEmpty) }
-        request.authorSelectors?.let { batch.authorSelectors = normalizeLines(it) }
         request.publishedAtSelectors?.let { batch.publishedAtSelectors = normalizeLines(it) }
         request.tagNames?.let { batch.tagNames = normalizeLines(it) }
         request.cronExpression?.let {

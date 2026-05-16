@@ -37,8 +37,6 @@ class LinkCrawlBatch(
     var titleSelector: String,
     @Column(name = "summary_selector", length = 500)
     var summarySelector: String? = null,
-    @Column(name = "author_selectors", columnDefinition = "TEXT")
-    var authorSelectors: String? = null,
     @Column(name = "published_at_selectors", columnDefinition = "TEXT")
     var publishedAtSelectors: String? = null,
     @Column(name = "tag_names", columnDefinition = "TEXT")

@@ -153,7 +153,6 @@ class LinkBatchRunService(
                 url = snapshot.url,
                 summary = snapshot.summary,
                 sourceCompanyUser = batch.companyUser,
-                authorName = snapshot.authorName,
                 publishedAt = snapshot.publishedAt,
                 tags = tags.toMutableSet(),
             ),
@@ -168,9 +167,6 @@ class LinkBatchRunService(
         existingLink.title = snapshot.title
         if (snapshot.summary.isNotBlank()) {
             existingLink.summary = snapshot.summary
-        }
-        if (!snapshot.authorName.isNullOrBlank()) {
-            existingLink.authorName = snapshot.authorName
         }
         if (snapshot.publishedAt != null) {
             existingLink.publishedAt = snapshot.publishedAt
@@ -210,15 +206,13 @@ class LinkBatchRunService(
                 ?.takeIf { it.isNotBlank() }
                 ?: return null
 
-        val summary = batch.summarySelector?.let { resolveText(item, it) }.orEmpty().take(80)
-        val authorName = firstResolvedValue(item, batch.authorSelectors)
+        val summary = batch.summarySelector?.let { resolveText(item, it) }.orEmpty()
         val publishedAt = parsePublishedAt(firstResolvedValue(item, batch.publishedAtSelectors))
 
         return LinkSnapshot(
             title = title,
             url = absoluteUrl,
             summary = summary,
-            authorName = authorName,
             publishedAt = publishedAt,
         )
     }
@@ -323,7 +317,6 @@ class LinkBatchRunService(
         val title: String,
         val url: String,
         val summary: String,
-        val authorName: String?,
         val publishedAt: Instant?,
     )
 

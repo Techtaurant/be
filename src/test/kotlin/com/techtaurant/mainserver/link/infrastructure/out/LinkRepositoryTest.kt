@@ -53,7 +53,6 @@ class LinkRepositoryTest : IntegrationTest() {
                     url = "https://toss.tech/article/test-link",
                     summary = "요약입니다",
                     sourceCompanyUser = companyUser,
-                    authorName = "작성자",
                     publishedAt = Instant.parse("2026-04-25T10:15:30Z"),
                 ),
             )
@@ -67,7 +66,6 @@ class LinkRepositoryTest : IntegrationTest() {
                         url = "https://toss.tech/article/test-link",
                         summary = "다른 요약입니다",
                         sourceCompanyUser = companyUser,
-                        authorName = null,
                         publishedAt = null,
                     ),
                 )
@@ -76,5 +74,28 @@ class LinkRepositoryTest : IntegrationTest() {
         // Then
         assertThat(result).isNotNull()
         assertThat(savedLink.id).isNotNull()
+    }
+
+    @Test
+    @DisplayName("URL은 1000자를 초과할 수 있고 요약은 긴 본문을 저장할 수 있다")
+    fun linkShouldAllowUrlOverOneThousandCharactersAndLongSummary() {
+        // Given
+        val longUrl = "https://toss.tech/article/" + "a".repeat(1_100)
+        val longSummary = "대규모 게시글 본문 ".repeat(300)
+
+        // When
+        val savedLink =
+            linkRepository.saveAndFlush(
+                Link(
+                    title = "긴 링크와 긴 요약",
+                    url = longUrl,
+                    summary = longSummary,
+                    sourceCompanyUser = companyUser,
+                ),
+            )
+
+        // Then
+        assertThat(savedLink.url).hasSizeGreaterThan(1_000)
+        assertThat(savedLink.summary).hasSizeGreaterThan(1_000)
     }
 }

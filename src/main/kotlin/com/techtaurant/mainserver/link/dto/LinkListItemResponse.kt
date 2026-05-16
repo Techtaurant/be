@@ -17,8 +17,6 @@ data class LinkListItemResponse(
     val url: String,
     @field:Schema(description = "짧은 설명")
     val summary: String,
-    @field:Schema(description = "작성자명", nullable = true)
-    val authorName: String?,
     @field:Schema(description = "발행일", nullable = true)
     val publishedAt: Instant?,
     @field:Schema(description = "저장 여부")
@@ -39,7 +37,6 @@ data class LinkListItemResponse(
                 title = link.title,
                 url = link.url,
                 summary = link.summary,
-                authorName = link.authorName,
                 publishedAt = link.publishedAt,
                 isSaved = isSaved,
                 isRead = isRead,

@@ -25,8 +25,6 @@ data class UpdateLinkCrawlBatchRequest(
     val titleSelector: String? = null,
     @field:Schema(description = "카드 내부 요약 selector", example = "div._13swo3b8", nullable = true)
     val summarySelector: String? = null,
-    @field:ArraySchema(schema = Schema(description = "작성자 selector", example = "span._1gbjvgw2"))
-    val authorSelectors: List<String>? = null,
     @field:ArraySchema(schema = Schema(description = "발행일 selector", example = "time"))
     val publishedAtSelectors: List<String>? = null,
     @field:ArraySchema(schema = Schema(description = "수집된 링크에 부여할 태그명", example = "toss-tech"))
