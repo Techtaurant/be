@@ -52,7 +52,10 @@ class LocalOtelDisableEnvironmentPostProcessorTest {
     fun springApplication_localEnvironment_disablesOtelThroughRegisteredPostProcessor() {
         val context =
             SpringApplicationBuilder(TestApplication::class.java)
-                .properties("app.environment=local")
+                .properties(
+                    "spring.config.location=optional:classpath:/empty-application.yml",
+                    "app.environment=local",
+                )
                 .web(WebApplicationType.NONE)
                 .run()
 

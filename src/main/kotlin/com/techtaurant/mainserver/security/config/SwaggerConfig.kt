@@ -10,6 +10,7 @@ import io.swagger.v3.oas.models.security.SecurityScheme
 import io.swagger.v3.oas.models.servers.Server
 import org.springdoc.core.customizers.OpenApiCustomizer
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
@@ -21,6 +22,7 @@ import org.springframework.context.annotation.Configuration
  * baseUrl은 환경 변수 SWAGGER_BASE_URL에서 로드되며, 기본값은 http://localhost:8080
  */
 @Configuration
+@ConditionalOnProperty(name = ["springdoc.api-docs.enabled"], havingValue = "true", matchIfMissing = true)
 class SwaggerConfig(
     @param:Value("\${swagger.base-url}")
     private val swaggerBaseUrl: String,

@@ -1,2 +1,3 @@
 org.springframework.boot.env.EnvironmentPostProcessor=\
-com.techtaurant.mainserver.config.LocalOtelDisableEnvironmentPostProcessor
+com.techtaurant.mainserver.config.LocalOtelDisableEnvironmentPostProcessor,\
+com.techtaurant.mainserver.config.ProductionToolingDisableEnvironmentPostProcessor
