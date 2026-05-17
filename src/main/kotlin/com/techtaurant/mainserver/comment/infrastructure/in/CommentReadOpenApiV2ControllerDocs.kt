@@ -18,7 +18,7 @@ interface CommentReadOpenApiV2ControllerDocs {
     @Operation(
         summary = "부모 댓글 공개 콘텐츠 목록 조회",
         description =
-                "SSG/ISR 캐싱에 적합한 부모 댓글 공개 콘텐츠 목록을 조회합니다. " +
+            "SSG/ISR 캐싱에 적합한 부모 댓글 공개 콘텐츠 목록을 조회합니다. " +
                 "좋아요수, 대댓글수, 삭제 여부는 GET /open-api/comments/metadatas?commentIds=... API로 분리되었습니다. " +
                 "작성자 이름과 프로필 이미지는 GET /open-api/users/profile-images?userIds=... API를 사용하세요. " +
                 "로그인 사용자의 좋아요/차단 상태는 GET /api/comments/me/states?commentIds=... API를 사용하세요.",
@@ -38,7 +38,7 @@ interface CommentReadOpenApiV2ControllerDocs {
     @Operation(
         summary = "대댓글 공개 콘텐츠 목록 조회",
         description =
-                "SSG/ISR 캐싱에 적합한 대댓글 공개 콘텐츠 목록을 조회합니다. " +
+            "SSG/ISR 캐싱에 적합한 대댓글 공개 콘텐츠 목록을 조회합니다. " +
                 "좋아요수, 대댓글수, 삭제 여부는 GET /open-api/comments/metadatas?commentIds=... API로 분리되었습니다. " +
                 "작성자 이름과 프로필 이미지는 GET /open-api/users/profile-images?userIds=... API를 사용하세요. " +
                 "로그인 사용자의 좋아요/차단 상태는 GET /api/comments/me/states?commentIds=... API를 사용하세요.",

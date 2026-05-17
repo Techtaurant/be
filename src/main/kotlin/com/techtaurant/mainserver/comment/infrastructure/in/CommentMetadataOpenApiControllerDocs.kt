@@ -16,7 +16,7 @@ interface CommentMetadataOpenApiControllerDocs {
         summary = "댓글 공개 메타데이터 목록 조회",
         description =
             "commentIds에 해당하는 댓글의 공개 동적 메타데이터를 batch로 조회합니다. " +
-            "좋아요수, 대댓글수, 삭제 여부를 반환합니다. 존재하지 않는 댓글은 응답에서 제외됩니다.",
+                "좋아요수, 대댓글수, 삭제 여부를 반환합니다. 존재하지 않는 댓글은 응답에서 제외됩니다.",
     )
     @SwaggerApiResponse(
         responseCode = "200",
