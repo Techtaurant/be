@@ -14,6 +14,7 @@ import com.techtaurant.mainserver.user.application.UserUniqueNameService
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import jakarta.servlet.http.HttpServletResponse
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.context.annotation.Profile
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.stereotype.Service
@@ -23,10 +24,11 @@ import org.springframework.transaction.annotation.Transactional
  * 개발 환경 전용 테스트 인증 서비스
  *
  * 테스트 사용자를 조회하거나 생성하고 JWT 토큰을 쿠키로 발급한다.
- * prod 프로파일이 아닌 환경에서만 빈이 등록된다.
+ * prod 프로파일과 app.environment=prod가 아닌 환경에서만 빈이 등록된다.
  */
 @Service
 @Profile("!prod")
+@ConditionalOnExpression("!'\${app.environment:dev}'.trim().equalsIgnoreCase('prod')")
 class DevTestAuthService(
     private val userRepository: UserRepository,
     private val jwtTokenProvider: JwtTokenProvider,
