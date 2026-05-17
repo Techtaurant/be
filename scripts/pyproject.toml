@@ -1,0 +1,8 @@
+[project]
+name = "techtaurant-scripts"
+version = "0.1.0"
+description = "Techtaurant BE 개발/테스트용 스크립트"
+requires-python = ">=3.11"
+dependencies = [
+    "requests>=2.32",
+]

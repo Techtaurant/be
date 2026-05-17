@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <springProperty scope="context" name="LOG_LEVEL" source="logging.level.root" defaultValue="INFO"/>
+
+    <!-- Console formatting is intentionally separate from the OpenTelemetry appender that exports logs over OTLP. -->
+    <property name="CONSOLE_LOG_PATTERN" value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(trace_id=%X{trace_id:-}){faint} %clr(span_id=%X{span_id:-}){faint} %clr(transactionId=%X{transactionId:-}){faint} %clr(%-5level){} %clr(%logger{36}){cyan} %clr(-){faint} %msg%n${LOG_EXCEPTION_CONVERSION_WORD:-%wEx}"/>
+
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <root level="${LOG_LEVEL}">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

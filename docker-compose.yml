@@ -1,0 +1,36 @@
+# 로컬 개발 전용. 서버 배포용 docker-compose는 techtaurant-infra/dev/ 를 사용한다.
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: techtaurant-postgres
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-root}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-1234}
+      POSTGRES_DB: ${DB_NAME:-techtaurant}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - techtaurant_postgres_data:/var/lib/postgresql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-root} -d ${DB_NAME:-techtaurant}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: techtaurant-app
+    env_file: .env
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  techtaurant_postgres_data:
+    driver: local

@@ -1,0 +1,37 @@
+package com.techtaurant.mainserver.user.infrastructure.`in`
+
+import com.techtaurant.mainserver.common.dto.ApiResponse
+import com.techtaurant.mainserver.common.swagger.ApiErrorResponses
+import com.techtaurant.mainserver.security.SecurityConstants
+import com.techtaurant.mainserver.user.application.CompanyAdminService
+import com.techtaurant.mainserver.user.dto.CompanyResponse
+import com.techtaurant.mainserver.user.dto.CreateCompanyRequest
+import jakarta.validation.Valid
+import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.ResponseStatus
+import org.springframework.web.bind.annotation.RestController
+
+@RestController
+@RequestMapping("${SecurityConstants.ADMIN_API_PREFIX}/companies")
+class AdminCompanyController(
+    private val companyAdminService: CompanyAdminService,
+) : AdminCompanyControllerDocs {
+    @ApiErrorResponses(includeAuthenticationErrors = true, includeValidationError = true)
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    override fun createCompany(
+        @Valid @RequestBody request: CreateCompanyRequest,
+    ): ApiResponse<CompanyResponse> {
+        return ApiResponse.created(companyAdminService.createCompany(request))
+    }
+
+    @ApiErrorResponses(includeAuthenticationErrors = true)
+    @GetMapping
+    override fun getCompanies(): ApiResponse<List<CompanyResponse>> {
+        return ApiResponse.ok(companyAdminService.getCompanies())
+    }
+}
