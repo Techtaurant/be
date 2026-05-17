@@ -4,7 +4,6 @@ import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.link.entity.Link
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.post.entity.Tag
-import com.techtaurant.mainserver.post.enums.TagTargetType
 import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.user.entity.User
@@ -76,9 +75,8 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
     @Test
     @DisplayName("공개 링크 목록은 정적 링크 필드만 ApiResponse와 CursorPageResponse 형태로 반환한다")
     fun getLinkContents_returnsStaticFieldsOnly() {
-        val linkTag = tagRepository.save(Tag(name = "Spring", targetType = TagTargetType.LINK))
-        val anotherLinkTag = tagRepository.save(Tag(name = "Kotlin", targetType = TagTargetType.LINK))
-        val postTag = tagRepository.save(Tag(name = "Backend", targetType = TagTargetType.POST))
+        val linkTag = tagRepository.save(Tag(name = "Spring"))
+        val anotherLinkTag = tagRepository.save(Tag(name = "Kotlin"))
         val publishedAt = Instant.parse("2026-04-25T10:15:30Z")
         val link =
             saveLink(
@@ -87,7 +85,7 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                 sourceCompanyUser = firstCompany,
                 createdAtMillis = 1_000,
                 publishedAt = publishedAt,
-                tags = mutableSetOf(linkTag, anotherLinkTag, postTag),
+                tags = mutableSetOf(linkTag, anotherLinkTag),
             )
 
         given()
@@ -192,8 +190,8 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
     @Test
     @DisplayName("공개 링크 목록은 sourceCompanyUserId와 tag로 필터링한다")
     fun getLinkContents_filtersBySourceCompanyUserIdAndTag() {
-        val springTag = tagRepository.save(Tag(name = "Spring", targetType = TagTargetType.LINK))
-        val kotlinTag = tagRepository.save(Tag(name = "Kotlin", targetType = TagTargetType.LINK))
+        val springTag = tagRepository.save(Tag(name = "Spring"))
+        val kotlinTag = tagRepository.save(Tag(name = "Kotlin"))
         val firstCompanySpringLink =
             saveLink(
                 title = "First Company Spring",
@@ -289,9 +287,8 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
     @Test
     @DisplayName("공개 링크 상세 조회는 정적 링크 필드를 반환한다")
     fun getLinkContentDetail_returnsStaticFieldsOnly() {
-        val linkTag = tagRepository.save(Tag(name = "Architecture", targetType = TagTargetType.LINK))
-        val anotherLinkTag = tagRepository.save(Tag(name = "Kotlin", targetType = TagTargetType.LINK))
-        val postTag = tagRepository.save(Tag(name = "Post Only", targetType = TagTargetType.POST))
+        val linkTag = tagRepository.save(Tag(name = "Architecture"))
+        val anotherLinkTag = tagRepository.save(Tag(name = "Kotlin"))
         val publishedAt = Instant.parse("2026-04-26T11:20:30Z")
         val link =
             saveLink(
@@ -300,7 +297,7 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                 sourceCompanyUser = firstCompany,
                 createdAtMillis = 4_000,
                 publishedAt = publishedAt,
-                tags = mutableSetOf(linkTag, anotherLinkTag, postTag),
+                tags = mutableSetOf(linkTag, anotherLinkTag),
             )
 
         given()

@@ -9,7 +9,6 @@ import com.techtaurant.mainserver.link.enums.LinkStatus
 import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlBatchRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.post.entity.Tag
-import com.techtaurant.mainserver.post.enums.TagTargetType
 import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
 import org.jsoup.HttpStatusException
 import org.jsoup.nodes.Document
@@ -228,14 +227,14 @@ class LinkBatchRunService(
             return emptySet()
         }
 
-        val existingTags = tagRepository.findByNameInAndTargetType(tagNames, TagTargetType.LINK)
+        val existingTags = tagRepository.findByNameIn(tagNames)
         val existingTagNames = existingTags.map { it.name }.toSet()
         val newTags =
             tagNames.filter { it !in existingTagNames }
                 .map { tagName ->
-                    distributedLock.withLockAndTransaction("link-tag:$tagName") {
-                        tagRepository.findByNameAndTargetType(tagName, TagTargetType.LINK)
-                            ?: tagRepository.save(Tag(name = tagName, targetType = TagTargetType.LINK))
+                    distributedLock.withLockAndTransaction("tag:$tagName") {
+                        tagRepository.findByName(tagName)
+                            ?: tagRepository.save(Tag(name = tagName))
                     }
                 }
 

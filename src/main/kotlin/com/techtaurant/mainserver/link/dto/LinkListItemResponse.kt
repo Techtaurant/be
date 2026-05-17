@@ -1,7 +1,6 @@
 package com.techtaurant.mainserver.link.dto
 
 import com.techtaurant.mainserver.link.entity.Link
-import com.techtaurant.mainserver.post.enums.TagTargetType
 import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
 import java.time.Instant
@@ -42,7 +41,6 @@ data class LinkListItemResponse(
                 isRead = isRead,
                 tags =
                     link.tags
-                        .filter { it.targetType == TagTargetType.LINK }
                         .map { it.name }
                         .sorted(),
             )

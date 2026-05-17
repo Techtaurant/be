@@ -3,6 +3,7 @@ package com.techtaurant.mainserver.link.application
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.status.DefaultStatus
+import com.techtaurant.mainserver.link.dto.LinkCursor
 import com.techtaurant.mainserver.link.dto.LinkContentDetailResponse
 import com.techtaurant.mainserver.link.dto.LinkContentListItemResponse
 import com.techtaurant.mainserver.link.dto.LinkListItemResponse
@@ -11,10 +12,10 @@ import com.techtaurant.mainserver.link.enums.LinkStatus
 import com.techtaurant.mainserver.link.infrastructure.out.LinkReadLogRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
-import com.techtaurant.mainserver.post.enums.TagTargetType
 import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -27,10 +28,6 @@ class LinkReadService(
     private val linkReadLogRepository: LinkReadLogRepository,
     private val userRepository: UserRepository,
 ) {
-    companion object {
-        private const val CURSOR_DELIMITER = "_"
-    }
-
     fun getPublicLinkContents(
         cursor: String?,
         size: Int,
@@ -106,39 +103,43 @@ class LinkReadService(
         sourceCompanyUserId: UUID?,
         tag: String?,
     ): CursorPageResponse<Link> {
-        val parsedCursor = cursor?.let { parseCursor(it) }
-        val sortedLinks =
-            findLinks(sourceCompanyUserId)
-                .filter { link ->
-                    tag.isNullOrBlank() ||
-                        link.tags.any { candidate ->
-                            candidate.targetType == TagTargetType.LINK && candidate.name == tag
-                        }
-                }.sortedWith(
-                    compareByDescending<Link> { it.createdAt.time }
-                        .thenByDescending { it.id.toString() },
+        val linkCursor = cursor?.let { LinkCursor.decode(it) }
+
+        if (cursor != null && linkCursor == null) {
+            throw ApiException(DefaultStatus.BAD_REQUEST)
+        }
+
+        val normalizedTag = tag?.takeIf { it.isNotBlank() }
+        val pageable = PageRequest.of(0, size + 1)
+        val linkIds =
+            if (linkCursor == null) {
+                linkRepository.findFirstPageIds(
+                    sourceCompanyUserId = sourceCompanyUserId,
+                    tag = normalizedTag,
+                    pageable = pageable,
                 )
-
-        val filteredLinks =
-            if (parsedCursor == null) {
-                sortedLinks
             } else {
-                val (lastCreatedAt, lastLinkId) = parsedCursor
-                sortedLinks.filter { link ->
-                    link.createdAt.time < lastCreatedAt ||
-                        (link.createdAt.time == lastCreatedAt && link.id.toString() < lastLinkId.toString())
-                }
+                linkRepository.findNextPageIds(
+                    sourceCompanyUserId = sourceCompanyUserId,
+                    tag = normalizedTag,
+                    cursorCreatedAt = linkCursor.createdAt,
+                    cursorId = linkCursor.id,
+                    pageable = pageable,
+                )
             }
-
-        val limit = size + 1
-        val pagedLinks = filteredLinks.take(limit)
-        val hasNext = pagedLinks.size > size
-        val contentLinks = pagedLinks.take(size)
+        val hasNext = linkIds.size > size
+        val contentLinkIds = linkIds.take(size)
+        val linksById =
+            if (contentLinkIds.isEmpty()) {
+                emptyMap()
+            } else {
+                linkRepository.findAllByIdInWithSourceCompanyUserAndTags(contentLinkIds).associateBy { it.id }
+            }
+        val contentLinks = contentLinkIds.mapNotNull(linksById::get)
 
         val nextCursor =
             if (hasNext && contentLinks.isNotEmpty()) {
-                val lastItem = contentLinks.last()
-                "${lastItem.createdAt.time}$CURSOR_DELIMITER${lastItem.id}"
+                LinkCursor.from(contentLinks.last()).encode()
             } else {
                 null
             }
@@ -151,13 +152,6 @@ class LinkReadService(
         )
     }
 
-    private fun findLinks(sourceCompanyUserId: UUID?): List<Link> =
-        if (sourceCompanyUserId == null) {
-            linkRepository.findAllWithTags()
-        } else {
-            linkRepository.findAllBySourceCompanyUserIdWithTags(sourceCompanyUserId)
-        }
-
     private fun validateCompany(companyUserId: UUID) {
         val company =
             userRepository.findById(companyUserId).orElseThrow {
@@ -166,16 +160,6 @@ class LinkReadService(
 
         if (company.role != UserRole.COMPANY) {
             throw ApiException(UserStatus.COMPANY_NOT_FOUND)
-        }
-    }
-
-    private fun parseCursor(cursor: String): Pair<Long, UUID> {
-        return runCatching {
-            val parts = cursor.split(CURSOR_DELIMITER, limit = 2)
-            require(parts.size == 2)
-            parts[0].toLong() to UUID.fromString(parts[1])
-        }.getOrElse {
-            throw ApiException(DefaultStatus.BAD_REQUEST)
         }
     }
 }

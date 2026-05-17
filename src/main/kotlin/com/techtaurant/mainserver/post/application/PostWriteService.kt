@@ -14,7 +14,6 @@ import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.Tag
 import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
-import com.techtaurant.mainserver.post.enums.TagTargetType
 import com.techtaurant.mainserver.post.infrastructure.out.CategoryRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
@@ -349,7 +348,7 @@ class PostWriteService(
             return emptyList()
         }
 
-        val existingTags = tagRepository.findByNameInAndTargetType(normalizedNames, TagTargetType.POST)
+        val existingTags = tagRepository.findByNameIn(normalizedNames)
         val existingTagNames = existingTags.map { it.name }.toSet()
         val newTagNames = normalizedNames.filter { it !in existingTagNames }
 
@@ -357,8 +356,8 @@ class PostWriteService(
             newTagNames.map { tagName ->
                 val lockKey = "tag:$tagName"
                 distributedLock.withLockAndTransaction(lockKey) {
-                    tagRepository.findByNameAndTargetType(tagName, TagTargetType.POST)
-                        ?: tagRepository.save(Tag(name = tagName, targetType = TagTargetType.POST))
+                    tagRepository.findByName(tagName)
+                        ?: tagRepository.save(Tag(name = tagName))
                 }
             }
 
