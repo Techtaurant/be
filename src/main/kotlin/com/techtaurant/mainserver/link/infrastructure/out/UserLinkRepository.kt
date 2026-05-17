@@ -10,11 +10,6 @@ interface UserLinkRepository : JpaRepository<UserLink, UUID> {
         linkId: UUID,
     ): UserLink?
 
-    fun existsByUserIdAndLinkId(
-        userId: UUID,
-        linkId: UUID,
-    ): Boolean
-
     fun findByUserIdAndLinkIdIn(
         userId: UUID,
         linkIds: List<UUID>,
