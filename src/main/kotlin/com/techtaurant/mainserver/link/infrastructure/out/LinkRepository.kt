@@ -13,6 +13,20 @@ interface LinkRepository : JpaRepository<Link, UUID> {
         """
         SELECT DISTINCT l
         FROM Link l
+        JOIN FETCH l.sourceCompanyUser
+        LEFT JOIN FETCH l.tags
+        WHERE l.id = :linkId
+        """,
+    )
+    fun findByIdWithSourceCompanyUserAndTags(
+        @Param("linkId") linkId: UUID,
+    ): Link?
+
+    @Query(
+        """
+        SELECT DISTINCT l
+        FROM Link l
+        JOIN FETCH l.sourceCompanyUser
         LEFT JOIN FETCH l.tags
         """,
     )
@@ -22,6 +36,7 @@ interface LinkRepository : JpaRepository<Link, UUID> {
         """
         SELECT DISTINCT l
         FROM Link l
+        JOIN FETCH l.sourceCompanyUser
         LEFT JOIN FETCH l.tags
         WHERE l.sourceCompanyUser.id = :companyUserId
         """,
