@@ -39,4 +39,8 @@ class Link(
         inverseJoinColumns = [JoinColumn(name = "tag_id")],
     )
     var tags: MutableSet<Tag> = mutableSetOf(),
+    @Column(name = "view_count", nullable = false)
+    var viewCount: Long = 0,
+    @Column(name = "like_count", nullable = false)
+    var likeCount: Long = 0,
 ) : EntityBase()
