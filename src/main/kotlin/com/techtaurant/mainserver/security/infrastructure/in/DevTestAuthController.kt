@@ -9,6 +9,7 @@ import com.techtaurant.mainserver.security.dto.DevTestLoginResponse
 import com.techtaurant.mainserver.security.service.DevTestAuthService
 import jakarta.servlet.http.HttpServletResponse
 import jakarta.validation.Valid
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression
 import org.springframework.context.annotation.Profile
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -18,10 +19,11 @@ import org.springframework.web.bind.annotation.RestController
 /**
  * 개발 환경 전용 테스트 인증 컨트롤러
  *
- * prod 프로파일이 아닌 환경에서 테스트 사용자로 JWT 토큰을 발급받을 수 있다.
+ * prod 프로파일과 app.environment=prod가 아닌 환경에서 테스트 사용자로 JWT 토큰을 발급받을 수 있다.
  */
 @RestController
 @Profile("!prod")
+@ConditionalOnExpression("!'\${app.environment:dev}'.trim().equalsIgnoreCase('prod')")
 @RequestMapping("${SecurityConstants.OPEN_API_PREFIX}/dev/auth")
 class DevTestAuthController(
     private val devTestAuthService: DevTestAuthService,
