@@ -45,7 +45,7 @@ class LinkBatchRunService(
                 ApiException(LinkStatus.LINK_CRAWL_BATCH_NOT_FOUND)
             }
 
-        val tags = lazy { resolveLinkTags(batch.tagNames) }
+        val tags = resolveLinkTags(batch.tagNames)
         val result = crawl(batch, tags)
         batch.lastTriggeredAt = Instant.now()
 
@@ -54,16 +54,16 @@ class LinkBatchRunService(
 
     private fun crawl(
         batch: LinkCrawlBatch,
-        tags: Lazy<Set<Tag>>,
+        tags: Set<Tag>,
     ): LinkBatchRunResponse {
         var crawlResult = emptyCrawlResult()
         var page = batch.startPage
 
         while (true) {
             val pageResult = crawlPage(batch, tags, page) ?: break
-            crawlResult = crawlResult.mergePageResult(pageResult)
+            crawlResult = crawlResult.mergePageResult(pageResult.response)
 
-            if (!pageResult.hasNewLinks()) {
+            if (!pageResult.hasProgress) {
                 break
             }
             page++
@@ -74,12 +74,12 @@ class LinkBatchRunService(
 
     private fun crawlPage(
         batch: LinkCrawlBatch,
-        tags: Lazy<Set<Tag>>,
+        tags: Set<Tag>,
         page: Int,
-    ): LinkBatchRunResponse? {
+    ): LinkPageCrawlResult? {
         val pageUrl = buildPageUrl(batch.baseUrl, batch.pageUriTemplate, page)
         val document = fetchPageOrNull(pageUrl) ?: return null
-        var pageResult = emptyCrawlResult()
+        var pageResult = emptyPageCrawlResult()
 
         document.select(batch.itemSelector).forEach { item ->
             pageResult = pageResult.recordCollectionResult(collectLinkItem(item, batch, tags, pageUrl))
@@ -96,21 +96,36 @@ class LinkBatchRunService(
             skippedCount = 0,
         )
 
-    private fun LinkBatchRunResponse.recordCollectionResult(result: LinkCollectionResult): LinkBatchRunResponse =
-        when (result) {
-            LinkCollectionResult.CREATED_NEW_LINK ->
-                copy(
-                    collectedCount = collectedCount + 1,
-                    newLinkCount = newLinkCount + 1,
-                )
-            LinkCollectionResult.UPDATED_EXISTING_LINK ->
-                copy(
-                    collectedCount = collectedCount + 1,
-                    existingLinkCount = existingLinkCount + 1,
-                )
-            LinkCollectionResult.SKIPPED ->
-                copy(skippedCount = skippedCount + 1)
-        }
+    private fun emptyPageCrawlResult(): LinkPageCrawlResult =
+        LinkPageCrawlResult(
+            response = emptyCrawlResult(),
+            hasProgress = false,
+        )
+
+    private fun LinkPageCrawlResult.recordCollectionResult(result: LinkCollectionResult): LinkPageCrawlResult {
+        val updatedResponse =
+            when (result) {
+                LinkCollectionResult.CREATED_NEW_LINK ->
+                    response.copy(
+                        collectedCount = response.collectedCount + 1,
+                        newLinkCount = response.newLinkCount + 1,
+                    )
+                LinkCollectionResult.CONNECTED_EXISTING_LINK,
+                LinkCollectionResult.UPDATED_EXISTING_LINK,
+                ->
+                    response.copy(
+                        collectedCount = response.collectedCount + 1,
+                        existingLinkCount = response.existingLinkCount + 1,
+                    )
+                LinkCollectionResult.SKIPPED ->
+                    response.copy(skippedCount = response.skippedCount + 1)
+            }
+
+        return copy(
+            response = updatedResponse,
+            hasProgress = hasProgress || result.hasProgress,
+        )
+    }
 
     private fun LinkBatchRunResponse.mergePageResult(pageResult: LinkBatchRunResponse): LinkBatchRunResponse =
         copy(
@@ -120,12 +135,10 @@ class LinkBatchRunService(
             skippedCount = skippedCount + pageResult.skippedCount,
         )
 
-    private fun LinkBatchRunResponse.hasNewLinks(): Boolean = newLinkCount > 0
-
     private fun collectLinkItem(
         item: Element,
         batch: LinkCrawlBatch,
-        tags: Lazy<Set<Tag>>,
+        tags: Set<Tag>,
         pageUrl: String,
     ): LinkCollectionResult {
         val snapshot = extractSnapshot(item, batch, pageUrl) ?: return LinkCollectionResult.SKIPPED
@@ -135,18 +148,22 @@ class LinkBatchRunService(
     private fun saveNewLinkOrRefreshExistingLink(
         snapshot: LinkSnapshot,
         batch: LinkCrawlBatch,
-        tags: Lazy<Set<Tag>>,
+        tags: Set<Tag>,
     ): LinkCollectionResult {
         val existingLink = linkRepository.findByUrl(snapshot.url)
         if (existingLink == null) {
-            val savedLink = saveNewLink(snapshot, tags.value)
+            val savedLink = saveNewLink(snapshot, tags)
             connectUserToLink(batch.companyUser, savedLink)
             return LinkCollectionResult.CREATED_NEW_LINK
         }
 
         refreshExistingLink(existingLink, snapshot)
-        connectUserToLink(batch.companyUser, existingLink)
-        return LinkCollectionResult.UPDATED_EXISTING_LINK
+        val isConnected = connectUserToLink(batch.companyUser, existingLink)
+        return if (isConnected) {
+            LinkCollectionResult.CONNECTED_EXISTING_LINK
+        } else {
+            LinkCollectionResult.UPDATED_EXISTING_LINK
+        }
     }
 
     private fun saveNewLink(
@@ -179,13 +196,16 @@ class LinkBatchRunService(
     private fun connectUserToLink(
         user: User,
         link: Link,
-    ) {
+    ): Boolean {
         val userId = user.id!!
         val linkId = link.id!!
 
         if (userLinkRepository.findByUserIdAndLinkId(userId, linkId) == null) {
             userLinkRepository.save(UserLink(user = user, link = link))
+            return true
         }
+
+        return false
     }
 
     private fun fetchPageOrNull(pageUrl: String): Document? {
@@ -331,9 +351,17 @@ class LinkBatchRunService(
         val publishedAt: Instant?,
     )
 
-    private enum class LinkCollectionResult {
-        CREATED_NEW_LINK,
-        UPDATED_EXISTING_LINK,
-        SKIPPED,
+    private data class LinkPageCrawlResult(
+        val response: LinkBatchRunResponse,
+        val hasProgress: Boolean,
+    )
+
+    private enum class LinkCollectionResult(
+        val hasProgress: Boolean,
+    ) {
+        CREATED_NEW_LINK(true),
+        CONNECTED_EXISTING_LINK(true),
+        UPDATED_EXISTING_LINK(false),
+        SKIPPED(false),
     }
 }
