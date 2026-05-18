@@ -93,6 +93,7 @@ class LinkControllerIntegrationTest : IntegrationTest() {
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("data.content", hasSize<Any>(2))
+            .body("data.content.find { it.id == '${firstLink.id}' }.sourceCompanyUserId", equalTo(companyUser.id.toString()))
             .body("data.content.find { it.id == '${firstLink.id}' }.isSaved", equalTo(false))
             .body("data.content.find { it.id == '${firstLink.id}' }.isRead", equalTo(false))
 

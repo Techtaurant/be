@@ -16,6 +16,8 @@ data class LinkListItemResponse(
     val url: String,
     @field:Schema(description = "짧은 설명")
     val summary: String,
+    @field:Schema(description = "출처 회사 사용자 ID")
+    val sourceCompanyUserId: UUID,
     @field:Schema(description = "발행일", nullable = true)
     val publishedAt: Instant?,
     @field:Schema(description = "저장 여부")
@@ -36,6 +38,7 @@ data class LinkListItemResponse(
                 title = link.title,
                 url = link.url,
                 summary = link.summary,
+                sourceCompanyUserId = link.sourceCompanyUser.id ?: throw IllegalStateException("회사 사용자 ID가 없습니다"),
                 publishedAt = link.publishedAt,
                 isSaved = isSaved,
                 isRead = isRead,
