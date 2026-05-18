@@ -92,6 +92,7 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                 publishedAt = publishedAt,
                 tags = mutableSetOf(linkTag, anotherLinkTag),
             )
+        userLinkRepository.saveAndFlush(UserLink(user = secondCompany, link = link))
 
         given()
             .queryParam("size", 1)
@@ -111,7 +112,6 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                     "url",
                     "summary",
                     "sourceCompanyUserId",
-                    "sourceCompanyUserIds",
                     "publishedAt",
                     "tags",
                     "createdAt",
@@ -123,7 +123,6 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
             .body("data.content[0].url", equalTo("https://example.com/public-link"))
             .body("data.content[0].summary", equalTo("Public Link summary"))
             .body("data.content[0].sourceCompanyUserId", equalTo(firstCompany.id.toString()))
-            .body("data.content[0].sourceCompanyUserIds", containsInAnyOrder(firstCompany.id.toString()))
             .body("data.content[0].publishedAt", equalTo("2026-04-25T10:15:30Z"))
             .body("data.content[0].tags", containsInAnyOrder("Kotlin", "Spring"))
             .body("data.content[0].createdAt", notNullValue())
@@ -306,6 +305,7 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                 publishedAt = publishedAt,
                 tags = mutableSetOf(linkTag, anotherLinkTag),
             )
+        userLinkRepository.saveAndFlush(UserLink(user = secondCompany, link = link))
 
         given()
             .`when`()
@@ -321,7 +321,6 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                     "url",
                     "summary",
                     "sourceCompanyUserId",
-                    "sourceCompanyUserIds",
                     "publishedAt",
                     "tags",
                     "createdAt",
@@ -333,7 +332,6 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
             .body("data.url", equalTo("https://example.com/detail-link"))
             .body("data.summary", equalTo("Detail Link summary"))
             .body("data.sourceCompanyUserId", equalTo(firstCompany.id.toString()))
-            .body("data.sourceCompanyUserIds", containsInAnyOrder(firstCompany.id.toString()))
             .body("data.publishedAt", equalTo("2026-04-26T11:20:30Z"))
             .body("data.tags", containsInAnyOrder("Architecture", "Kotlin"))
             .body("data.createdAt", notNullValue())

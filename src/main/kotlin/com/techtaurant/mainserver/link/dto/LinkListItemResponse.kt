@@ -16,10 +16,8 @@ data class LinkListItemResponse(
     val url: String,
     @field:Schema(description = "짧은 설명")
     val summary: String,
-    @field:Schema(description = "대표 출처 회사 사용자 ID", nullable = true)
+    @field:Schema(description = "최초 출처 사용자 ID", nullable = true)
     val sourceCompanyUserId: UUID?,
-    @field:ArraySchema(schema = Schema(description = "출처 회사 사용자 ID", example = "019e34c1-7b2f-70a2-bb16-e89d5b16b311"))
-    val sourceCompanyUserIds: List<UUID>,
     @field:Schema(description = "발행일", nullable = true)
     val publishedAt: Instant?,
     @field:Schema(description = "저장 여부")
@@ -32,18 +30,16 @@ data class LinkListItemResponse(
     companion object {
         fun from(
             link: Link,
-            sourceCompanyUserIds: List<UUID>,
+            sourceCompanyUserId: UUID?,
             isSaved: Boolean,
             isRead: Boolean,
-            preferredSourceCompanyUserId: UUID? = null,
         ): LinkListItemResponse {
             return LinkListItemResponse(
                 id = link.id ?: throw IllegalStateException("링크 ID가 없습니다"),
                 title = link.title,
                 url = link.url,
                 summary = link.summary,
-                sourceCompanyUserId = resolvePrimarySourceCompanyUserId(sourceCompanyUserIds, preferredSourceCompanyUserId),
-                sourceCompanyUserIds = sourceCompanyUserIds,
+                sourceCompanyUserId = sourceCompanyUserId,
                 publishedAt = link.publishedAt,
                 isSaved = isSaved,
                 isRead = isRead,
@@ -53,12 +49,5 @@ data class LinkListItemResponse(
                         .sorted(),
             )
         }
-
-        private fun resolvePrimarySourceCompanyUserId(
-            sourceCompanyUserIds: List<UUID>,
-            preferredSourceCompanyUserId: UUID?,
-        ): UUID? =
-            preferredSourceCompanyUserId?.takeIf { it in sourceCompanyUserIds }
-                ?: sourceCompanyUserIds.minByOrNull { it.toString() }
     }
 }

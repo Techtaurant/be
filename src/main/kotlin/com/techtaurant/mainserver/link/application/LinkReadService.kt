@@ -40,15 +40,14 @@ class LinkReadService(
                 sourceCompanyUserId = sourceCompanyUserId,
                 tag = tag,
             )
-        val sourceCompanyUserIdsByLinkId = findSourceCompanyUserIdsByLinkId(linkPage.content)
+        val sourceCompanyUserIdByLinkId = findSourceCompanyUserIdByLinkId(linkPage.content)
 
         return CursorPageResponse(
             content =
                 linkPage.content.map { link ->
                     LinkContentListItemResponse.from(
                         link = link,
-                        sourceCompanyUserIds = sourceCompanyUserIdsByLinkId[link.id].orEmpty(),
-                        preferredSourceCompanyUserId = sourceCompanyUserId,
+                        sourceCompanyUserId = sourceCompanyUserIdByLinkId[link.id],
                     )
                 },
             nextCursor = linkPage.nextCursor,
@@ -64,7 +63,7 @@ class LinkReadService(
 
         return LinkContentDetailResponse.from(
             link = link,
-            sourceCompanyUserIds = findSourceCompanyUserIdsByLinkId(listOf(link))[link.id].orEmpty(),
+            sourceCompanyUserId = findSourceCompanyUserIdByLinkId(listOf(link))[link.id],
         )
     }
 
@@ -86,7 +85,7 @@ class LinkReadService(
             )
         val contentLinks = linkPage.content
         val linkIds = contentLinks.mapNotNull { it.id }
-        val sourceCompanyUserIdsByLinkId = findSourceCompanyUserIdsByLinkId(contentLinks)
+        val sourceCompanyUserIdByLinkId = findSourceCompanyUserIdByLinkId(contentLinks)
         val savedLinkIds = userLinkRepository.findByUserIdAndLinkIdIn(userId, linkIds).map { it.link.id!! }.toSet()
         val readLinkIds = linkReadLogRepository.findByUserIdAndLinkIdIn(userId, linkIds).map { it.link.id!! }.toSet()
 
@@ -95,10 +94,9 @@ class LinkReadService(
                 val linkId = link.id ?: throw ApiException(LinkStatus.LINK_NOT_FOUND)
                 LinkListItemResponse.from(
                     link = link,
-                    sourceCompanyUserIds = sourceCompanyUserIdsByLinkId[linkId].orEmpty(),
+                    sourceCompanyUserId = sourceCompanyUserIdByLinkId[linkId],
                     isSaved = linkId in savedLinkIds,
                     isRead = linkId in readLinkIds,
-                    preferredSourceCompanyUserId = companyUserId,
                 )
             }
 
@@ -176,19 +174,15 @@ class LinkReadService(
         }
     }
 
-    private fun findSourceCompanyUserIdsByLinkId(links: List<Link>): Map<UUID, List<UUID>> {
+    private fun findSourceCompanyUserIdByLinkId(links: List<Link>): Map<UUID, UUID> {
         val linkIds = links.mapNotNull { it.id }
         if (linkIds.isEmpty()) {
             return emptyMap()
         }
 
-        return userLinkRepository.findAllByLinkIdInWithUserAndLink(linkIds)
-            .groupBy { it.link.id!! }
-            .mapValues { (_, userLinks) ->
-                userLinks
-                    .mapNotNull { it.user.id }
-                    .distinct()
-                    .sortedBy { it.toString() }
-            }
+        return linkIds.associateWith { linkId ->
+            userLinkRepository.findFirstByLink_IdOrderByCreatedAtAscIdAsc(linkId)?.user?.id
+                ?: throw ApiException(LinkStatus.LINK_NOT_FOUND)
+        }
     }
 }
