@@ -2,7 +2,6 @@ package com.techtaurant.mainserver.link.application
 
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.common.exception.ApiException
-import com.techtaurant.mainserver.common.status.DefaultStatus
 import com.techtaurant.mainserver.link.dto.LinkContentDetailResponse
 import com.techtaurant.mainserver.link.dto.LinkContentListItemResponse
 import com.techtaurant.mainserver.link.dto.LinkCursor
@@ -41,9 +40,17 @@ class LinkReadService(
                 sourceCompanyUserId = sourceCompanyUserId,
                 tag = tag,
             )
+        val sourceCompanyUserIdsByLinkId = findSourceCompanyUserIdsByLinkId(linkPage.content)
 
         return CursorPageResponse(
-            content = linkPage.content.map(LinkContentListItemResponse::from),
+            content =
+                linkPage.content.map { link ->
+                    LinkContentListItemResponse.from(
+                        link = link,
+                        sourceCompanyUserIds = sourceCompanyUserIdsByLinkId[link.id].orEmpty(),
+                        preferredSourceCompanyUserId = sourceCompanyUserId,
+                    )
+                },
             nextCursor = linkPage.nextCursor,
             hasNext = linkPage.hasNext,
             size = linkPage.size,
@@ -52,10 +59,13 @@ class LinkReadService(
 
     fun getPublicLinkContentDetail(linkId: UUID): LinkContentDetailResponse {
         val link =
-            linkRepository.findByIdWithSourceCompanyUserAndTags(linkId)
+            linkRepository.findByIdWithTags(linkId)
                 ?: throw ApiException(LinkStatus.LINK_NOT_FOUND)
 
-        return LinkContentDetailResponse.from(link)
+        return LinkContentDetailResponse.from(
+            link = link,
+            sourceCompanyUserIds = findSourceCompanyUserIdsByLinkId(listOf(link))[link.id].orEmpty(),
+        )
     }
 
     fun getCompanyLinks(
@@ -76,6 +86,7 @@ class LinkReadService(
             )
         val contentLinks = linkPage.content
         val linkIds = contentLinks.mapNotNull { it.id }
+        val sourceCompanyUserIdsByLinkId = findSourceCompanyUserIdsByLinkId(contentLinks)
         val savedLinkIds = userLinkRepository.findByUserIdAndLinkIdIn(userId, linkIds).map { it.link.id!! }.toSet()
         val readLinkIds = linkReadLogRepository.findByUserIdAndLinkIdIn(userId, linkIds).map { it.link.id!! }.toSet()
 
@@ -84,8 +95,10 @@ class LinkReadService(
                 val linkId = link.id ?: throw ApiException(LinkStatus.LINK_NOT_FOUND)
                 LinkListItemResponse.from(
                     link = link,
+                    sourceCompanyUserIds = sourceCompanyUserIdsByLinkId[linkId].orEmpty(),
                     isSaved = linkId in savedLinkIds,
                     isRead = linkId in readLinkIds,
+                    preferredSourceCompanyUserId = companyUserId,
                 )
             }
 
@@ -106,7 +119,7 @@ class LinkReadService(
         val linkCursor = cursor?.let { LinkCursor.decode(it) }
 
         if (cursor != null && linkCursor == null) {
-            throw ApiException(DefaultStatus.BAD_REQUEST)
+            throw ApiException(LinkStatus.INVALID_LINK_CURSOR)
         }
 
         val normalizedTag = tag?.takeIf { it.isNotBlank() }
@@ -133,7 +146,7 @@ class LinkReadService(
             if (contentLinkIds.isEmpty()) {
                 emptyMap()
             } else {
-                linkRepository.findAllByIdInWithSourceCompanyUserAndTags(contentLinkIds).associateBy { it.id }
+                linkRepository.findAllByIdInWithTags(contentLinkIds).associateBy { it.id }
             }
         val contentLinks = contentLinkIds.mapNotNull(linksById::get)
 
@@ -161,5 +174,21 @@ class LinkReadService(
         if (company.role != UserRole.COMPANY) {
             throw ApiException(UserStatus.COMPANY_NOT_FOUND)
         }
+    }
+
+    private fun findSourceCompanyUserIdsByLinkId(links: List<Link>): Map<UUID, List<UUID>> {
+        val linkIds = links.mapNotNull { it.id }
+        if (linkIds.isEmpty()) {
+            return emptyMap()
+        }
+
+        return userLinkRepository.findAllByLinkIdInWithUserAndLink(linkIds)
+            .groupBy { it.link.id!! }
+            .mapValues { (_, userLinks) ->
+                userLinks
+                    .mapNotNull { it.user.id }
+                    .distinct()
+                    .sortedBy { it.toString() }
+            }
     }
 }

@@ -1,15 +1,17 @@
 package com.techtaurant.mainserver.link.application
 
 import com.techtaurant.mainserver.common.exception.ApiException
-import com.techtaurant.mainserver.common.lock.DistributedLock
 import com.techtaurant.mainserver.link.dto.LinkBatchRunResponse
 import com.techtaurant.mainserver.link.entity.Link
 import com.techtaurant.mainserver.link.entity.LinkCrawlBatch
+import com.techtaurant.mainserver.link.entity.UserLink
 import com.techtaurant.mainserver.link.enums.LinkStatus
 import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlBatchRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
+import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
+import com.techtaurant.mainserver.post.application.TagWriteService
 import com.techtaurant.mainserver.post.entity.Tag
-import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
+import com.techtaurant.mainserver.user.entity.User
 import org.jsoup.HttpStatusException
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -28,8 +30,8 @@ import java.util.UUID
 class LinkBatchRunService(
     private val linkCrawlBatchRepository: LinkCrawlBatchRepository,
     private val linkRepository: LinkRepository,
-    private val tagRepository: TagRepository,
-    private val distributedLock: DistributedLock,
+    private val userLinkRepository: UserLinkRepository,
+    private val tagWriteService: TagWriteService,
     private val linkDocumentFetcher: LinkDocumentFetcher,
 ) {
     companion object {
@@ -43,7 +45,7 @@ class LinkBatchRunService(
                 ApiException(LinkStatus.LINK_CRAWL_BATCH_NOT_FOUND)
             }
 
-        val tags = resolveLinkTags(batch.tagNames)
+        val tags = lazy { resolveLinkTags(batch.tagNames) }
         val result = crawl(batch, tags)
         batch.lastTriggeredAt = Instant.now()
 
@@ -52,7 +54,7 @@ class LinkBatchRunService(
 
     private fun crawl(
         batch: LinkCrawlBatch,
-        tags: Set<Tag>,
+        tags: Lazy<Set<Tag>>,
     ): LinkBatchRunResponse {
         var crawlResult = emptyCrawlResult()
         var page = batch.startPage
@@ -72,7 +74,7 @@ class LinkBatchRunService(
 
     private fun crawlPage(
         batch: LinkCrawlBatch,
-        tags: Set<Tag>,
+        tags: Lazy<Set<Tag>>,
         page: Int,
     ): LinkBatchRunResponse? {
         val pageUrl = buildPageUrl(batch.baseUrl, batch.pageUriTemplate, page)
@@ -123,7 +125,7 @@ class LinkBatchRunService(
     private fun collectLinkItem(
         item: Element,
         batch: LinkCrawlBatch,
-        tags: Set<Tag>,
+        tags: Lazy<Set<Tag>>,
         pageUrl: String,
     ): LinkCollectionResult {
         val snapshot = extractSnapshot(item, batch, pageUrl) ?: return LinkCollectionResult.SKIPPED
@@ -133,39 +135,37 @@ class LinkBatchRunService(
     private fun saveNewLinkOrRefreshExistingLink(
         snapshot: LinkSnapshot,
         batch: LinkCrawlBatch,
-        tags: Set<Tag>,
+        tags: Lazy<Set<Tag>>,
     ): LinkCollectionResult {
         val existingLink = linkRepository.findByUrl(snapshot.url)
         if (existingLink == null) {
-            saveNewLink(snapshot, batch, tags)
+            val savedLink = saveNewLink(snapshot, tags.value)
+            connectUserToLink(batch.companyUser, savedLink)
             return LinkCollectionResult.CREATED_NEW_LINK
         }
 
-        refreshExistingLink(existingLink, snapshot, tags)
+        refreshExistingLink(existingLink, snapshot)
+        connectUserToLink(batch.companyUser, existingLink)
         return LinkCollectionResult.UPDATED_EXISTING_LINK
     }
 
     private fun saveNewLink(
         snapshot: LinkSnapshot,
-        batch: LinkCrawlBatch,
         tags: Set<Tag>,
-    ) {
-        linkRepository.save(
+    ): Link {
+        return linkRepository.save(
             Link(
                 title = snapshot.title,
                 url = snapshot.url,
                 summary = snapshot.summary,
-                sourceCompanyUser = batch.companyUser,
                 publishedAt = snapshot.publishedAt,
-                tags = tags.toMutableSet(),
-            ),
+            ).apply { replaceTags(tags) },
         )
     }
 
     private fun refreshExistingLink(
         existingLink: Link,
         snapshot: LinkSnapshot,
-        tags: Set<Tag>,
     ) {
         existingLink.title = snapshot.title
         if (snapshot.summary.isNotBlank()) {
@@ -174,7 +174,18 @@ class LinkBatchRunService(
         if (snapshot.publishedAt != null) {
             existingLink.publishedAt = snapshot.publishedAt
         }
-        existingLink.tags.addAll(tags)
+    }
+
+    private fun connectUserToLink(
+        user: User,
+        link: Link,
+    ) {
+        val userId = user.id!!
+        val linkId = link.id!!
+
+        if (userLinkRepository.findByUserIdAndLinkId(userId, linkId) == null) {
+            userLinkRepository.save(UserLink(user = user, link = link))
+        }
     }
 
     private fun fetchPageOrNull(pageUrl: String): Document? {
@@ -227,22 +238,7 @@ class LinkBatchRunService(
                 .filter(String::isNotEmpty)
                 .distinct()
 
-        if (tagNames.isEmpty()) {
-            return emptySet()
-        }
-
-        val existingTags = tagRepository.findByNameIn(tagNames)
-        val existingTagNames = existingTags.map { it.name }.toSet()
-        val newTags =
-            tagNames.filter { it !in existingTagNames }
-                .map { tagName ->
-                    distributedLock.withLockAndTransaction("tag:$tagName") {
-                        tagRepository.findByName(tagName)
-                            ?: tagRepository.save(Tag(name = tagName))
-                    }
-                }
-
-        return (existingTags + newTags).toSet()
+        return tagWriteService.resolveTags(tagNames)
     }
 
     private fun buildPageUrl(

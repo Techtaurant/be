@@ -2,7 +2,9 @@ package com.techtaurant.mainserver.link.infrastructure.`in`
 
 import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.link.entity.Link
+import com.techtaurant.mainserver.link.entity.UserLink
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
+import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
 import com.techtaurant.mainserver.post.entity.Tag
 import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
@@ -35,6 +37,9 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
 
     @Autowired
     private lateinit var linkRepository: LinkRepository
+
+    @Autowired
+    private lateinit var userLinkRepository: UserLinkRepository
 
     @Autowired
     private lateinit var tagRepository: TagRepository
@@ -106,6 +111,7 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                     "url",
                     "summary",
                     "sourceCompanyUserId",
+                    "sourceCompanyUserIds",
                     "publishedAt",
                     "tags",
                     "createdAt",
@@ -117,6 +123,7 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
             .body("data.content[0].url", equalTo("https://example.com/public-link"))
             .body("data.content[0].summary", equalTo("Public Link summary"))
             .body("data.content[0].sourceCompanyUserId", equalTo(firstCompany.id.toString()))
+            .body("data.content[0].sourceCompanyUserIds", containsInAnyOrder(firstCompany.id.toString()))
             .body("data.content[0].publishedAt", equalTo("2026-04-25T10:15:30Z"))
             .body("data.content[0].tags", containsInAnyOrder("Kotlin", "Spring"))
             .body("data.content[0].createdAt", notNullValue())
@@ -280,8 +287,8 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
             .get("/open-api/links")
             .then()
             .statusCode(HttpStatus.BAD_REQUEST.value())
-            .body("status", equalTo(400))
-            .body("message", equalTo("Wrong Request"))
+            .body("status", equalTo(6005))
+            .body("message", equalTo("유효한 링크 커서가 아닙니다"))
     }
 
     @Test
@@ -314,6 +321,7 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                     "url",
                     "summary",
                     "sourceCompanyUserId",
+                    "sourceCompanyUserIds",
                     "publishedAt",
                     "tags",
                     "createdAt",
@@ -325,6 +333,7 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
             .body("data.url", equalTo("https://example.com/detail-link"))
             .body("data.summary", equalTo("Detail Link summary"))
             .body("data.sourceCompanyUserId", equalTo(firstCompany.id.toString()))
+            .body("data.sourceCompanyUserIds", containsInAnyOrder(firstCompany.id.toString()))
             .body("data.publishedAt", equalTo("2026-04-26T11:20:30Z"))
             .body("data.tags", containsInAnyOrder("Architecture", "Kotlin"))
             .body("data.createdAt", notNullValue())
@@ -369,11 +378,11 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                         title = title,
                         url = url,
                         summary = "$title summary",
-                        sourceCompanyUser = managedSourceCompanyUser,
                         publishedAt = publishedAt,
                         tags = managedTags,
                     ),
                 )
+            userLinkRepository.save(UserLink(user = managedSourceCompanyUser, link = link))
             link.createdAt = Date(createdAtMillis)
             link.updatedAt = Date(createdAtMillis)
             linkRepository.saveAndFlush(link)

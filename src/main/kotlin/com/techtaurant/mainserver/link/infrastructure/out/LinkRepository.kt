@@ -15,12 +15,11 @@ interface LinkRepository : JpaRepository<Link, UUID> {
         """
         SELECT DISTINCT l
         FROM Link l
-        JOIN FETCH l.sourceCompanyUser
         LEFT JOIN FETCH l.tags
         WHERE l.id = :linkId
         """,
     )
-    fun findByIdWithSourceCompanyUserAndTags(
+    fun findByIdWithTags(
         @Param("linkId") linkId: UUID,
     ): Link?
 
@@ -28,7 +27,6 @@ interface LinkRepository : JpaRepository<Link, UUID> {
         """
         SELECT DISTINCT l
         FROM Link l
-        JOIN FETCH l.sourceCompanyUser
         LEFT JOIN FETCH l.tags
         """,
     )
@@ -38,12 +36,16 @@ interface LinkRepository : JpaRepository<Link, UUID> {
         """
         SELECT DISTINCT l
         FROM Link l
-        JOIN FETCH l.sourceCompanyUser
         LEFT JOIN FETCH l.tags
-        WHERE l.sourceCompanyUser.id = :companyUserId
+        WHERE EXISTS (
+            SELECT userLink.id
+            FROM UserLink userLink
+            WHERE userLink.link = l
+              AND userLink.user.id = :companyUserId
+        )
         """,
     )
-    fun findAllBySourceCompanyUserIdWithTags(
+    fun findAllByConnectedUserIdWithTags(
         @Param("companyUserId") companyUserId: UUID,
     ): List<Link>
 
@@ -51,7 +53,14 @@ interface LinkRepository : JpaRepository<Link, UUID> {
         """
         SELECT l.id
         FROM Link l
-        WHERE (:sourceCompanyUserId IS NULL OR l.sourceCompanyUser.id = :sourceCompanyUserId)
+        WHERE (
+            :sourceCompanyUserId IS NULL OR EXISTS (
+                SELECT sourceUserLink.id
+                FROM UserLink sourceUserLink
+                WHERE sourceUserLink.link = l
+                  AND sourceUserLink.user.id = :sourceCompanyUserId
+            )
+        )
           AND (
             :tag IS NULL OR EXISTS (
                 SELECT taggedLink.id
@@ -74,7 +83,14 @@ interface LinkRepository : JpaRepository<Link, UUID> {
         """
         SELECT l.id
         FROM Link l
-        WHERE (:sourceCompanyUserId IS NULL OR l.sourceCompanyUser.id = :sourceCompanyUserId)
+        WHERE (
+            :sourceCompanyUserId IS NULL OR EXISTS (
+                SELECT sourceUserLink.id
+                FROM UserLink sourceUserLink
+                WHERE sourceUserLink.link = l
+                  AND sourceUserLink.user.id = :sourceCompanyUserId
+            )
+        )
           AND (
             :tag IS NULL OR EXISTS (
                 SELECT taggedLink.id
@@ -103,12 +119,11 @@ interface LinkRepository : JpaRepository<Link, UUID> {
         """
         SELECT DISTINCT l
         FROM Link l
-        JOIN FETCH l.sourceCompanyUser
         LEFT JOIN FETCH l.tags
         WHERE l.id IN :linkIds
         """,
     )
-    fun findAllByIdInWithSourceCompanyUserAndTags(
+    fun findAllByIdInWithTags(
         @Param("linkIds") linkIds: List<UUID>,
     ): List<Link>
 }

@@ -26,6 +26,11 @@ interface LinkReadOpenApiControllerDocs {
     )
     @SwaggerApiResponse(responseCode = "200", description = "조회 성공")
     @ApiCommonBadRequestAndUnknown
+    @ApiErrorCodeResponses(
+        [
+            ApiErrorCodeResponse(LinkStatus::class, ["INVALID_LINK_CURSOR"]),
+        ],
+    )
     fun getLinkContents(
         @Parameter(description = "이전 응답의 nextCursor (첫 페이지는 생략)") cursor: String?,
         @Parameter(description = "페이지 크기 (1-100, 기본값 20)") @Min(1) @Max(100) size: Int,

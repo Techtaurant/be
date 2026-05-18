@@ -4,6 +4,8 @@ import com.sun.net.httpserver.HttpServer
 import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlBatchRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
+import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
+import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.entity.User
@@ -33,6 +35,12 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
 
     @Autowired
     private lateinit var linkRepository: LinkRepository
+
+    @Autowired
+    private lateinit var userLinkRepository: UserLinkRepository
+
+    @Autowired
+    private lateinit var tagRepository: TagRepository
 
     @Autowired
     private lateinit var linkCrawlBatchRepository: LinkCrawlBatchRepository
@@ -193,12 +201,19 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
 
         val savedLinks = linkRepository.findAllWithTags()
         assertEquals(3, savedLinks.size)
-        assertTrue(savedLinks.all { it.sourceCompanyUser.id == companyUser.id })
+        assertEquals(
+            3,
+            userLinkRepository.findByUserIdAndLinkIdIn(companyUser.id!!, savedLinks.map { it.id!! }).size,
+        )
         assertTrue(savedLinks.all { it.tags.map { tag -> tag.name }.containsAll(listOf("engineering", "backend")) })
         assertEquals(
             "2026-04-20T00:00:00Z",
             savedLinks.first { it.url.endsWith("/article/metric-review") }.publishedAt.toString(),
         )
+
+        val savedBatch = linkCrawlBatchRepository.findById(UUID.fromString(batchId)).orElseThrow()
+        savedBatch.tagNames = "new-tag"
+        linkCrawlBatchRepository.saveAndFlush(savedBatch)
 
         given()
             .header("Authorization", "Bearer $adminAccessToken")
@@ -212,6 +227,8 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
 
         assertEquals(2, pageRequestCount(1))
         assertEquals(1, pageRequestCount(2))
+        assertTrue(linkRepository.findAllWithTags().all { link -> link.tags.none { it.name == "new-tag" } })
+        assertEquals(null, tagRepository.findByName("new-tag"))
     }
 
     @Test

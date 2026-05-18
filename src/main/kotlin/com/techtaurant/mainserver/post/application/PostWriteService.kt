@@ -16,7 +16,6 @@ import com.techtaurant.mainserver.post.enums.PostStatus
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.CategoryRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
-import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserFollowRepository
@@ -29,7 +28,7 @@ import java.util.UUID
 class PostWriteService(
     private val postRepository: PostRepository,
     private val categoryRepository: CategoryRepository,
-    private val tagRepository: TagRepository,
+    private val tagWriteService: TagWriteService,
     private val userRepository: UserRepository,
     private val userFollowRepository: UserFollowRepository,
     private val distributedLock: DistributedLock,
@@ -81,7 +80,7 @@ class PostWriteService(
             }
 
         val category = resolveCategory(request.categoryPath, author)
-        val tags = resolveTags(request.tags)
+        val tags = resolvePostTags(request.tags)
 
         val post =
             Post(
@@ -89,9 +88,8 @@ class PostWriteService(
                 content = HtmlSanitizer.sanitizeContent(content),
                 author = author,
                 category = category,
-                tags = tags.toMutableSet(),
                 status = status,
-            )
+            ).apply { replaceTags(tags) }
 
         val savedPost = postRepository.save(post)
 
@@ -144,7 +142,7 @@ class PostWriteService(
         request.title?.let { post.title = HtmlSanitizer.sanitizeTitle(it) }
         request.content?.let { post.content = HtmlSanitizer.sanitizeContent(it) }
         request.categoryPath?.let { post.category = resolveCategory(it, post.author) }
-        request.tags?.let { post.tags = resolveTags(it).toMutableSet() }
+        request.tags?.let { post.replaceTags(resolvePostTags(it)) }
 
         request.status?.let { newStatus ->
             if (newStatus != PostStatusEnum.DRAFT) {
@@ -330,37 +328,5 @@ class PostWriteService(
         return parentCategory
     }
 
-    /**
-     * 태그 이름 목록을 받아 태그 엔티티 목록을 반환합니다.
-     * 존재하지 않는 태그는 자동으로 생성되며, 동시성 제어를 위해 락을 사용합니다.
-     *
-     * @param tagNames 태그 이름 목록
-     * @return 태그 엔티티 목록
-     */
-    private fun resolveTags(tagNames: List<String>?): List<Tag> {
-        if (tagNames.isNullOrEmpty()) {
-            return emptyList()
-        }
-
-        val normalizedNames = tagNames.map { it.trim().lowercase() }.filter { it.isNotBlank() }.distinct()
-
-        if (normalizedNames.isEmpty()) {
-            return emptyList()
-        }
-
-        val existingTags = tagRepository.findByNameIn(normalizedNames)
-        val existingTagNames = existingTags.map { it.name }.toSet()
-        val newTagNames = normalizedNames.filter { it !in existingTagNames }
-
-        val newTags =
-            newTagNames.map { tagName ->
-                val lockKey = "tag:$tagName"
-                distributedLock.withLockAndTransaction(lockKey) {
-                    tagRepository.findByName(tagName)
-                        ?: tagRepository.save(Tag(name = tagName))
-                }
-            }
-
-        return existingTags + newTags
-    }
+    private fun resolvePostTags(tagNames: List<String>?): Set<Tag> = tagWriteService.resolveTags(tagNames.orEmpty().map(String::lowercase))
 }
