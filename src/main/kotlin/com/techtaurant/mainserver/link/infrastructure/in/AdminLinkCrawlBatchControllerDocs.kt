@@ -44,13 +44,14 @@ interface AdminLinkCrawlBatchControllerDocs {
         - articleLinkSelector: `:self`
         - titleSelector: `div._13swo3b7`
         - summarySelector: `div._13swo3b8`
-        - publishedAtSelectors: 비워둘 수 있습니다.
+        - publishedAtSelectors: `div.o6bzluc`
 
         추천 원칙:
         - 절대 XPath(`/html/body/...`)는 피합니다.
         - `body > div...`처럼 페이지 전체 경로 selector는 피합니다.
         - selector는 짧고 재사용 가능해야 합니다.
         - CSR이 아니라 SSR만 대상으로 합니다.
+        - 발행일은 ISO 날짜/시간 또는 `2023년 6월 20일` 형식의 텍스트를 지원합니다.
         """,
     )
     @SwaggerApiResponse(responseCode = "201", description = "배치 등록 성공")
@@ -83,7 +84,9 @@ interface AdminLinkCrawlBatchControllerDocs {
                               "articleLinkSelector": ":self",
                               "titleSelector": "div._13swo3b7",
                               "summarySelector": "div._13swo3b8",
-                              "publishedAtSelectors": [],
+                              "publishedAtSelectors": [
+                                "div.o6bzluc"
+                              ],
                               "tagNames": [
                                 "toss-tech"
                               ],

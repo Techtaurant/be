@@ -94,7 +94,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                                 <div class="title">Metric Review, 실행을 이끌다</div>
                                 <div class="summary">인사이트는 있는데 실행이 느릴 때, 지표 리뷰로 실행 리듬을 만든 이야기입니다.</div>
                                 <div class="author">박종익</div>
-                                <time datetime="2026-04-20T10:15:30Z">2026-04-20</time>
+                                <div class="published-date o6bzluc">2026년 4월 20일</div>
                               </a>
                             </div>
                             <div class="article-card">
@@ -102,7 +102,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                                 <div class="title">StarRocks 운영기</div>
                                 <div class="summary">서비스 쿼리가 밀리기 시작했을 때 우리가 선택한 멀티테넌트 격리 전략을 정리했습니다.</div>
                                 <div class="author">이유진</div>
-                                <time datetime="2026-04-19T09:00:00Z">2026-04-19</time>
+                                <div class="published-date o6bzluc">2026년 4월 19일</div>
                               </a>
                             </div>
                           </body>
@@ -117,7 +117,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                                 <div class="title">Cache Layer 개선기</div>
                                 <div class="summary">반복 조회 부하를 낮추기 위해 캐시 계층을 재설계한 경험을 정리했습니다.</div>
                                 <div class="author">김도현</div>
-                                <time datetime="2026-04-18T08:30:00Z">2026-04-18</time>
+                                <div class="published-date o6bzluc">2026년 4월 18일</div>
                               </a>
                             </div>
                           </body>
@@ -164,7 +164,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                       "articleLinkSelector": "a.article-link",
                       "titleSelector": ".title",
                       "summarySelector": ".summary",
-                      "publishedAtSelectors": ["time"],
+                      "publishedAtSelectors": ["div.o6bzluc"],
                       "tagNames": ["engineering", "backend"],
                       "cronExpression": "0 0 * * * *",
                       "startPage": 1,
@@ -195,6 +195,10 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
         assertEquals(3, savedLinks.size)
         assertTrue(savedLinks.all { it.sourceCompanyUser.id == companyUser.id })
         assertTrue(savedLinks.all { it.tags.map { tag -> tag.name }.containsAll(listOf("engineering", "backend")) })
+        assertEquals(
+            "2026-04-20T00:00:00Z",
+            savedLinks.first { it.url.endsWith("/article/metric-review") }.publishedAt.toString(),
+        )
 
         given()
             .header("Authorization", "Bearer $adminAccessToken")

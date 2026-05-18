@@ -32,7 +32,7 @@ data class CreateLinkCrawlBatchRequest(
     val titleSelector: String,
     @field:Schema(description = "카드 내부 요약 selector", example = "div._13swo3b8", nullable = true)
     val summarySelector: String? = null,
-    @field:ArraySchema(schema = Schema(description = "발행일 selector", example = "time"))
+    @field:ArraySchema(schema = Schema(description = "발행일 selector. ISO 날짜/시간 또는 '2023년 6월 20일' 형식의 텍스트를 읽습니다.", example = "div.o6bzluc"))
     val publishedAtSelectors: List<String> = emptyList(),
     @field:ArraySchema(schema = Schema(description = "수집된 링크에 부여할 태그명", example = "toss-tech"))
     val tagNames: List<String> = emptyList(),
