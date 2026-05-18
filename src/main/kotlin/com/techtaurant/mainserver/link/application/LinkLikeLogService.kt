@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.link.application
 
 import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.link.entity.LinkLikeLog
 import com.techtaurant.mainserver.link.enums.LinkStatus
 import com.techtaurant.mainserver.link.infrastructure.out.LinkLikeLogRepository
@@ -17,6 +18,7 @@ class LinkLikeLogService(
     private val linkLikeLogRepository: LinkLikeLogRepository,
     private val linkRepository: LinkRepository,
     private val userRepository: UserRepository,
+    private val linkDailyStatsService: LinkDailyStatsService,
 ) {
     @Transactional
     fun recordLike(
@@ -38,26 +40,29 @@ class LinkLikeLogService(
 
         if (existingLog != null) {
             val previousIsLiked = existingLog.isLiked
+            val statDate = toStatDate(existingLog)
 
             when (likeStatus) {
                 LikeStatus.NONE -> {
                     linkLikeLogRepository.delete(existingLog)
-                    updateLikeCount(linkId, !previousIsLiked)
+                    updateLikeCount(linkId, !previousIsLiked, statDate)
                 }
                 LikeStatus.LIKE -> {
                     if (!previousIsLiked) {
                         existingLog.isLiked = true
-                        linkLikeLogRepository.save(existingLog)
-                        updateLikeCount(linkId, true)
-                        updateLikeCount(linkId, true)
+                        val savedLog = linkLikeLogRepository.save(existingLog)
+                        val updatedStatDate = toStatDate(savedLog)
+                        updateLikeCount(linkId, true, updatedStatDate)
+                        updateLikeCount(linkId, true, updatedStatDate)
                     }
                 }
                 LikeStatus.DISLIKE -> {
                     if (previousIsLiked) {
                         existingLog.isLiked = false
-                        linkLikeLogRepository.save(existingLog)
-                        updateLikeCount(linkId, false)
-                        updateLikeCount(linkId, false)
+                        val savedLog = linkLikeLogRepository.save(existingLog)
+                        val updatedStatDate = toStatDate(savedLog)
+                        updateLikeCount(linkId, false, updatedStatDate)
+                        updateLikeCount(linkId, false, updatedStatDate)
                     }
                 }
             }
@@ -65,12 +70,12 @@ class LinkLikeLogService(
             when (likeStatus) {
                 LikeStatus.NONE -> { }
                 LikeStatus.LIKE -> {
-                    linkLikeLogRepository.save(LinkLikeLog(link = link, user = user, isLiked = true))
-                    updateLikeCount(linkId, true)
+                    val savedLog = linkLikeLogRepository.save(LinkLikeLog(link = link, user = user, isLiked = true))
+                    updateLikeCount(linkId, true, toStatDate(savedLog))
                 }
                 LikeStatus.DISLIKE -> {
-                    linkLikeLogRepository.save(LinkLikeLog(link = link, user = user, isLiked = false))
-                    updateLikeCount(linkId, false)
+                    val savedLog = linkLikeLogRepository.save(LinkLikeLog(link = link, user = user, isLiked = false))
+                    updateLikeCount(linkId, false, toStatDate(savedLog))
                 }
             }
         }
@@ -79,11 +84,16 @@ class LinkLikeLogService(
     private fun updateLikeCount(
         linkId: UUID,
         increment: Boolean,
+        statDate: java.sql.Date,
     ) {
         if (increment) {
             linkRepository.incrementLikeCount(linkId)
+            linkDailyStatsService.incrementLikeCount(linkId, statDate)
         } else {
             linkRepository.decrementLikeCount(linkId)
+            linkDailyStatsService.decrementLikeCount(linkId, statDate)
         }
     }
+
+    private fun toStatDate(log: LinkLikeLog): java.sql.Date = DateUtils.toUtcDate(log.createdAt)
 }

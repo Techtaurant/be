@@ -1,6 +1,7 @@
 package com.techtaurant.mainserver.link.application
 
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.link.entity.UserLink
 import com.techtaurant.mainserver.link.enums.LinkStatus
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
@@ -16,6 +17,7 @@ class LinkSaveService(
     private val userLinkRepository: UserLinkRepository,
     private val linkRepository: LinkRepository,
     private val userRepository: UserRepository,
+    private val linkDailyStatsService: LinkDailyStatsService,
 ) {
     @Transactional
     fun save(
@@ -32,12 +34,14 @@ class LinkSaveService(
             }
 
         if (userLinkRepository.findByUserIdAndLinkId(userId, linkId) == null) {
-            userLinkRepository.save(
-                UserLink(
-                    user = user,
-                    link = link,
-                ),
-            )
+            val savedUserLink =
+                userLinkRepository.save(
+                    UserLink(
+                        user = user,
+                        link = link,
+                    ),
+                )
+            linkDailyStatsService.incrementSaveCount(linkId, DateUtils.toUtcDate(savedUserLink.createdAt))
         }
     }
 
@@ -48,7 +52,9 @@ class LinkSaveService(
     ) {
         val existingRelation = userLinkRepository.findByUserIdAndLinkId(userId, linkId)
         if (existingRelation != null) {
+            val statDate = DateUtils.toUtcDate(existingRelation.createdAt)
             userLinkRepository.delete(existingRelation)
+            linkDailyStatsService.decrementSaveCount(linkId, statDate)
         }
     }
 }

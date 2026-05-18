@@ -2,8 +2,11 @@ package com.techtaurant.mainserver.link.application
 
 import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.link.entity.Link
+import com.techtaurant.mainserver.link.entity.LinkDailyStats
 import com.techtaurant.mainserver.link.enums.LinkStatus
+import com.techtaurant.mainserver.link.infrastructure.out.LinkDailyStatsRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkViewLogRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
@@ -31,6 +34,9 @@ class LinkViewLogServiceTest : IntegrationTest() {
 
     @Autowired
     private lateinit var linkRepository: LinkRepository
+
+    @Autowired
+    private lateinit var linkDailyStatsRepository: LinkDailyStatsRepository
 
     @Autowired
     private lateinit var userRepository: UserRepository
@@ -98,6 +104,9 @@ class LinkViewLogServiceTest : IntegrationTest() {
         assertThat(viewLogs).hasSize(1)
         assertThat(viewLogs.first().ipAddress).isEqualTo("127.0.0.1")
         assertThat(viewLogs.first().userAgent).isEqualTo("Mozilla/5.0")
+
+        val dailyStats = findDailyStats()
+        assertThat(dailyStats?.viewCount).isEqualTo(1)
     }
 
     @Test
@@ -118,6 +127,7 @@ class LinkViewLogServiceTest : IntegrationTest() {
         val viewLogs = linkViewLogRepository.findAll()
         assertThat(viewLogs).hasSize(1)
         assertThat(viewLogs.first().user).isNull()
+        assertThat(findDailyStats()?.viewCount).isEqualTo(1)
     }
 
     @Test
@@ -134,6 +144,7 @@ class LinkViewLogServiceTest : IntegrationTest() {
 
         val updatedLink = linkRepository.findById(testLink.id!!).orElseThrow()
         assertThat(updatedLink.viewCount).isEqualTo(1)
+        assertThat(findDailyStats()?.viewCount).isEqualTo(1)
     }
 
     @Test
@@ -150,5 +161,11 @@ class LinkViewLogServiceTest : IntegrationTest() {
             .isInstanceOf(ApiException::class.java)
             .extracting { (it as ApiException).status }
             .isEqualTo(LinkStatus.LINK_NOT_FOUND)
+    }
+
+    private fun findDailyStats(): LinkDailyStats? {
+        val statDate = DateUtils.today()
+        return linkDailyStatsRepository.findAll()
+            .find { it.link.id == testLink.id && it.statDate.toString() == statDate.toString() }
     }
 }

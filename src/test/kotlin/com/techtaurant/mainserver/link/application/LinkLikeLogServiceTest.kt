@@ -3,8 +3,11 @@ package com.techtaurant.mainserver.link.application
 import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.link.entity.Link
+import com.techtaurant.mainserver.link.entity.LinkDailyStats
 import com.techtaurant.mainserver.link.enums.LinkStatus
+import com.techtaurant.mainserver.link.infrastructure.out.LinkDailyStatsRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkLikeLogRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
@@ -33,6 +36,9 @@ class LinkLikeLogServiceTest : IntegrationTest() {
 
     @Autowired
     private lateinit var linkLikeLogRepository: LinkLikeLogRepository
+
+    @Autowired
+    private lateinit var linkDailyStatsRepository: LinkDailyStatsRepository
 
     @Autowired
     private lateinit var userRepository: UserRepository
@@ -94,6 +100,9 @@ class LinkLikeLogServiceTest : IntegrationTest() {
         val log = linkLikeLogRepository.findByLinkIdAndUserId(testLink.id!!, normalUser.id!!)
         assertThat(log).isNotNull
         assertThat(log?.isLiked).isTrue()
+
+        val dailyStats = findDailyStats()
+        assertThat(dailyStats?.likeCount).isEqualTo(1)
     }
 
     @Test
@@ -110,6 +119,7 @@ class LinkLikeLogServiceTest : IntegrationTest() {
         val updatedLink = linkRepository.findById(testLink.id!!).orElseThrow()
         assertThat(updatedLink.likeCount).isEqualTo(0)
         assertThat(linkLikeLogRepository.findByLinkIdAndUserId(testLink.id!!, normalUser.id!!)).isNull()
+        assertThat(findDailyStats()?.likeCount).isEqualTo(0)
     }
 
     @Test
@@ -126,6 +136,7 @@ class LinkLikeLogServiceTest : IntegrationTest() {
         val updatedLink = linkRepository.findById(testLink.id!!).orElseThrow()
         assertThat(updatedLink.likeCount).isEqualTo(1)
         assertThat(linkLikeLogRepository.findByLinkIdAndUserId(testLink.id!!, normalUser.id!!)?.isLiked).isTrue()
+        assertThat(findDailyStats()?.likeCount).isEqualTo(1)
     }
 
     @Test
@@ -148,5 +159,11 @@ class LinkLikeLogServiceTest : IntegrationTest() {
             .isInstanceOf(ApiException::class.java)
             .extracting { (it as ApiException).status }
             .isEqualTo(UserStatus.ID_NOT_FOUND)
+    }
+
+    private fun findDailyStats(): LinkDailyStats? {
+        val statDate = DateUtils.today()
+        return linkDailyStatsRepository.findAll()
+            .find { it.link.id == testLink.id && it.statDate.toString() == statDate.toString() }
     }
 }

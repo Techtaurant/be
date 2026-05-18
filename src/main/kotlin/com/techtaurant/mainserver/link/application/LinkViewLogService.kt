@@ -1,6 +1,7 @@
 package com.techtaurant.mainserver.link.application
 
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.link.entity.LinkViewLog
 import com.techtaurant.mainserver.link.enums.LinkStatus
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
@@ -15,6 +16,7 @@ class LinkViewLogService(
     private val linkViewLogRepository: LinkViewLogRepository,
     private val linkRepository: LinkRepository,
     private val userRepository: UserRepository,
+    private val linkDailyStatsService: LinkDailyStatsService,
 ) {
     @Transactional
     fun recordView(
@@ -33,15 +35,17 @@ class LinkViewLogService(
                 userRepository.findById(it).orElse(null)
             }
 
-        linkViewLogRepository.save(
-            LinkViewLog(
-                link = link,
-                user = user,
-                ipAddress = ipAddress,
-                userAgent = userAgent,
-            ),
-        )
+        val savedViewLog =
+            linkViewLogRepository.save(
+                LinkViewLog(
+                    link = link,
+                    user = user,
+                    ipAddress = ipAddress,
+                    userAgent = userAgent,
+                ),
+            )
 
         linkRepository.incrementViewCount(linkId)
+        linkDailyStatsService.incrementViewCount(linkId, DateUtils.toUtcDate(savedViewLog.createdAt))
     }
 }
