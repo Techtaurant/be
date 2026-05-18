@@ -9,13 +9,7 @@ BEGIN
     ) THEN
         INSERT INTO user_links (id, user_id, link_id, created_at, updated_at)
         SELECT
-            (
-                SUBSTRING(md5(l.source_company_user_id::text || ':' || l.id::text), 1, 8) || '-' ||
-                SUBSTRING(md5(l.source_company_user_id::text || ':' || l.id::text), 9, 4) || '-' ||
-                SUBSTRING(md5(l.source_company_user_id::text || ':' || l.id::text), 13, 4) || '-' ||
-                SUBSTRING(md5(l.source_company_user_id::text || ':' || l.id::text), 17, 4) || '-' ||
-                SUBSTRING(md5(l.source_company_user_id::text || ':' || l.id::text), 21, 12)
-            )::UUID,
+            gen_random_uuid(),
             l.source_company_user_id,
             l.id,
             l.created_at,
