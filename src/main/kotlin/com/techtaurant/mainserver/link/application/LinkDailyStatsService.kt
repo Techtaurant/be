@@ -48,7 +48,7 @@ class LinkDailyStatsService(
         linkId: UUID,
         statDate: Date,
     ) {
-        applyDailyStatsChange(linkId, statDate, linkDailyStatsRepository::decrementSaveCount)
+        linkDailyStatsRepository.decrementSaveCount(linkId, statDate)
     }
 
     private fun applyDailyStatsChange(
@@ -80,6 +80,6 @@ class LinkDailyStatsService(
     ) {
         val link = linkRepository.getReferenceById(linkId)
         val dailyStats = LinkDailyStats(link = link, statDate = statDate)
-        linkDailyStatsRepository.save(dailyStats)
+        linkDailyStatsRepository.saveAndFlush(dailyStats)
     }
 }

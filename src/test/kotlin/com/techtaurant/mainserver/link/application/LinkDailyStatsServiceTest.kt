@@ -83,17 +83,36 @@ class LinkDailyStatsServiceTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("좋아요와 저장수 감소는 레코드가 없으면 생성 후 음수 값을 기록할 수 있다")
-    fun decrementStats_whenDailyStatsNotExists_shouldCreateAndAllowNegativeCount() {
+    @DisplayName("좋아요 감소는 레코드가 없으면 생성 후 음수 값을 기록할 수 있다")
+    fun decrementLikeCount_whenDailyStatsNotExists_shouldCreateAndAllowNegativeCount() {
         val statDate = Date.valueOf("2026-05-18")
 
         linkDailyStatsService.decrementLikeCount(testLink.id!!, statDate)
-        linkDailyStatsService.decrementSaveCount(testLink.id!!, statDate)
         entityManager.flush()
         entityManager.clear()
 
         val dailyStats = linkDailyStatsRepository.findAll().single()
         assertThat(dailyStats.likeCount).isEqualTo(-1)
-        assertThat(dailyStats.saveCount).isEqualTo(-1)
+        assertThat(dailyStats.saveCount).isEqualTo(0)
+    }
+
+    @Test
+    @DisplayName("저장수 감소는 레코드가 없으면 생성하지 않고 기존 레코드가 있으면 감소한다")
+    fun decrementSaveCount_whenDailyStatsNotExists_shouldNotCreateDailyStats() {
+        val statDate = Date.valueOf("2026-05-18")
+
+        linkDailyStatsService.decrementSaveCount(testLink.id!!, statDate)
+        entityManager.flush()
+        entityManager.clear()
+
+        assertThat(linkDailyStatsRepository.findAll()).isEmpty()
+
+        linkDailyStatsService.incrementSaveCount(testLink.id!!, statDate)
+        linkDailyStatsService.decrementSaveCount(testLink.id!!, statDate)
+        entityManager.flush()
+        entityManager.clear()
+
+        val dailyStats = linkDailyStatsRepository.findAll().single()
+        assertThat(dailyStats.saveCount).isEqualTo(0)
     }
 }

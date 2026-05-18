@@ -4,6 +4,7 @@ import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.link.entity.Link
 import com.techtaurant.mainserver.link.entity.LinkDailyStats
+import com.techtaurant.mainserver.link.entity.UserLink
 import com.techtaurant.mainserver.link.infrastructure.out.LinkDailyStatsRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
@@ -107,6 +108,29 @@ class LinkSaveServiceTest : IntegrationTest() {
 
         assertThat(userLinkRepository.existsByUserIdAndLinkId(normalUser.id!!, testLink.id!!)).isFalse()
         assertThat(findDailyStats()?.saveCount).isEqualTo(0)
+    }
+
+    @Test
+    @DisplayName("일별 통계가 없는 기존 저장을 취소해도 음수 저장수 레코드를 만들지 않는다")
+    fun unsave_whenLegacyRelationWithoutDailyStats_shouldNotCreateNegativeDailyStats() {
+        val oldStatDate = java.sql.Date.valueOf(DateUtils.today().toLocalDate().minusDays(1))
+        val existingRelation =
+            userLinkRepository.saveAndFlush(
+                UserLink(
+                    user = normalUser,
+                    link = testLink,
+                ),
+            )
+        existingRelation.createdAt = java.util.Date(oldStatDate.time)
+        userLinkRepository.saveAndFlush(existingRelation)
+        entityManager.clear()
+
+        linkSaveService.unsave(testLink.id!!, normalUser.id!!)
+        entityManager.flush()
+        entityManager.clear()
+
+        assertThat(userLinkRepository.existsByUserIdAndLinkId(normalUser.id!!, testLink.id!!)).isFalse()
+        assertThat(linkDailyStatsRepository.findAll()).isEmpty()
     }
 
     private fun findDailyStats(): LinkDailyStats? {

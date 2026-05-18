@@ -37,32 +37,30 @@ class LinkLikeLogService(
             }
 
         val existingLog = linkLikeLogRepository.findByLinkIdAndUserId(linkId, userId)
+        val eventStatDate = DateUtils.today()
 
         if (existingLog != null) {
             val previousIsLiked = existingLog.isLiked
-            val statDate = toStatDate(existingLog)
 
             when (likeStatus) {
                 LikeStatus.NONE -> {
                     linkLikeLogRepository.delete(existingLog)
-                    updateLikeCount(linkId, !previousIsLiked, statDate)
+                    updateLikeCount(linkId, !previousIsLiked, eventStatDate)
                 }
                 LikeStatus.LIKE -> {
                     if (!previousIsLiked) {
                         existingLog.isLiked = true
-                        val savedLog = linkLikeLogRepository.save(existingLog)
-                        val updatedStatDate = toStatDate(savedLog)
-                        updateLikeCount(linkId, true, updatedStatDate)
-                        updateLikeCount(linkId, true, updatedStatDate)
+                        linkLikeLogRepository.save(existingLog)
+                        updateLikeCount(linkId, true, eventStatDate)
+                        updateLikeCount(linkId, true, eventStatDate)
                     }
                 }
                 LikeStatus.DISLIKE -> {
                     if (previousIsLiked) {
                         existingLog.isLiked = false
-                        val savedLog = linkLikeLogRepository.save(existingLog)
-                        val updatedStatDate = toStatDate(savedLog)
-                        updateLikeCount(linkId, false, updatedStatDate)
-                        updateLikeCount(linkId, false, updatedStatDate)
+                        linkLikeLogRepository.save(existingLog)
+                        updateLikeCount(linkId, false, eventStatDate)
+                        updateLikeCount(linkId, false, eventStatDate)
                     }
                 }
             }
@@ -70,12 +68,12 @@ class LinkLikeLogService(
             when (likeStatus) {
                 LikeStatus.NONE -> { }
                 LikeStatus.LIKE -> {
-                    val savedLog = linkLikeLogRepository.save(LinkLikeLog(link = link, user = user, isLiked = true))
-                    updateLikeCount(linkId, true, toStatDate(savedLog))
+                    linkLikeLogRepository.save(LinkLikeLog(link = link, user = user, isLiked = true))
+                    updateLikeCount(linkId, true, eventStatDate)
                 }
                 LikeStatus.DISLIKE -> {
-                    val savedLog = linkLikeLogRepository.save(LinkLikeLog(link = link, user = user, isLiked = false))
-                    updateLikeCount(linkId, false, toStatDate(savedLog))
+                    linkLikeLogRepository.save(LinkLikeLog(link = link, user = user, isLiked = false))
+                    updateLikeCount(linkId, false, eventStatDate)
                 }
             }
         }
@@ -94,6 +92,4 @@ class LinkLikeLogService(
             linkDailyStatsService.decrementLikeCount(linkId, statDate)
         }
     }
-
-    private fun toStatDate(log: LinkLikeLog): java.sql.Date = DateUtils.toUtcDate(log.createdAt)
 }

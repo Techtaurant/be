@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.link.entity.Link
 import com.techtaurant.mainserver.link.entity.LinkDailyStats
+import com.techtaurant.mainserver.link.entity.LinkLikeLog
 import com.techtaurant.mainserver.link.enums.LinkStatus
 import com.techtaurant.mainserver.link.infrastructure.out.LinkDailyStatsRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkLikeLogRepository
@@ -140,6 +141,37 @@ class LinkLikeLogServiceTest : IntegrationTest() {
     }
 
     @Test
+    @DisplayName("과거 좋아요를 오늘 취소하면 오늘 일별 좋아요수만 감소한다")
+    fun recordLike_fromPastLikeToNone_shouldRecordDailyStatsOnEventDate() {
+        val today = DateUtils.today()
+        val oldStatDate = java.sql.Date.valueOf(today.toLocalDate().minusDays(1))
+        testLink.likeCount = 1
+        linkRepository.saveAndFlush(testLink)
+        linkDailyStatsRepository.saveAndFlush(LinkDailyStats(link = testLink, statDate = oldStatDate, likeCount = 1))
+        val existingLog =
+            linkLikeLogRepository.saveAndFlush(
+                LinkLikeLog(
+                    link = testLink,
+                    user = normalUser,
+                    isLiked = true,
+                ),
+            )
+        existingLog.createdAt = java.util.Date(oldStatDate.time)
+        linkLikeLogRepository.saveAndFlush(existingLog)
+        entityManager.clear()
+
+        linkLikeLogService.recordLike(testLink.id!!, normalUser.id!!, LikeStatus.NONE)
+        entityManager.flush()
+        entityManager.clear()
+
+        val updatedLink = linkRepository.findById(testLink.id!!).orElseThrow()
+        assertThat(updatedLink.likeCount).isEqualTo(0)
+        assertThat(linkLikeLogRepository.findByLinkIdAndUserId(testLink.id!!, normalUser.id!!)).isNull()
+        assertThat(findDailyStats(oldStatDate)?.likeCount).isEqualTo(1)
+        assertThat(findDailyStats(today)?.likeCount).isEqualTo(-1)
+    }
+
+    @Test
     @DisplayName("존재하지 않는 링크에 좋아요를 기록하면 예외가 발생한다")
     fun recordLike_withNonExistentLink_shouldThrowException() {
         assertThatThrownBy {
@@ -161,8 +193,7 @@ class LinkLikeLogServiceTest : IntegrationTest() {
             .isEqualTo(UserStatus.ID_NOT_FOUND)
     }
 
-    private fun findDailyStats(): LinkDailyStats? {
-        val statDate = DateUtils.today()
+    private fun findDailyStats(statDate: java.sql.Date = DateUtils.today()): LinkDailyStats? {
         return linkDailyStatsRepository.findAll()
             .find { it.link.id == testLink.id && it.statDate.toString() == statDate.toString() }
     }
