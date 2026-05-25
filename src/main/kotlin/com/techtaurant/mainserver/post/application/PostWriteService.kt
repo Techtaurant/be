@@ -24,6 +24,7 @@ import com.techtaurant.mainserver.user.infrastructure.out.UserFollowRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.Date
 import java.util.UUID
 
 @Service
@@ -83,6 +84,7 @@ class PostWriteService(
 
         val category = resolveCategory(request.categoryPath, author)
         val tags = resolveTags(request.tags)
+        val requestedCreatedAt = request.createdAt?.let(Date::from)
 
         val post =
             Post(
@@ -95,6 +97,7 @@ class PostWriteService(
             )
 
         val savedPost = postRepository.save(post)
+        requestedCreatedAt?.let { savedPost.createdAt = it }
 
         if (status != PostStatusEnum.DRAFT) {
             val attachmentIds =
