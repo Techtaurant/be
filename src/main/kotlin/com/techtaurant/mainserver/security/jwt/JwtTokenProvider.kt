@@ -8,7 +8,9 @@ import io.jsonwebtoken.MalformedJwtException
 import io.jsonwebtoken.UnsupportedJwtException
 import io.jsonwebtoken.security.Keys
 import org.springframework.stereotype.Component
+import java.security.MessageDigest
 import java.util.Date
+import java.util.HexFormat
 import java.util.UUID
 import javax.crypto.SecretKey
 
@@ -30,8 +32,25 @@ class JwtTokenProvider(
         return Jwts.builder()
             .subject(userId.toString())
             .claim("role", role.key) // 권한 정보 포함
+            .claim("permanent", false)
             .issuedAt(now)
             .expiration(expiryDate)
+            .signWith(secretKey)
+            .compact()
+    }
+
+    fun createPermanentAccessToken(
+        userId: UUID,
+        role: UserRole,
+    ): String {
+        val now = Date()
+
+        return Jwts.builder()
+            .id(UUID.randomUUID().toString())
+            .subject(userId.toString())
+            .claim("role", role.key)
+            .claim("permanent", true)
+            .issuedAt(now)
             .signWith(secretKey)
             .compact()
     }
@@ -74,8 +93,7 @@ class JwtTokenProvider(
     /**
      * AccessToken을 검증하고 Claims를 추출합니다.
      *
-     * userId와 role을 포함한 Claims 객체를 반환하여
-     * 별도의 DB 조회 없이 인증/인가를 완료합니다.
+     * userId와 role, 영구 토큰 여부를 포함한 Claims 객체를 반환합니다.
      *
      * @param token AccessToken
      * @return JWT에서 추출한 Claims (userId + role)
@@ -89,7 +107,13 @@ class JwtTokenProvider(
         return JwtClaims(
             userId = UUID.fromString(claims.subject),
             role = claims["role"] as String,
+            isPermanent = claims["permanent"] as? Boolean ?: false,
         )
+    }
+
+    fun hashToken(token: String): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(token.toByteArray())
+        return HexFormat.of().formatHex(digest)
     }
 
     private fun getClaims(token: String): Claims {

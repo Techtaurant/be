@@ -7,8 +7,10 @@ import java.util.UUID
  *
  * @property userId 사용자 ID
  * @property role 사용자 권한 (예: "ROLE_USER", "ROLE_ADMIN")
+ * @property isPermanent 영구 토큰 여부
  */
 data class JwtClaims(
     val userId: UUID,
     val role: String,
+    val isPermanent: Boolean,
 )
