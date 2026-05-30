@@ -5,6 +5,7 @@ import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.Size
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -15,6 +16,7 @@ import java.util.UUID
  * @property categoryPath 카테고리 경로 (선택, 예: "java/spring/deepdive")
  * @property tags 태그 목록 (선택, 여러 개 가능)
  * @property status 게시물 상태 (DRAFT: 임시저장, PUBLISHED: 발행, PRIVATE: 비공개, 기본값: PUBLISHED)
+ * @property createdAt 게시물 생성일시 (선택, 입력하지 않으면 서버 시간이 사용됨)
  */
 @Schema(description = "게시물 생성 요청")
 data class CreatePostRequest(
@@ -34,4 +36,6 @@ data class CreatePostRequest(
     val thumbnailAttachmentId: UUID? = null,
     @field:Schema(description = "게시물 상태 (DRAFT/PUBLISHED/PRIVATE, 기본값: PUBLISHED)", example = "PUBLISHED")
     val status: PostStatusEnum? = null,
+    @field:Schema(description = "게시물 생성일시 (ISO-8601 UTC, 입력하지 않으면 서버 시간이 사용됨)", example = "2026-04-25T10:15:30Z")
+    val createdAt: Instant? = null,
 )
