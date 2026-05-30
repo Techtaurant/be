@@ -10,6 +10,7 @@ import com.techtaurant.mainserver.user.dto.UserResponse
 import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
+import com.techtaurant.mainserver.user.infrastructure.out.UserTokenRepository
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -20,6 +21,7 @@ class UserWriteService(
     private val userRepository: UserRepository,
     private val attachmentService: AttachmentService,
     private val userResponseAssembler: UserResponseAssembler,
+    private val userTokenRepository: UserTokenRepository,
 ) {
     companion object {
         private const val USER_NAME_UNIQUE_CONSTRAINT = "uk_users_name"
@@ -84,9 +86,20 @@ class UserWriteService(
                 ApiException(UserStatus.USER_NOT_FOUND)
             }
 
+        revokePermanentTokensOnRoleChange(targetUserId, user.role, role)
         user.role = role
 
         return UpdateUserRoleResponse.from(user)
+    }
+
+    private fun revokePermanentTokensOnRoleChange(
+        targetUserId: UUID,
+        currentRole: UserRole,
+        requestedRole: UserRole,
+    ) {
+        if (currentRole != requestedRole) {
+            userTokenRepository.deleteAllByUserId(targetUserId)
+        }
     }
 
     private fun isUserNameUniqueConstraintViolation(exception: DataIntegrityViolationException): Boolean {

@@ -16,15 +16,19 @@ import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
+import com.techtaurant.mainserver.user.infrastructure.out.UserTokenRepository
 import io.restassured.RestAssured.given
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasSize
+import org.hamcrest.Matchers.notNullValue
+import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.jdbc.core.JdbcTemplate
+import java.util.Base64
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -53,6 +57,9 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
 
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
+
+    @Autowired
+    private lateinit var userTokenRepository: UserTokenRepository
 
     @Autowired
     private lateinit var jwtTokenProvider: JwtTokenProvider
@@ -233,15 +240,156 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
         assertTrue(userRepository.existsById(normalUser.id!!))
     }
 
-    private fun saveCompanyUser(name: String): User {
+    @Test
+    @DisplayName("ADMIN 권한은 회사 봇 영구 토큰을 발급하고 DB에 저장할 수 있다")
+    fun adminCanCreateCompanyPermanentToken() {
+        val companyUser = saveCompanyUser(name = "토스", identifier = "company-toss")
+
+        val token =
+            given()
+                .contentType("application/json")
+                .header("Authorization", "Bearer $adminAccessToken")
+                .body(
+                    """
+                    {
+                      "name": "토스 기술블로그 수집 봇"
+                    }
+                    """.trimIndent(),
+                ).`when`()
+                .post("/admin/companies/${companyUser.id}/tokens")
+                .then()
+                .statusCode(HttpStatus.CREATED.value())
+                .body("data.id", notNullValue())
+                .body("data.userId", equalTo(companyUser.id.toString()))
+                .body("data.name", equalTo("토스 기술블로그 수집 봇"))
+                .body("data.token", notNullValue())
+                .body("data.permanent", equalTo(true))
+                .body("data.expiredAt", nullValue())
+                .extract()
+                .path<String>("data.token")
+
+        val savedToken = userTokenRepository.findAll().single()
+        val payloadJson = decodeJwtPayload(token)
+
+        assertEquals(companyUser.id, savedToken.user.id)
+        assertEquals("토스 기술블로그 수집 봇", savedToken.name)
+        assertEquals(jwtTokenProvider.hashToken(token), savedToken.tokenHash)
+        assertTrue(payloadJson.contains("\"permanent\":true"))
+        assertFalse(payloadJson.contains("\"exp\""))
+    }
+
+    @Test
+    @DisplayName("회사 봇 영구 토큰을 재발급하면 기존 토큰은 삭제되고 새 토큰만 남는다")
+    fun creatingCompanyPermanentTokenAgainReplacesExistingToken() {
+        val companyUser = saveCompanyUser(name = "토스", identifier = "company-toss")
+        val firstToken = createCompanyToken(companyUser.id!!, "첫 번째 수집 봇")
+
+        val secondToken = createCompanyToken(companyUser.id!!, "두 번째 수집 봇")
+
+        val savedToken = userTokenRepository.findAll().single()
+        assertEquals(companyUser.id, savedToken.user.id)
+        assertEquals("두 번째 수집 봇", savedToken.name)
+        assertEquals(jwtTokenProvider.hashToken(secondToken), savedToken.tokenHash)
+        assertFalse(firstToken == secondToken)
+
+        given()
+            .header("Authorization", "Bearer $firstToken")
+            .`when`()
+            .get("/api/users/me")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
+
+        given()
+            .header("Authorization", "Bearer $secondToken")
+            .`when`()
+            .get("/api/users/me")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.id", equalTo(companyUser.id.toString()))
+    }
+
+    @Test
+    @DisplayName("DB에 저장된 회사 봇 영구 토큰은 사용자 API 인증에 사용할 수 있다")
+    fun registeredCompanyPermanentTokenCanAuthenticate() {
+        val companyUser = saveCompanyUser(name = "토스", identifier = "company-toss")
+        val token = createCompanyToken(companyUser.id!!)
+
+        given()
+            .header("Authorization", "Bearer $token")
+            .`when`()
+            .get("/api/users/me")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.id", equalTo(companyUser.id.toString()))
+            .body("data.name", equalTo("토스"))
+    }
+
+    @Test
+    @DisplayName("회사 역할이 변경되면 저장된 영구 토큰이 삭제되어 재승격 후에도 인증에 실패한다")
+    fun companyPermanentTokenCannotAuthenticateAfterRoleChanged() {
+        val companyUser = saveCompanyUser(name = "토스", identifier = "company-toss")
+        val token = createCompanyToken(companyUser.id!!)
+        assertEquals(1, userTokenRepository.count())
+
+        updateUserRole(companyUser.id!!, UserRole.USER)
+        updateUserRole(companyUser.id!!, UserRole.COMPANY)
+
+        assertEquals(0, userTokenRepository.count())
+        given()
+            .header("Authorization", "Bearer $token")
+            .`when`()
+            .get("/api/users/me")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
+    }
+
+    @Test
+    @DisplayName("DB에 저장되지 않은 회사 봇 영구 토큰은 인증에 실패한다")
+    fun unregisteredCompanyPermanentTokenCannotAuthenticate() {
+        val companyUser = saveCompanyUser(name = "토스", identifier = "company-toss")
+        val token = createCompanyToken(companyUser.id!!)
+        userTokenRepository.deleteAllInBatch()
+
+        given()
+            .header("Authorization", "Bearer $token")
+            .`when`()
+            .get("/api/users/me")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
+    }
+
+    @Test
+    @DisplayName("USER 권한은 회사 봇 영구 토큰을 발급할 수 없다")
+    fun userCannotCreateCompanyPermanentToken() {
+        val companyUser = saveCompanyUser(name = "토스", identifier = "company-toss")
+
+        given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $userAccessToken")
+            .body(
+                """
+                {
+                  "name": "토스 기술블로그 수집 봇"
+                }
+                """.trimIndent(),
+            ).`when`()
+            .post("/admin/companies/${companyUser.id}/tokens")
+            .then()
+            .statusCode(HttpStatus.FORBIDDEN.value())
+    }
+
+    private fun saveCompanyUser(
+        name: String,
+        identifier: String = "company-${UUID.randomUUID()}",
+    ): User {
         return userRepository.save(
             User(
                 name = name,
-                email = "${UUID.randomUUID()}@example.com",
+                email = "$identifier-${UUID.randomUUID()}@example.com",
                 provider = OAuthProvider.SYSTEM,
-                identifier = "company-${UUID.randomUUID()}",
+                identifier = identifier,
                 role = UserRole.COMPANY,
-                profileImageUrl = "https://example.com/company.png",
+                profileImageUrl = "https://example.com/$identifier.png",
             ),
         )
     }
@@ -292,5 +440,51 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
             Int::class.java,
             linkId,
         ) ?: 0
+    }
+
+    private fun createCompanyToken(
+        companyUserId: UUID,
+        tokenName: String = "토스 기술블로그 수집 봇",
+    ): String {
+        return given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $adminAccessToken")
+            .body(
+                """
+                {
+                  "name": "$tokenName"
+                }
+                """.trimIndent(),
+            ).`when`()
+            .post("/admin/companies/$companyUserId/tokens")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+            .extract()
+            .path("data.token")
+    }
+
+    private fun updateUserRole(
+        userId: UUID,
+        role: UserRole,
+    ) {
+        given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $adminAccessToken")
+            .body(
+                """
+                {
+                  "role": "${role.name}"
+                }
+                """.trimIndent(),
+            ).`when`()
+            .patch("/admin/users/$userId/role")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.role", equalTo(role.name))
+    }
+
+    private fun decodeJwtPayload(token: String): String {
+        val payload = token.split(".")[1]
+        return String(Base64.getUrlDecoder().decode(payload))
     }
 }

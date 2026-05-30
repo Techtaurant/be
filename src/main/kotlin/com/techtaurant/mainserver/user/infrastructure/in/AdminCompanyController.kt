@@ -6,6 +6,8 @@ import com.techtaurant.mainserver.security.SecurityConstants
 import com.techtaurant.mainserver.user.application.CompanyAdminService
 import com.techtaurant.mainserver.user.dto.CompanyResponse
 import com.techtaurant.mainserver.user.dto.CreateCompanyRequest
+import com.techtaurant.mainserver.user.dto.CreateUserTokenRequest
+import com.techtaurant.mainserver.user.dto.UserTokenResponse
 import com.techtaurant.mainserver.user.enums.UserStatus
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
@@ -46,5 +48,15 @@ class AdminCompanyController(
         @PathVariable companyUserId: UUID,
     ) {
         companyAdminService.deleteCompany(companyUserId)
+    }
+
+    @ApiErrorResponses(includeAuthenticationErrors = true, includeValidationError = true)
+    @PostMapping("/{companyUserId}/tokens")
+    @ResponseStatus(HttpStatus.CREATED)
+    override fun createCompanyToken(
+        @PathVariable companyUserId: UUID,
+        @Valid @RequestBody request: CreateUserTokenRequest,
+    ): ApiResponse<UserTokenResponse> {
+        return ApiResponse.created(companyAdminService.createCompanyToken(companyUserId, request))
     }
 }

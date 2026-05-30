@@ -10,6 +10,7 @@ import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
+import com.techtaurant.mainserver.user.infrastructure.out.UserTokenRepository
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -29,12 +30,14 @@ class UserWriteServiceTest {
     private val userRepository: UserRepository = mockk()
     private val attachmentService: AttachmentService = mockk()
     private val userResponseAssembler: UserResponseAssembler = mockk()
+    private val userTokenRepository: UserTokenRepository = mockk()
 
     private val userWriteService =
         UserWriteService(
             userRepository = userRepository,
             attachmentService = attachmentService,
             userResponseAssembler = userResponseAssembler,
+            userTokenRepository = userTokenRepository,
         )
 
     private lateinit var user: User
@@ -59,6 +62,7 @@ class UserWriteServiceTest {
             UserResponse.from(targetUser, targetUser.profileImageUrl)
         }
         every { userRepository.flush() } just runs
+        every { userTokenRepository.deleteAllByUserId(any()) } returns 0
         every { attachmentService.confirmAttachmentsByIds(any(), any(), any()) } just runs
         every { attachmentService.deleteOrphanedAttachmentsByIds(any(), any(), any()) } just runs
     }
@@ -170,6 +174,21 @@ class UserWriteServiceTest {
         method.call(userWriteService, user.id!!, UserRole.ADMIN)
 
         assertThat(user.role).isEqualTo(UserRole.ADMIN)
+        verify { userTokenRepository.deleteAllByUserId(user.id!!) }
+    }
+
+    @Test
+    @DisplayName("역할이 변경되지 않으면 영구 토큰을 삭제하지 않는다")
+    fun updateUserRole_sameRole_keepsPermanentToken() {
+        val method =
+            UserWriteService::class.memberFunctions.firstOrNull { function ->
+                function.name == "updateUserRole"
+            } ?: error("updateUserRole 메서드가 없습니다")
+
+        method.call(userWriteService, user.id!!, UserRole.USER)
+
+        assertThat(user.role).isEqualTo(UserRole.USER)
+        verify(exactly = 0) { userTokenRepository.deleteAllByUserId(any()) }
     }
 
     @Test
