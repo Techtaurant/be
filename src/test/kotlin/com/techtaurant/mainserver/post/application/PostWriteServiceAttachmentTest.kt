@@ -10,7 +10,6 @@ import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.CategoryRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
-import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
@@ -33,7 +32,7 @@ import java.util.UUID
 class PostWriteServiceAttachmentTest {
     private val postRepository: PostRepository = mockk()
     private val categoryRepository: CategoryRepository = mockk()
-    private val tagRepository: TagRepository = mockk()
+    private val tagWriteService: TagWriteService = mockk()
     private val userRepository: UserRepository = mockk()
     private val userFollowRepository: UserFollowRepository = mockk()
     private val distributedLock: DistributedLock = mockk()
@@ -44,7 +43,7 @@ class PostWriteServiceAttachmentTest {
         PostWriteService(
             postRepository = postRepository,
             categoryRepository = categoryRepository,
-            tagRepository = tagRepository,
+            tagWriteService = tagWriteService,
             userRepository = userRepository,
             userFollowRepository = userFollowRepository,
             distributedLock = distributedLock,
@@ -68,6 +67,7 @@ class PostWriteServiceAttachmentTest {
 
         every { userRepository.findById(author.id!!) } returns Optional.of(author)
         every { userFollowRepository.findFollowerIdsByFollowingId(author.id!!) } returns emptyList()
+        every { tagWriteService.resolveTags(any()) } returns emptySet()
         every { attachmentService.confirmAttachmentsByIds(any(), any(), any()) } just runs
         every { attachmentService.deleteOrphanedAttachmentsByIds(any(), any(), any()) } just runs
         every { attachmentService.deleteAttachmentsByReference(any(), any()) } just runs

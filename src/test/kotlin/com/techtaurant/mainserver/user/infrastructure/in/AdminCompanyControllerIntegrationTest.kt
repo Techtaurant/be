@@ -10,7 +10,6 @@ import com.techtaurant.mainserver.link.infrastructure.out.LinkReadLogRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
 import com.techtaurant.mainserver.post.entity.Tag
-import com.techtaurant.mainserver.post.enums.TagTargetType
 import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
@@ -183,7 +182,7 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
     fun adminCanDeleteCompanyWithBatchesAndLinks() {
         val company = saveCompanyUser("토스")
         val otherCompany = saveCompanyUser("당근")
-        val linkTag = tagRepository.save(Tag(name = "backend", targetType = TagTargetType.LINK))
+        val linkTag = tagRepository.save(Tag(name = "backend"))
         val companyLink = saveLink(company, "토스 링크", "https://toss.tech/article/delete-target")
         val otherCompanyLink = saveLink(otherCompany, "당근 링크", "https://medium.com/daangn/delete-survivor")
 
@@ -269,14 +268,16 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
         title: String,
         url: String,
     ): Link {
-        return linkRepository.save(
-            Link(
-                title = title,
-                url = url,
-                summary = "링크 요약",
-                sourceCompanyUser = company,
-            ),
-        )
+        val link =
+            linkRepository.save(
+                Link(
+                    title = title,
+                    url = url,
+                    summary = "링크 요약",
+                ),
+            )
+        userLinkRepository.save(UserLink(user = company, link = link))
+        return link
     }
 
     private fun countLinkTags(linkId: UUID): Int {
