@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.link.infrastructure.`in`
 
 import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.link.entity.Link
+import com.techtaurant.mainserver.link.entity.UserLink
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.entity.User
@@ -24,6 +25,9 @@ class LinkControllerIntegrationTest : IntegrationTest() {
 
     @Autowired
     private lateinit var linkRepository: com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
+
+    @Autowired
+    private lateinit var userLinkRepository: com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
 
     @Autowired
     private lateinit var jwtTokenProvider: JwtTokenProvider
@@ -68,9 +72,9 @@ class LinkControllerIntegrationTest : IntegrationTest() {
                     title = "Metric Review, 실행을 이끌다",
                     url = "https://toss.tech/article/metric-review",
                     summary = "지표 리뷰를 실행으로 연결한 사례입니다.",
-                    sourceCompanyUser = companyUser,
                 ),
             )
+        userLinkRepository.save(UserLink(user = companyUser, link = firstLink))
 
         secondLink =
             linkRepository.save(
@@ -78,9 +82,9 @@ class LinkControllerIntegrationTest : IntegrationTest() {
                     title = "StarRocks 운영기",
                     url = "https://toss.tech/article/starrocks",
                     summary = "멀티테넌트 워크로드 격리 전략을 소개합니다.",
-                    sourceCompanyUser = companyUser,
                 ),
             )
+        userLinkRepository.save(UserLink(user = companyUser, link = secondLink))
     }
 
     @Test
@@ -93,8 +97,11 @@ class LinkControllerIntegrationTest : IntegrationTest() {
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("data.content", hasSize<Any>(2))
+            .body("data.content.find { it.id == '${firstLink.id}' }.sourceCompanyUserId", equalTo(companyUser.id.toString()))
             .body("data.content.find { it.id == '${firstLink.id}' }.isSaved", equalTo(false))
             .body("data.content.find { it.id == '${firstLink.id}' }.isRead", equalTo(false))
+            .body("data.content.find { it.id == '${firstLink.id}' }.viewCount", equalTo(0))
+            .body("data.content.find { it.id == '${firstLink.id}' }.likeCount", equalTo(0))
 
         given()
             .header("Authorization", "Bearer $accessToken")
@@ -165,5 +172,41 @@ class LinkControllerIntegrationTest : IntegrationTest() {
             .statusCode(HttpStatus.OK.value())
             .body("data.content.find { it.id == '${secondLink.id}' }.isSaved", equalTo(false))
             .body("data.content.find { it.id == '${secondLink.id}' }.isRead", equalTo(false))
+    }
+
+    @Test
+    @DisplayName("사용자는 링크 좋아요를 기록하고 조회 로그는 링크 조회수를 증가시킨다")
+    fun userCanRecordLikeAndViewCountForLink() {
+        given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $accessToken")
+            .body("""{"likeStatus": "LIKE"}""")
+            .`when`()
+            .post("/api/links/${firstLink.id}/like")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+
+        given()
+            .header("User-Agent", "RestAssured")
+            .`when`()
+            .post("/open-api/links/${firstLink.id}/view-logs")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+
+        given()
+            .header("User-Agent", "RestAssured")
+            .`when`()
+            .post("/open-api/links/${firstLink.id}/view-logs")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+
+        given()
+            .header("Authorization", "Bearer $accessToken")
+            .`when`()
+            .get("/api/companies/${companyUser.id}/links?size=10")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.content.find { it.id == '${firstLink.id}' }.likeCount", equalTo(1))
+            .body("data.content.find { it.id == '${firstLink.id}' }.viewCount", equalTo(2))
     }
 }

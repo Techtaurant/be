@@ -1,5 +1,6 @@
 package com.techtaurant.mainserver.link.dto
 
+import com.techtaurant.mainserver.post.entity.TaggedContent
 import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.Min
@@ -32,9 +33,10 @@ data class CreateLinkCrawlBatchRequest(
     val titleSelector: String,
     @field:Schema(description = "카드 내부 요약 selector", example = "div._13swo3b8", nullable = true)
     val summarySelector: String? = null,
-    @field:ArraySchema(schema = Schema(description = "발행일 selector", example = "time"))
+    @field:ArraySchema(schema = Schema(description = "발행일 selector. ISO 날짜/시간 또는 '2023년 6월 20일' 형식의 텍스트를 읽습니다.", example = "div.o6bzluc"))
     val publishedAtSelectors: List<String> = emptyList(),
-    @field:ArraySchema(schema = Schema(description = "수집된 링크에 부여할 태그명", example = "toss-tech"))
+    @field:Size(max = TaggedContent.MAX_TAG_COUNT, message = "태그는 최대 10개까지 설정할 수 있습니다")
+    @field:ArraySchema(maxItems = TaggedContent.MAX_TAG_COUNT, schema = Schema(description = "수집된 링크에 부여할 태그명", example = "toss-tech"))
     val tagNames: List<String> = emptyList(),
     @field:NotBlank(message = "cronExpression은 필수입니다")
     @field:Schema(description = "cron 표현식", example = "0 0 * * * *")

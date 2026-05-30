@@ -113,7 +113,6 @@ class LinkViewerStateControllerIntegrationTest : IntegrationTest() {
                 title = title,
                 url = "https://example.com/${UUID.randomUUID()}",
                 summary = "요약",
-                sourceCompanyUser = companyUser,
             ),
         )
 }

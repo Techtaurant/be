@@ -2,8 +2,13 @@ package com.techtaurant.mainserver.link.infrastructure.`in`
 
 import com.sun.net.httpserver.HttpServer
 import com.techtaurant.mainserver.base.IntegrationTest
+import com.techtaurant.mainserver.link.entity.Link
+import com.techtaurant.mainserver.link.entity.LinkCrawlBatch
+import com.techtaurant.mainserver.link.entity.UserLink
 import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlBatchRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
+import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
+import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.entity.User
@@ -20,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import java.net.InetSocketAddress
 import java.nio.charset.StandardCharsets
+import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -33,6 +39,12 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
 
     @Autowired
     private lateinit var linkRepository: LinkRepository
+
+    @Autowired
+    private lateinit var userLinkRepository: UserLinkRepository
+
+    @Autowired
+    private lateinit var tagRepository: TagRepository
 
     @Autowired
     private lateinit var linkCrawlBatchRepository: LinkCrawlBatchRepository
@@ -94,7 +106,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                                 <div class="title">Metric Review, 실행을 이끌다</div>
                                 <div class="summary">인사이트는 있는데 실행이 느릴 때, 지표 리뷰로 실행 리듬을 만든 이야기입니다.</div>
                                 <div class="author">박종익</div>
-                                <time datetime="2026-04-20T10:15:30Z">2026-04-20</time>
+                                <div class="published-date o6bzluc">2026년 4월 20일</div>
                               </a>
                             </div>
                             <div class="article-card">
@@ -102,7 +114,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                                 <div class="title">StarRocks 운영기</div>
                                 <div class="summary">서비스 쿼리가 밀리기 시작했을 때 우리가 선택한 멀티테넌트 격리 전략을 정리했습니다.</div>
                                 <div class="author">이유진</div>
-                                <time datetime="2026-04-19T09:00:00Z">2026-04-19</time>
+                                <div class="published-date o6bzluc">2026년 4월 19일</div>
                               </a>
                             </div>
                           </body>
@@ -117,7 +129,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                                 <div class="title">Cache Layer 개선기</div>
                                 <div class="summary">반복 조회 부하를 낮추기 위해 캐시 계층을 재설계한 경험을 정리했습니다.</div>
                                 <div class="author">김도현</div>
-                                <time datetime="2026-04-18T08:30:00Z">2026-04-18</time>
+                                <div class="published-date o6bzluc">2026년 4월 18일</div>
                               </a>
                             </div>
                           </body>
@@ -164,7 +176,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                       "articleLinkSelector": "a.article-link",
                       "titleSelector": ".title",
                       "summarySelector": ".summary",
-                      "publishedAtSelectors": ["time"],
+                      "publishedAtSelectors": ["div.o6bzluc"],
                       "tagNames": ["engineering", "backend"],
                       "cronExpression": "0 0 * * * *",
                       "startPage": 1,
@@ -193,8 +205,19 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
 
         val savedLinks = linkRepository.findAllWithTags()
         assertEquals(3, savedLinks.size)
-        assertTrue(savedLinks.all { it.sourceCompanyUser.id == companyUser.id })
+        assertEquals(
+            3,
+            userLinkRepository.findByUserIdAndLinkIdIn(companyUser.id!!, savedLinks.map { it.id!! }).size,
+        )
         assertTrue(savedLinks.all { it.tags.map { tag -> tag.name }.containsAll(listOf("engineering", "backend")) })
+        assertEquals(
+            "2026-04-20T00:00:00Z",
+            savedLinks.first { it.url.endsWith("/article/metric-review") }.publishedAt.toString(),
+        )
+
+        val savedBatch = linkCrawlBatchRepository.findById(UUID.fromString(batchId)).orElseThrow()
+        savedBatch.tagNames = "new-tag"
+        linkCrawlBatchRepository.saveAndFlush(savedBatch)
 
         given()
             .header("Authorization", "Bearer $adminAccessToken")
@@ -208,6 +231,66 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
 
         assertEquals(2, pageRequestCount(1))
         assertEquals(1, pageRequestCount(2))
+        assertTrue(linkRepository.findAllWithTags().all { link -> link.tags.none { it.name == "new-tag" } })
+        assertEquals(null, tagRepository.findByName("new-tag"))
+    }
+
+    @Test
+    @DisplayName("기존 URL이 새 회사에 연결되면 다음 페이지까지 수집한다")
+    fun runBatchContinuesWhenExistingLinksAreNewlyConnectedToCompany() {
+        val anotherCompany =
+            userRepository.save(
+                User(
+                    name = "다른 회사",
+                    email = "another-${UUID.randomUUID()}@example.com",
+                    provider = OAuthProvider.SYSTEM,
+                    identifier = "company-another-${UUID.randomUUID()}",
+                    role = UserRole.COMPANY,
+                    profileImageUrl = "https://example.com/another.png",
+                ),
+            )
+        val existingLinks =
+            listOf(
+                saveExistingLinkForSource(anotherCompany, "/article/metric-review", "Metric Review, 실행을 이끌다"),
+                saveExistingLinkForSource(anotherCompany, "/article/starrocks", "StarRocks 운영기"),
+                saveExistingLinkForSource(anotherCompany, "/article/cache-layer", "Cache Layer 개선기"),
+            )
+
+        val batch =
+            linkCrawlBatchRepository.save(
+                LinkCrawlBatch(
+                    companyUser = companyUser,
+                    name = "토스 기존 링크 연결 배치",
+                    baseUrl = crawlerBaseUrl,
+                    pageUriTemplate = "/category/engineering?page={page}",
+                    itemSelector = ".article-card",
+                    articleLinkSelector = "a.article-link",
+                    titleSelector = ".title",
+                    summarySelector = ".summary",
+                    publishedAtSelectors = "div.o6bzluc",
+                    cronExpression = "0 0 * * * *",
+                    startPage = 1,
+                    active = true,
+                    tagNames = "engineering",
+                ),
+            )
+
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .post("/admin/link-crawl-batches/${batch.id}/run")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.collectedCount", equalTo(3))
+            .body("data.newLinkCount", equalTo(0))
+            .body("data.existingLinkCount", equalTo(3))
+            .body("data.skippedCount", equalTo(0))
+
+        val existingLinkIds = existingLinks.map { it.id!! }
+        assertEquals(1, pageRequestCount(1))
+        assertEquals(1, pageRequestCount(2))
+        assertEquals(3, userLinkRepository.findByUserIdAndLinkIdIn(companyUser.id!!, existingLinkIds).size)
+        assertEquals(3, userLinkRepository.findByUserIdAndLinkIdIn(anotherCompany.id!!, existingLinkIds).size)
     }
 
     @Test
@@ -215,7 +298,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
     fun adminCanListAndUpdateCompanyBatches() {
         val batch =
             linkCrawlBatchRepository.save(
-                com.techtaurant.mainserver.link.entity.LinkCrawlBatch(
+                LinkCrawlBatch(
                     companyUser = companyUser,
                     name = "초기 배치",
                     baseUrl = crawlerBaseUrl,
@@ -273,6 +356,25 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                 }
             }?.firstOrNull()
             ?: 1
+    }
+
+    private fun saveExistingLinkForSource(
+        sourceCompanyUser: User,
+        path: String,
+        title: String,
+    ): Link {
+        val link =
+            linkRepository.saveAndFlush(
+                Link(
+                    title = title,
+                    url = "$crawlerBaseUrl$path",
+                    summary = "$title summary",
+                    publishedAt = Instant.parse("2026-04-20T00:00:00Z"),
+                ),
+            )
+        userLinkRepository.saveAndFlush(UserLink(user = sourceCompanyUser, link = link))
+
+        return link
     }
 
     private fun pageRequestCount(page: Int): Int {

@@ -3,10 +3,12 @@ package com.techtaurant.mainserver.link.infrastructure.`in`
 import com.techtaurant.mainserver.common.dto.ApiResponse
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.common.swagger.ApiErrorResponses
+import com.techtaurant.mainserver.link.application.LinkLikeLogService
 import com.techtaurant.mainserver.link.application.LinkReadLogService
 import com.techtaurant.mainserver.link.application.LinkReadService
 import com.techtaurant.mainserver.link.application.LinkSaveService
 import com.techtaurant.mainserver.link.dto.LinkListItemResponse
+import com.techtaurant.mainserver.link.dto.RecordLinkLikeRequest
 import com.techtaurant.mainserver.link.dto.RecordLinkReadRequest
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
@@ -32,6 +34,7 @@ class LinkController(
     private val linkReadService: LinkReadService,
     private val linkSaveService: LinkSaveService,
     private val linkReadLogService: LinkReadLogService,
+    private val linkLikeLogService: LinkLikeLogService,
 ) : LinkControllerDocs {
     @ApiErrorResponses(includeAuthenticationErrors = true)
     @GetMapping("/companies/{companyUserId}/links")
@@ -74,6 +77,21 @@ class LinkController(
         @Valid @RequestBody request: RecordLinkReadRequest,
     ): ApiResponse<Unit> {
         linkReadLogService.toggleReadStatus(linkId, userId, request.isRead)
+        return ApiResponse.ok(Unit)
+    }
+
+    @ApiErrorResponses(includeAuthenticationErrors = true, includeValidationError = true)
+    @PostMapping("/links/{linkId}/like")
+    override fun recordLike(
+        @AuthenticationPrincipal userId: UUID,
+        @PathVariable linkId: UUID,
+        @Valid @RequestBody request: RecordLinkLikeRequest,
+    ): ApiResponse<Unit> {
+        linkLikeLogService.recordLike(
+            linkId = linkId,
+            userId = userId,
+            likeStatus = request.likeStatus,
+        )
         return ApiResponse.ok(Unit)
     }
 }
