@@ -1,16 +1,17 @@
 package com.techtaurant.mainserver.link.application
 
 import com.techtaurant.mainserver.common.exception.ApiException
-import com.techtaurant.mainserver.common.lock.DistributedLock
 import com.techtaurant.mainserver.link.dto.LinkBatchRunResponse
 import com.techtaurant.mainserver.link.entity.Link
 import com.techtaurant.mainserver.link.entity.LinkCrawlBatch
+import com.techtaurant.mainserver.link.entity.UserLink
 import com.techtaurant.mainserver.link.enums.LinkStatus
 import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlBatchRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
+import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
+import com.techtaurant.mainserver.post.application.TagWriteService
 import com.techtaurant.mainserver.post.entity.Tag
-import com.techtaurant.mainserver.post.enums.TagTargetType
-import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
+import com.techtaurant.mainserver.user.entity.User
 import org.jsoup.HttpStatusException
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -29,10 +30,14 @@ import java.util.UUID
 class LinkBatchRunService(
     private val linkCrawlBatchRepository: LinkCrawlBatchRepository,
     private val linkRepository: LinkRepository,
-    private val tagRepository: TagRepository,
-    private val distributedLock: DistributedLock,
+    private val userLinkRepository: UserLinkRepository,
+    private val tagWriteService: TagWriteService,
     private val linkDocumentFetcher: LinkDocumentFetcher,
 ) {
+    companion object {
+        private val KOREAN_DATE_REGEX = Regex("""^\s*(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*$""")
+    }
+
     @Transactional
     fun run(batchId: UUID): LinkBatchRunResponse {
         val batch =
@@ -40,8 +45,8 @@ class LinkBatchRunService(
                 ApiException(LinkStatus.LINK_CRAWL_BATCH_NOT_FOUND)
             }
 
-        val tags = resolveLinkTags(batch.tagNames)
-        val result = crawl(batch, tags)
+        val tagResolver = LinkTagResolver(resolveLinkTagNames(batch.tagNames), tagWriteService::resolveTags)
+        val result = crawl(batch, tagResolver)
         batch.lastTriggeredAt = Instant.now()
 
         return result
@@ -49,16 +54,16 @@ class LinkBatchRunService(
 
     private fun crawl(
         batch: LinkCrawlBatch,
-        tags: Set<Tag>,
+        tagResolver: LinkTagResolver,
     ): LinkBatchRunResponse {
         var crawlResult = emptyCrawlResult()
         var page = batch.startPage
 
         while (true) {
-            val pageResult = crawlPage(batch, tags, page) ?: break
-            crawlResult = crawlResult.mergePageResult(pageResult)
+            val pageResult = crawlPage(batch, tagResolver, page) ?: break
+            crawlResult = crawlResult.mergePageResult(pageResult.response)
 
-            if (!pageResult.hasNewLinks()) {
+            if (!pageResult.hasProgress) {
                 break
             }
             page++
@@ -69,15 +74,15 @@ class LinkBatchRunService(
 
     private fun crawlPage(
         batch: LinkCrawlBatch,
-        tags: Set<Tag>,
+        tagResolver: LinkTagResolver,
         page: Int,
-    ): LinkBatchRunResponse? {
+    ): LinkPageCrawlResult? {
         val pageUrl = buildPageUrl(batch.baseUrl, batch.pageUriTemplate, page)
         val document = fetchPageOrNull(pageUrl) ?: return null
-        var pageResult = emptyCrawlResult()
+        var pageResult = emptyPageCrawlResult()
 
         document.select(batch.itemSelector).forEach { item ->
-            pageResult = pageResult.recordCollectionResult(collectLinkItem(item, batch, tags, pageUrl))
+            pageResult = pageResult.recordCollectionResult(collectLinkItem(item, batch, tagResolver, pageUrl))
         }
 
         return pageResult
@@ -91,21 +96,36 @@ class LinkBatchRunService(
             skippedCount = 0,
         )
 
-    private fun LinkBatchRunResponse.recordCollectionResult(result: LinkCollectionResult): LinkBatchRunResponse =
-        when (result) {
-            LinkCollectionResult.CREATED_NEW_LINK ->
-                copy(
-                    collectedCount = collectedCount + 1,
-                    newLinkCount = newLinkCount + 1,
-                )
-            LinkCollectionResult.UPDATED_EXISTING_LINK ->
-                copy(
-                    collectedCount = collectedCount + 1,
-                    existingLinkCount = existingLinkCount + 1,
-                )
-            LinkCollectionResult.SKIPPED ->
-                copy(skippedCount = skippedCount + 1)
-        }
+    private fun emptyPageCrawlResult(): LinkPageCrawlResult =
+        LinkPageCrawlResult(
+            response = emptyCrawlResult(),
+            hasProgress = false,
+        )
+
+    private fun LinkPageCrawlResult.recordCollectionResult(result: LinkCollectionResult): LinkPageCrawlResult {
+        val updatedResponse =
+            when (result) {
+                LinkCollectionResult.CREATED_NEW_LINK ->
+                    response.copy(
+                        collectedCount = response.collectedCount + 1,
+                        newLinkCount = response.newLinkCount + 1,
+                    )
+                LinkCollectionResult.CONNECTED_EXISTING_LINK,
+                LinkCollectionResult.UPDATED_EXISTING_LINK,
+                ->
+                    response.copy(
+                        collectedCount = response.collectedCount + 1,
+                        existingLinkCount = response.existingLinkCount + 1,
+                    )
+                LinkCollectionResult.SKIPPED ->
+                    response.copy(skippedCount = response.skippedCount + 1)
+            }
+
+        return copy(
+            response = updatedResponse,
+            hasProgress = hasProgress || result.hasProgress,
+        )
+    }
 
     private fun LinkBatchRunResponse.mergePageResult(pageResult: LinkBatchRunResponse): LinkBatchRunResponse =
         copy(
@@ -115,54 +135,54 @@ class LinkBatchRunService(
             skippedCount = skippedCount + pageResult.skippedCount,
         )
 
-    private fun LinkBatchRunResponse.hasNewLinks(): Boolean = newLinkCount > 0
-
     private fun collectLinkItem(
         item: Element,
         batch: LinkCrawlBatch,
-        tags: Set<Tag>,
+        tagResolver: LinkTagResolver,
         pageUrl: String,
     ): LinkCollectionResult {
         val snapshot = extractSnapshot(item, batch, pageUrl) ?: return LinkCollectionResult.SKIPPED
-        return saveNewLinkOrRefreshExistingLink(snapshot, batch, tags)
+        return saveNewLinkOrRefreshExistingLink(snapshot, batch, tagResolver)
     }
 
     private fun saveNewLinkOrRefreshExistingLink(
         snapshot: LinkSnapshot,
         batch: LinkCrawlBatch,
-        tags: Set<Tag>,
+        tagResolver: LinkTagResolver,
     ): LinkCollectionResult {
         val existingLink = linkRepository.findByUrl(snapshot.url)
         if (existingLink == null) {
-            saveNewLink(snapshot, batch, tags)
+            val savedLink = saveNewLink(snapshot, tagResolver.resolve())
+            connectUserToLink(batch.companyUser, savedLink)
             return LinkCollectionResult.CREATED_NEW_LINK
         }
 
-        refreshExistingLink(existingLink, snapshot, tags)
-        return LinkCollectionResult.UPDATED_EXISTING_LINK
+        refreshExistingLink(existingLink, snapshot)
+        val isConnected = connectUserToLink(batch.companyUser, existingLink)
+        return if (isConnected) {
+            LinkCollectionResult.CONNECTED_EXISTING_LINK
+        } else {
+            LinkCollectionResult.UPDATED_EXISTING_LINK
+        }
     }
 
     private fun saveNewLink(
         snapshot: LinkSnapshot,
-        batch: LinkCrawlBatch,
         tags: Set<Tag>,
-    ) {
-        linkRepository.save(
+    ): Link {
+        return linkRepository.save(
             Link(
                 title = snapshot.title,
                 url = snapshot.url,
                 summary = snapshot.summary,
-                sourceCompanyUser = batch.companyUser,
                 publishedAt = snapshot.publishedAt,
-                tags = tags.toMutableSet(),
-            ),
+            ).apply { replaceTags(tags) },
         )
     }
 
     private fun refreshExistingLink(
         existingLink: Link,
         snapshot: LinkSnapshot,
-        tags: Set<Tag>,
     ) {
         existingLink.title = snapshot.title
         if (snapshot.summary.isNotBlank()) {
@@ -171,7 +191,21 @@ class LinkBatchRunService(
         if (snapshot.publishedAt != null) {
             existingLink.publishedAt = snapshot.publishedAt
         }
-        existingLink.tags.addAll(tags)
+    }
+
+    private fun connectUserToLink(
+        user: User,
+        link: Link,
+    ): Boolean {
+        val userId = user.id!!
+        val linkId = link.id!!
+
+        if (userLinkRepository.findByUserIdAndLinkId(userId, linkId) == null) {
+            userLinkRepository.save(UserLink(user = user, link = link))
+            return true
+        }
+
+        return false
     }
 
     private fun fetchPageOrNull(pageUrl: String): Document? {
@@ -217,30 +251,11 @@ class LinkBatchRunService(
         )
     }
 
-    private fun resolveLinkTags(rawTagNames: String?): Set<Tag> {
-        val tagNames =
-            rawTagNames.toLineList()
-                .map(String::trim)
-                .filter(String::isNotEmpty)
-                .distinct()
-
-        if (tagNames.isEmpty()) {
-            return emptySet()
-        }
-
-        val existingTags = tagRepository.findByNameInAndTargetType(tagNames, TagTargetType.LINK)
-        val existingTagNames = existingTags.map { it.name }.toSet()
-        val newTags =
-            tagNames.filter { it !in existingTagNames }
-                .map { tagName ->
-                    distributedLock.withLockAndTransaction("link-tag:$tagName") {
-                        tagRepository.findByNameAndTargetType(tagName, TagTargetType.LINK)
-                            ?: tagRepository.save(Tag(name = tagName, targetType = TagTargetType.LINK))
-                    }
-                }
-
-        return (existingTags + newTags).toSet()
-    }
+    private fun resolveLinkTagNames(rawTagNames: String?): List<String> =
+        rawTagNames.toLineList()
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .distinct()
 
     private fun buildPageUrl(
         baseUrl: String,
@@ -303,6 +318,18 @@ class LinkBatchRunService(
             ?: runCatching { ZonedDateTime.parse(rawValue).toInstant() }.getOrNull()
             ?: runCatching { LocalDateTime.parse(rawValue).toInstant(ZoneOffset.UTC) }.getOrNull()
             ?: runCatching { LocalDate.parse(rawValue).atStartOfDay().toInstant(ZoneOffset.UTC) }.getOrNull()
+            ?: parseKoreanDate(rawValue)
+    }
+
+    private fun parseKoreanDate(rawValue: String): Instant? {
+        val match = KOREAN_DATE_REGEX.matchEntire(rawValue) ?: return null
+        val (year, month, day) = match.destructured
+
+        return runCatching {
+            LocalDate.of(year.toInt(), month.toInt(), day.toInt())
+                .atStartOfDay()
+                .toInstant(ZoneOffset.UTC)
+        }.getOrNull()
     }
 
     private fun String?.toLineList(): List<String> {
@@ -320,9 +347,32 @@ class LinkBatchRunService(
         val publishedAt: Instant?,
     )
 
-    private enum class LinkCollectionResult {
-        CREATED_NEW_LINK,
-        UPDATED_EXISTING_LINK,
-        SKIPPED,
+    private data class LinkPageCrawlResult(
+        val response: LinkBatchRunResponse,
+        val hasProgress: Boolean,
+    )
+
+    private enum class LinkCollectionResult(
+        val hasProgress: Boolean,
+    ) {
+        CREATED_NEW_LINK(true),
+        CONNECTED_EXISTING_LINK(true),
+        UPDATED_EXISTING_LINK(false),
+        SKIPPED(false),
+    }
+
+    private class LinkTagResolver(
+        private val tagNames: List<String>,
+        private val resolveTags: (Collection<String>) -> Set<Tag>,
+    ) {
+        private var resolvedTags: Set<Tag>? = null
+
+        fun resolve(): Set<Tag> {
+            if (tagNames.isEmpty()) {
+                return emptySet()
+            }
+            resolvedTags?.let { return it }
+            return resolveTags(tagNames).also { resolvedTags = it }
+        }
     }
 }

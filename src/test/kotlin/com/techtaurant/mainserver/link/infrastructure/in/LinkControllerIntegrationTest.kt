@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.link.infrastructure.`in`
 
 import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.link.entity.Link
+import com.techtaurant.mainserver.link.entity.UserLink
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.entity.User
@@ -24,6 +25,9 @@ class LinkControllerIntegrationTest : IntegrationTest() {
 
     @Autowired
     private lateinit var linkRepository: com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
+
+    @Autowired
+    private lateinit var userLinkRepository: com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
 
     @Autowired
     private lateinit var jwtTokenProvider: JwtTokenProvider
@@ -68,9 +72,9 @@ class LinkControllerIntegrationTest : IntegrationTest() {
                     title = "Metric Review, 실행을 이끌다",
                     url = "https://toss.tech/article/metric-review",
                     summary = "지표 리뷰를 실행으로 연결한 사례입니다.",
-                    sourceCompanyUser = companyUser,
                 ),
             )
+        userLinkRepository.save(UserLink(user = companyUser, link = firstLink))
 
         secondLink =
             linkRepository.save(
@@ -78,9 +82,9 @@ class LinkControllerIntegrationTest : IntegrationTest() {
                     title = "StarRocks 운영기",
                     url = "https://toss.tech/article/starrocks",
                     summary = "멀티테넌트 워크로드 격리 전략을 소개합니다.",
-                    sourceCompanyUser = companyUser,
                 ),
             )
+        userLinkRepository.save(UserLink(user = companyUser, link = secondLink))
     }
 
     @Test
@@ -93,6 +97,7 @@ class LinkControllerIntegrationTest : IntegrationTest() {
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("data.content", hasSize<Any>(2))
+            .body("data.content.find { it.id == '${firstLink.id}' }.sourceCompanyUserId", equalTo(companyUser.id.toString()))
             .body("data.content.find { it.id == '${firstLink.id}' }.isSaved", equalTo(false))
             .body("data.content.find { it.id == '${firstLink.id}' }.isRead", equalTo(false))
 

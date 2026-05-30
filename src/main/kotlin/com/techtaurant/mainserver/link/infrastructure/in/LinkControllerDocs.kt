@@ -7,6 +7,7 @@ import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponse
 import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponses
 import com.techtaurant.mainserver.link.dto.LinkListItemResponse
 import com.techtaurant.mainserver.link.dto.RecordLinkReadRequest
+import com.techtaurant.mainserver.link.enums.LinkStatus
 import com.techtaurant.mainserver.security.jwt.JwtStatus
 import com.techtaurant.mainserver.user.enums.UserStatus
 import io.swagger.v3.oas.annotations.Operation
@@ -26,6 +27,7 @@ interface LinkControllerDocs {
         [
             ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED"]),
             ApiErrorCodeResponse(UserStatus::class, ["COMPANY_NOT_FOUND"]),
+            ApiErrorCodeResponse(LinkStatus::class, ["INVALID_LINK_CURSOR"]),
             ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
         ],
     )
