@@ -1,5 +1,6 @@
 package com.techtaurant.mainserver.link.application
 
+import com.github.f4b6a3.uuid.UuidCreator
 import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.util.DateUtils
@@ -26,54 +27,81 @@ class LinkLikeLogService(
         userId: UUID,
         likeStatus: LikeStatus,
     ) {
-        val link =
-            linkRepository.findByIdForUpdate(linkId)
-                ?: throw ApiException(LinkStatus.LINK_NOT_FOUND)
+        linkRepository.findById(linkId).orElseThrow {
+            ApiException(LinkStatus.LINK_NOT_FOUND)
+        }
 
-        val user =
-            userRepository.findById(userId).orElseThrow {
-                ApiException(UserStatus.ID_NOT_FOUND)
-            }
+        userRepository.findById(userId).orElseThrow {
+            ApiException(UserStatus.ID_NOT_FOUND)
+        }
 
         val existingLog = linkLikeLogRepository.findByLinkIdAndUserIdForUpdate(linkId, userId)
         val eventStatDate = DateUtils.today()
 
         if (existingLog != null) {
-            val previousIsLiked = existingLog.isLiked
-
-            when (likeStatus) {
-                LikeStatus.NONE -> {
-                    linkLikeLogRepository.delete(existingLog)
-                    updateLikeCount(linkId, !previousIsLiked, eventStatDate)
-                }
-                LikeStatus.LIKE -> {
-                    if (!previousIsLiked) {
-                        existingLog.isLiked = true
-                        linkLikeLogRepository.save(existingLog)
-                        updateLikeCount(linkId, true, eventStatDate)
-                        updateLikeCount(linkId, true, eventStatDate)
-                    }
-                }
-                LikeStatus.DISLIKE -> {
-                    if (previousIsLiked) {
-                        existingLog.isLiked = false
-                        linkLikeLogRepository.save(existingLog)
-                        updateLikeCount(linkId, false, eventStatDate)
-                        updateLikeCount(linkId, false, eventStatDate)
-                    }
-                }
-            }
+            applyExistingLogChange(existingLog, linkId, likeStatus, eventStatDate)
         } else {
             when (likeStatus) {
                 LikeStatus.NONE -> { }
-                LikeStatus.LIKE -> {
-                    linkLikeLogRepository.save(LinkLikeLog(link = link, user = user, isLiked = true))
+                LikeStatus.LIKE -> insertLogIfAbsent(linkId, userId, likeStatus, true, eventStatDate)
+                LikeStatus.DISLIKE -> insertLogIfAbsent(linkId, userId, likeStatus, false, eventStatDate)
+            }
+        }
+    }
+
+    private fun applyExistingLogChange(
+        existingLog: LinkLikeLog,
+        linkId: UUID,
+        likeStatus: LikeStatus,
+        eventStatDate: java.sql.Date,
+    ) {
+        val previousIsLiked = existingLog.isLiked
+
+        when (likeStatus) {
+            LikeStatus.NONE -> {
+                linkLikeLogRepository.delete(existingLog)
+                updateLikeCount(linkId, !previousIsLiked, eventStatDate)
+            }
+            LikeStatus.LIKE -> {
+                if (!previousIsLiked) {
+                    existingLog.isLiked = true
+                    linkLikeLogRepository.save(existingLog)
+                    updateLikeCount(linkId, true, eventStatDate)
                     updateLikeCount(linkId, true, eventStatDate)
                 }
-                LikeStatus.DISLIKE -> {
-                    linkLikeLogRepository.save(LinkLikeLog(link = link, user = user, isLiked = false))
+            }
+            LikeStatus.DISLIKE -> {
+                if (previousIsLiked) {
+                    existingLog.isLiked = false
+                    linkLikeLogRepository.save(existingLog)
+                    updateLikeCount(linkId, false, eventStatDate)
                     updateLikeCount(linkId, false, eventStatDate)
                 }
+            }
+        }
+    }
+
+    private fun insertLogIfAbsent(
+        linkId: UUID,
+        userId: UUID,
+        likeStatus: LikeStatus,
+        isLiked: Boolean,
+        eventStatDate: java.sql.Date,
+    ) {
+        val inserted =
+            linkLikeLogRepository.insertIfAbsent(
+                id = UuidCreator.getTimeOrderedEpoch(),
+                linkId = linkId,
+                userId = userId,
+                isLiked = isLiked,
+            )
+
+        if (inserted == 1) {
+            updateLikeCount(linkId, isLiked, eventStatDate)
+        } else {
+            val existingLog = linkLikeLogRepository.findByLinkIdAndUserIdForUpdate(linkId, userId)
+            if (existingLog != null) {
+                applyExistingLogChange(existingLog, linkId, likeStatus, eventStatDate)
             }
         }
     }
