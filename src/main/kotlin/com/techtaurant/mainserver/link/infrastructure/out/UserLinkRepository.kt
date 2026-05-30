@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
+import java.util.Date
 import java.util.UUID
 
 interface UserLinkRepository : JpaRepository<UserLink, UUID> {
@@ -15,7 +16,7 @@ interface UserLinkRepository : JpaRepository<UserLink, UUID> {
     @Query(
         """
         INSERT INTO user_links (id, user_id, link_id, created_at, updated_at)
-        VALUES (:id, :userId, :linkId, NOW(), NOW())
+        VALUES (:id, :userId, :linkId, :createdAt, :updatedAt)
         ON CONFLICT ON CONSTRAINT uk_user_links_user_id_link_id DO NOTHING
         """,
         nativeQuery = true,
@@ -24,6 +25,8 @@ interface UserLinkRepository : JpaRepository<UserLink, UUID> {
         @Param("id") id: UUID,
         @Param("userId") userId: UUID,
         @Param("linkId") linkId: UUID,
+        @Param("createdAt") createdAt: Date,
+        @Param("updatedAt") updatedAt: Date,
     ): Int
 
     fun findByUserIdAndLinkId(

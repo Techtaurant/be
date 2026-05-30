@@ -10,6 +10,7 @@ import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.Date
 import java.util.UUID
 
 @Service
@@ -31,14 +32,18 @@ class LinkSaveService(
             ApiException(UserStatus.USER_NOT_FOUND)
         }
 
+        val savedAt = Date()
+        val statDate = DateUtils.toUtcDate(savedAt)
         val inserted =
             userLinkRepository.insertIfAbsent(
                 id = UuidCreator.getTimeOrderedEpoch(),
                 userId = userId,
                 linkId = linkId,
+                createdAt = savedAt,
+                updatedAt = savedAt,
             )
         if (inserted == 1) {
-            linkDailyStatsService.incrementSaveCount(linkId, DateUtils.today())
+            linkDailyStatsService.incrementSaveCount(linkId, statDate)
         }
     }
 
