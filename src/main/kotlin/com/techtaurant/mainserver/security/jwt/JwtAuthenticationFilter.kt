@@ -37,7 +37,7 @@ class JwtAuthenticationFilter(
                 // JWT에서 userId와 role을 추출합니다.
                 val claims = jwtTokenProvider.validateAndGetClaims(token)
 
-                if (claims.isPermanent && !isRegisteredPermanentToken(claims, token)) {
+                if (!canAuthenticateByTokenPolicy(claims, token)) {
                     SecurityContextHolder.clearContext()
                     request.setAttribute(SecurityConstants.ERROR_ATTRIBUTE, JwtStatus.INVALID_TOKEN)
                     filterChain.doFilter(request, response)
@@ -68,15 +68,26 @@ class JwtAuthenticationFilter(
     private fun resolveToken(request: HttpServletRequest): String? {
         // 1. Authorization 헤더에서 토큰 확인
         val bearerToken = request.getHeader("Authorization")
-        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7)
+        if (bearerToken != null && bearerToken.startsWith(JwtConstants.BEARER_PREFIX)) {
+            return bearerToken.substring(JwtConstants.BEARER_PREFIX.length)
         }
 
         // 2. 쿠키에서 토큰 확인
         return request.cookies?.find { it.name == JwtConstants.ACCESS_TOKEN_COOKIE }?.value
     }
 
-    private fun isRegisteredPermanentToken(
+    private fun canAuthenticateByTokenPolicy(
+        claims: JwtClaims,
+        token: String,
+    ): Boolean {
+        if (!claims.isPermanent) {
+            return true
+        }
+
+        return isRegisteredPermanentTokenWithCurrentUserRole(claims, token)
+    }
+
+    private fun isRegisteredPermanentTokenWithCurrentUserRole(
         claims: JwtClaims,
         token: String,
     ): Boolean {

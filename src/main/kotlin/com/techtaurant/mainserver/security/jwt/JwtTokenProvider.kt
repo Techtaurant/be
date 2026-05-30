@@ -31,8 +31,8 @@ class JwtTokenProvider(
 
         return Jwts.builder()
             .subject(userId.toString())
-            .claim("role", role.key) // 권한 정보 포함
-            .claim("permanent", false)
+            .claim(JwtConstants.ROLE_CLAIM, role.key)
+            .claim(JwtConstants.PERMANENT_CLAIM, JwtConstants.EXPIRING_ACCESS_TOKEN_IS_PERMANENT)
             .issuedAt(now)
             .expiration(expiryDate)
             .signWith(secretKey)
@@ -48,8 +48,8 @@ class JwtTokenProvider(
         return Jwts.builder()
             .id(UUID.randomUUID().toString())
             .subject(userId.toString())
-            .claim("role", role.key)
-            .claim("permanent", true)
+            .claim(JwtConstants.ROLE_CLAIM, role.key)
+            .claim(JwtConstants.PERMANENT_CLAIM, JwtConstants.PERMANENT_ACCESS_TOKEN_IS_PERMANENT)
             .issuedAt(now)
             .signWith(secretKey)
             .compact()
@@ -96,7 +96,7 @@ class JwtTokenProvider(
      * userId와 role, 영구 토큰 여부를 포함한 Claims 객체를 반환합니다.
      *
      * @param token AccessToken
-     * @return JWT에서 추출한 Claims (userId + role)
+     * @return JWT에서 추출한 Claims (userId + role + 영구 토큰 여부)
      * @throws ExpiredJwtException 토큰이 만료된 경우
      * @throws UnsupportedJwtException 지원하지 않는 토큰 형식인 경우
      * @throws MalformedJwtException 잘못된 형식의 토큰인 경우
@@ -106,13 +106,15 @@ class JwtTokenProvider(
         val claims = getClaims(token)
         return JwtClaims(
             userId = UUID.fromString(claims.subject),
-            role = claims["role"] as String,
-            isPermanent = claims["permanent"] as? Boolean ?: false,
+            role = claims[JwtConstants.ROLE_CLAIM] as String,
+            isPermanent =
+                claims[JwtConstants.PERMANENT_CLAIM] as? Boolean
+                    ?: JwtConstants.EXPIRING_ACCESS_TOKEN_IS_PERMANENT,
         )
     }
 
     fun hashToken(token: String): String {
-        val digest = MessageDigest.getInstance("SHA-256").digest(token.toByteArray())
+        val digest = MessageDigest.getInstance(JwtConstants.TOKEN_HASH_ALGORITHM).digest(token.toByteArray())
         return HexFormat.of().formatHex(digest)
     }
 
