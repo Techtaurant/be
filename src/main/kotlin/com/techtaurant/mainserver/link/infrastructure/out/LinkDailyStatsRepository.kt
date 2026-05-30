@@ -12,6 +12,21 @@ interface LinkDailyStatsRepository : JpaRepository<LinkDailyStats, UUID> {
     @Modifying(clearAutomatically = false, flushAutomatically = true)
     @Query(
         """
+        INSERT INTO link_daily_stats (id, link_id, stat_date, view_count, like_count, save_count, created_at, updated_at)
+        VALUES (:id, :linkId, :statDate, 0, 0, 0, NOW(), NOW())
+        ON CONFLICT (link_id, stat_date) DO NOTHING
+        """,
+        nativeQuery = true,
+    )
+    fun insertIfAbsent(
+        @Param("id") id: UUID,
+        @Param("linkId") linkId: UUID,
+        @Param("statDate") statDate: Date,
+    ): Int
+
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
+    @Query(
+        """
         UPDATE link_daily_stats
         SET view_count = view_count + 1, updated_at = NOW()
         WHERE link_id = :linkId AND stat_date = :statDate

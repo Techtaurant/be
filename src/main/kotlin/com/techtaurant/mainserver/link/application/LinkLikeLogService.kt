@@ -36,7 +36,7 @@ class LinkLikeLogService(
                 ApiException(UserStatus.ID_NOT_FOUND)
             }
 
-        val existingLog = linkLikeLogRepository.findByLinkIdAndUserId(linkId, userId)
+        val existingLog = linkLikeLogRepository.findByLinkIdAndUserIdForUpdate(linkId, userId)
         val eventStatDate = DateUtils.today()
 
         if (existingLog != null) {

@@ -50,7 +50,7 @@ class LinkSaveService(
         linkId: UUID,
         userId: UUID,
     ) {
-        val existingRelation = userLinkRepository.findByUserIdAndLinkId(userId, linkId)
+        val existingRelation = userLinkRepository.findByUserIdAndLinkIdForUpdate(userId, linkId)
         if (existingRelation != null) {
             val statDate = DateUtils.toUtcDate(existingRelation.createdAt)
             userLinkRepository.delete(existingRelation)
