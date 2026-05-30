@@ -59,7 +59,6 @@ class LinkDailyStatsServiceTest : IntegrationTest() {
                     title = "테스트 링크",
                     url = "https://toss.tech/article/${UUID.randomUUID()}",
                     summary = "테스트 링크 요약입니다.",
-                    sourceCompanyUser = companyUser,
                 ),
             )
     }

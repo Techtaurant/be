@@ -28,6 +28,7 @@ interface LinkControllerDocs {
         [
             ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED"]),
             ApiErrorCodeResponse(UserStatus::class, ["COMPANY_NOT_FOUND"]),
+            ApiErrorCodeResponse(LinkStatus::class, ["INVALID_LINK_CURSOR"]),
             ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
         ],
     )

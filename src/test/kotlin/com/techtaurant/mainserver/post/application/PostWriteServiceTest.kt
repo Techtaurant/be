@@ -14,6 +14,7 @@ import com.techtaurant.mainserver.user.entity.UserFollow
 import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserFollowRepository
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
+import jakarta.persistence.EntityManager
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -22,6 +23,8 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
+import java.util.Date
 import java.util.UUID
 
 @Transactional
@@ -44,6 +47,9 @@ class PostWriteServiceTest : IntegrationTest() {
 
     @Autowired
     private lateinit var notificationRecipientRepository: NotificationRecipientRepository
+
+    @Autowired
+    private lateinit var entityManager: EntityManager
 
     private lateinit var testUser: User
 
@@ -99,6 +105,55 @@ class PostWriteServiceTest : IntegrationTest() {
         )
 
         assertThat(notificationRepository.findAll()).isEmpty()
+    }
+
+    @Test
+    @DisplayName("생성 요청에 createdAt이 있으면 게시물 생성일시로 저장된다")
+    fun createPost_withCreatedAt_savesRequestedCreatedAt() {
+        val requestedCreatedAt = Instant.parse("2026-04-25T10:15:30Z")
+        val expectedCreatedAt = Date.from(requestedCreatedAt)
+
+        val response =
+            postWriteService.createPost(
+                testUser.id!!,
+                CreatePostRequest(
+                    title = "예약 생성일시 글",
+                    content = "생성일시를 직접 입력한 본문",
+                    status = PostStatusEnum.PUBLISHED,
+                    createdAt = requestedCreatedAt,
+                ),
+            )
+
+        entityManager.flush()
+        entityManager.clear()
+        val savedPost = postRepository.findById(response.id).orElseThrow()
+
+        assertThat(response.createdAt).isEqualTo(expectedCreatedAt)
+        assertThat(savedPost.createdAt.time).isEqualTo(expectedCreatedAt.time)
+    }
+
+    @Test
+    @DisplayName("생성 요청에 createdAt이 없으면 현재 시점으로 게시물이 작성된다")
+    fun createPost_withoutCreatedAt_savesCurrentCreatedAt() {
+        val beforeCreate = Date()
+
+        val response =
+            postWriteService.createPost(
+                testUser.id!!,
+                CreatePostRequest(
+                    title = "현재 생성일시 글",
+                    content = "생성일시를 입력하지 않은 본문",
+                    status = PostStatusEnum.PUBLISHED,
+                ),
+            )
+
+        val afterCreate = Date()
+        entityManager.flush()
+        entityManager.clear()
+        val savedPost = postRepository.findById(response.id).orElseThrow()
+
+        assertThat(response.createdAt.time).isBetween(beforeCreate.time, afterCreate.time)
+        assertThat(savedPost.createdAt.time).isBetween(beforeCreate.time, afterCreate.time)
     }
 
     @Nested

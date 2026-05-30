@@ -52,7 +52,6 @@ class LinkRepositoryTest : IntegrationTest() {
                     title = "첫 번째 링크",
                     url = "https://toss.tech/article/test-link",
                     summary = "요약입니다",
-                    sourceCompanyUser = companyUser,
                     publishedAt = Instant.parse("2026-04-25T10:15:30Z"),
                 ),
             )
@@ -65,7 +64,6 @@ class LinkRepositoryTest : IntegrationTest() {
                         title = "두 번째 링크",
                         url = "https://toss.tech/article/test-link",
                         summary = "다른 요약입니다",
-                        sourceCompanyUser = companyUser,
                         publishedAt = null,
                     ),
                 )
@@ -90,7 +88,6 @@ class LinkRepositoryTest : IntegrationTest() {
                     title = "긴 링크와 긴 요약",
                     url = longUrl,
                     summary = longSummary,
-                    sourceCompanyUser = companyUser,
                 ),
             )
 
