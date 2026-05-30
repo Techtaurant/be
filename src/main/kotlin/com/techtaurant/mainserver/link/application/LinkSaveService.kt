@@ -25,9 +25,8 @@ class LinkSaveService(
         userId: UUID,
     ) {
         val link =
-            linkRepository.findById(linkId).orElseThrow {
-                ApiException(LinkStatus.LINK_NOT_FOUND)
-            }
+            linkRepository.findByIdForUpdate(linkId)
+                ?: throw ApiException(LinkStatus.LINK_NOT_FOUND)
         val user =
             userRepository.findById(userId).orElseThrow {
                 ApiException(UserStatus.USER_NOT_FOUND)

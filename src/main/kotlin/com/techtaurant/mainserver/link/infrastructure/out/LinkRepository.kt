@@ -1,8 +1,10 @@
 package com.techtaurant.mainserver.link.infrastructure.out
 
 import com.techtaurant.mainserver.link.entity.Link
+import jakarta.persistence.LockModeType
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
@@ -11,6 +13,12 @@ import java.util.UUID
 
 interface LinkRepository : JpaRepository<Link, UUID> {
     fun findByUrl(url: String): Link?
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT l FROM Link l WHERE l.id = :linkId")
+    fun findByIdForUpdate(
+        @Param("linkId") linkId: UUID,
+    ): Link?
 
     @Query(
         """

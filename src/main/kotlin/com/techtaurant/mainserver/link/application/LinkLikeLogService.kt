@@ -27,9 +27,8 @@ class LinkLikeLogService(
         likeStatus: LikeStatus,
     ) {
         val link =
-            linkRepository.findById(linkId).orElseThrow {
-                ApiException(LinkStatus.LINK_NOT_FOUND)
-            }
+            linkRepository.findByIdForUpdate(linkId)
+                ?: throw ApiException(LinkStatus.LINK_NOT_FOUND)
 
         val user =
             userRepository.findById(userId).orElseThrow {

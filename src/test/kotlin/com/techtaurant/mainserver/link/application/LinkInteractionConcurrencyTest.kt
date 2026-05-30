@@ -129,6 +129,55 @@ class LinkInteractionConcurrencyTest : IntegrationTest() {
     }
 
     @Test
+    @DisplayName("동시 최초 좋아요는 한 번만 생성하고 집계한다")
+    fun recordLike_whenConcurrentFirstLikes_shouldInsertAndCountOnce() {
+        runConcurrently {
+            linkLikeLogService.recordLike(testLink.id!!, normalUser.id!!, LikeStatus.LIKE)
+        }
+
+        val updatedLink = linkRepository.findById(testLink.id!!).orElseThrow()
+        val likeLog = linkLikeLogRepository.findByLinkIdAndUserId(testLink.id!!, normalUser.id!!)
+        val dailyStats = findDailyStats()
+
+        assertThat(updatedLink.likeCount).isEqualTo(1)
+        assertThat(likeLog?.isLiked).isTrue()
+        assertThat(dailyStats?.likeCount).isEqualTo(1)
+        assertThat(linkLikeLogRepository.findByUserIdAndLinkIdIn(normalUser.id!!, listOf(testLink.id!!))).hasSize(1)
+    }
+
+    @Test
+    @DisplayName("동시 최초 싫어요는 한 번만 생성하고 집계한다")
+    fun recordLike_whenConcurrentFirstDislikes_shouldInsertAndCountOnce() {
+        runConcurrently {
+            linkLikeLogService.recordLike(testLink.id!!, normalUser.id!!, LikeStatus.DISLIKE)
+        }
+
+        val updatedLink = linkRepository.findById(testLink.id!!).orElseThrow()
+        val likeLog = linkLikeLogRepository.findByLinkIdAndUserId(testLink.id!!, normalUser.id!!)
+        val dailyStats = findDailyStats()
+
+        assertThat(updatedLink.likeCount).isEqualTo(-1)
+        assertThat(likeLog?.isLiked).isFalse()
+        assertThat(dailyStats?.likeCount).isEqualTo(-1)
+        assertThat(linkLikeLogRepository.findByUserIdAndLinkIdIn(normalUser.id!!, listOf(testLink.id!!))).hasSize(1)
+    }
+
+    @Test
+    @DisplayName("동시 최초 저장은 한 번만 생성하고 저장수를 집계한다")
+    fun save_whenConcurrentFirstRequests_shouldInsertAndCountOnce() {
+        runConcurrently {
+            linkSaveService.save(testLink.id!!, normalUser.id!!)
+        }
+
+        val userLink = userLinkRepository.findByUserIdAndLinkId(normalUser.id!!, testLink.id!!)
+        val dailyStats = findDailyStats()
+
+        assertThat(userLink).isNotNull
+        assertThat(userLinkRepository.findByUserIdAndLinkIdIn(normalUser.id!!, listOf(testLink.id!!))).hasSize(1)
+        assertThat(dailyStats?.saveCount).isEqualTo(1)
+    }
+
+    @Test
     @DisplayName("동시 저장 취소는 한 번만 저장수를 감소시킨다")
     fun unsave_whenConcurrentRequests_shouldDecrementDailySaveCountOnce() {
         linkSaveService.save(testLink.id!!, normalUser.id!!)
