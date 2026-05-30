@@ -45,8 +45,8 @@ class LinkBatchRunService(
                 ApiException(LinkStatus.LINK_CRAWL_BATCH_NOT_FOUND)
             }
 
-        val tags = resolveLinkTags(batch.tagNames)
-        val result = crawl(batch, tags)
+        val tagResolver = LinkTagResolver(resolveLinkTagNames(batch.tagNames), tagWriteService::resolveTags)
+        val result = crawl(batch, tagResolver)
         batch.lastTriggeredAt = Instant.now()
 
         return result
@@ -54,13 +54,13 @@ class LinkBatchRunService(
 
     private fun crawl(
         batch: LinkCrawlBatch,
-        tags: Set<Tag>,
+        tagResolver: LinkTagResolver,
     ): LinkBatchRunResponse {
         var crawlResult = emptyCrawlResult()
         var page = batch.startPage
 
         while (true) {
-            val pageResult = crawlPage(batch, tags, page) ?: break
+            val pageResult = crawlPage(batch, tagResolver, page) ?: break
             crawlResult = crawlResult.mergePageResult(pageResult.response)
 
             if (!pageResult.hasProgress) {
@@ -74,7 +74,7 @@ class LinkBatchRunService(
 
     private fun crawlPage(
         batch: LinkCrawlBatch,
-        tags: Set<Tag>,
+        tagResolver: LinkTagResolver,
         page: Int,
     ): LinkPageCrawlResult? {
         val pageUrl = buildPageUrl(batch.baseUrl, batch.pageUriTemplate, page)
@@ -82,7 +82,7 @@ class LinkBatchRunService(
         var pageResult = emptyPageCrawlResult()
 
         document.select(batch.itemSelector).forEach { item ->
-            pageResult = pageResult.recordCollectionResult(collectLinkItem(item, batch, tags, pageUrl))
+            pageResult = pageResult.recordCollectionResult(collectLinkItem(item, batch, tagResolver, pageUrl))
         }
 
         return pageResult
@@ -138,21 +138,21 @@ class LinkBatchRunService(
     private fun collectLinkItem(
         item: Element,
         batch: LinkCrawlBatch,
-        tags: Set<Tag>,
+        tagResolver: LinkTagResolver,
         pageUrl: String,
     ): LinkCollectionResult {
         val snapshot = extractSnapshot(item, batch, pageUrl) ?: return LinkCollectionResult.SKIPPED
-        return saveNewLinkOrRefreshExistingLink(snapshot, batch, tags)
+        return saveNewLinkOrRefreshExistingLink(snapshot, batch, tagResolver)
     }
 
     private fun saveNewLinkOrRefreshExistingLink(
         snapshot: LinkSnapshot,
         batch: LinkCrawlBatch,
-        tags: Set<Tag>,
+        tagResolver: LinkTagResolver,
     ): LinkCollectionResult {
         val existingLink = linkRepository.findByUrl(snapshot.url)
         if (existingLink == null) {
-            val savedLink = saveNewLink(snapshot, tags)
+            val savedLink = saveNewLink(snapshot, tagResolver.resolve())
             connectUserToLink(batch.companyUser, savedLink)
             return LinkCollectionResult.CREATED_NEW_LINK
         }
@@ -251,15 +251,11 @@ class LinkBatchRunService(
         )
     }
 
-    private fun resolveLinkTags(rawTagNames: String?): Set<Tag> {
-        val tagNames =
-            rawTagNames.toLineList()
-                .map(String::trim)
-                .filter(String::isNotEmpty)
-                .distinct()
-
-        return tagWriteService.resolveTags(tagNames)
-    }
+    private fun resolveLinkTagNames(rawTagNames: String?): List<String> =
+        rawTagNames.toLineList()
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+            .distinct()
 
     private fun buildPageUrl(
         baseUrl: String,
@@ -363,5 +359,20 @@ class LinkBatchRunService(
         CONNECTED_EXISTING_LINK(true),
         UPDATED_EXISTING_LINK(false),
         SKIPPED(false),
+    }
+
+    private class LinkTagResolver(
+        private val tagNames: List<String>,
+        private val resolveTags: (Collection<String>) -> Set<Tag>,
+    ) {
+        private var resolvedTags: Set<Tag>? = null
+
+        fun resolve(): Set<Tag> {
+            if (tagNames.isEmpty()) {
+                return emptySet()
+            }
+            resolvedTags?.let { return it }
+            return resolveTags(tagNames).also { resolvedTags = it }
+        }
     }
 }

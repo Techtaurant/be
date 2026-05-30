@@ -16,7 +16,7 @@ interface TagRepository : JpaRepository<Tag, UUID> {
             SELECT t.id, t.name, t.created_at as createdAt, t.updated_at as updatedAt,
                    COALESCE(COUNT(pt.post_id), 0) as postCount
             FROM tags t
-            LEFT JOIN post_tags pt ON t.id = pt.tag_id
+            JOIN post_tags pt ON t.id = pt.tag_id
             WHERE (:name IS NULL OR t.name ILIKE '%' || :name || '%')
             GROUP BY t.id, t.name, t.created_at, t.updated_at
             ORDER BY postCount DESC, t.id ASC
@@ -44,7 +44,7 @@ interface TagRepository : JpaRepository<Tag, UUID> {
             SELECT t.id, t.name, t.created_at as createdAt, t.updated_at as updatedAt,
                    COALESCE(COUNT(pt.post_id), 0) as postCount
             FROM tags t
-            LEFT JOIN post_tags pt ON t.id = pt.tag_id
+            JOIN post_tags pt ON t.id = pt.tag_id
             WHERE (:name IS NULL OR t.name ILIKE '%' || :name || '%')
             GROUP BY t.id, t.name, t.created_at, t.updated_at
             HAVING COALESCE(COUNT(pt.post_id), 0) < :lastPostCount

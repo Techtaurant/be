@@ -181,7 +181,7 @@ class LinkReadService(
         }
 
         return linkIds.associateWith { linkId ->
-            userLinkRepository.findFirstByLink_IdOrderByCreatedAtAscIdAsc(linkId)?.user?.id
+            userLinkRepository.findFirstSourceByLinkId(linkId, PageRequest.of(0, 1)).firstOrNull()?.user?.id
                 ?: throw ApiException(LinkStatus.LINK_NOT_FOUND)
         }
     }
