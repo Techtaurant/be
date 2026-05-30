@@ -5,12 +5,17 @@ import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.status.DefaultStatus
 import com.techtaurant.mainserver.security.enums.OAuthProvider
+import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.dto.CompanyResponse
 import com.techtaurant.mainserver.user.dto.CreateCompanyRequest
+import com.techtaurant.mainserver.user.dto.CreateUserTokenRequest
+import com.techtaurant.mainserver.user.dto.UserTokenResponse
 import com.techtaurant.mainserver.user.entity.User
+import com.techtaurant.mainserver.user.entity.UserToken
 import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
+import com.techtaurant.mainserver.user.infrastructure.out.UserTokenRepository
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -19,6 +24,8 @@ import java.util.UUID
 @Service
 class CompanyAdminService(
     private val userRepository: UserRepository,
+    private val userTokenRepository: UserTokenRepository,
+    private val jwtTokenProvider: JwtTokenProvider,
     private val attachmentService: AttachmentService,
     private val userResponseAssembler: UserResponseAssembler,
 ) {
@@ -79,9 +86,52 @@ class CompanyAdminService(
             .map(CompanyResponse::from)
     }
 
+    @Transactional
+    fun createCompanyToken(
+        companyUserId: UUID,
+        request: CreateUserTokenRequest,
+    ): UserTokenResponse {
+        val companyUser = getCompanyUser(companyUserId)
+        val normalizedName = request.name.trim()
+
+        if (normalizedName.isEmpty()) {
+            throw ApiException(DefaultStatus.BAD_REQUEST, "토큰 이름은 공백일 수 없습니다")
+        }
+
+        val companyUserIdValue = companyUser.id ?: throw ApiException(UserStatus.ID_NOT_FOUND)
+        val token = jwtTokenProvider.createPermanentAccessToken(companyUserIdValue, companyUser.role)
+
+        userTokenRepository.deleteAllByUserId(companyUserIdValue)
+        userTokenRepository.flush()
+
+        val userToken =
+            userTokenRepository.saveAndFlush(
+                UserToken(
+                    user = companyUser,
+                    name = normalizedName,
+                    tokenHash = jwtTokenProvider.hashToken(token),
+                ),
+            )
+
+        return UserTokenResponse.from(userToken, token)
+    }
+
     private fun isUserNameUniqueConstraintViolation(exception: DataIntegrityViolationException): Boolean {
         return generateSequence<Throwable>(exception) { current -> current.cause }
             .mapNotNull { throwable -> throwable.message }
             .any { message -> message.contains(USER_NAME_UNIQUE_CONSTRAINT, ignoreCase = true) }
+    }
+
+    private fun getCompanyUser(companyUserId: UUID): User {
+        val user =
+            userRepository.findById(companyUserId).orElseThrow {
+                ApiException(UserStatus.COMPANY_NOT_FOUND)
+            }
+
+        if (user.role != UserRole.COMPANY) {
+            throw ApiException(UserStatus.COMPANY_NOT_FOUND)
+        }
+
+        return user
     }
 }
