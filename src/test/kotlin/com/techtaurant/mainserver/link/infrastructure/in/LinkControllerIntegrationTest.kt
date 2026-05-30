@@ -100,6 +100,8 @@ class LinkControllerIntegrationTest : IntegrationTest() {
             .body("data.content.find { it.id == '${firstLink.id}' }.sourceCompanyUserId", equalTo(companyUser.id.toString()))
             .body("data.content.find { it.id == '${firstLink.id}' }.isSaved", equalTo(false))
             .body("data.content.find { it.id == '${firstLink.id}' }.isRead", equalTo(false))
+            .body("data.content.find { it.id == '${firstLink.id}' }.viewCount", equalTo(0))
+            .body("data.content.find { it.id == '${firstLink.id}' }.likeCount", equalTo(0))
 
         given()
             .header("Authorization", "Bearer $accessToken")
@@ -170,5 +172,41 @@ class LinkControllerIntegrationTest : IntegrationTest() {
             .statusCode(HttpStatus.OK.value())
             .body("data.content.find { it.id == '${secondLink.id}' }.isSaved", equalTo(false))
             .body("data.content.find { it.id == '${secondLink.id}' }.isRead", equalTo(false))
+    }
+
+    @Test
+    @DisplayName("사용자는 링크 좋아요를 기록하고 조회 로그는 링크 조회수를 증가시킨다")
+    fun userCanRecordLikeAndViewCountForLink() {
+        given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $accessToken")
+            .body("""{"likeStatus": "LIKE"}""")
+            .`when`()
+            .post("/api/links/${firstLink.id}/like")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+
+        given()
+            .header("User-Agent", "RestAssured")
+            .`when`()
+            .post("/open-api/links/${firstLink.id}/view-logs")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+
+        given()
+            .header("User-Agent", "RestAssured")
+            .`when`()
+            .post("/open-api/links/${firstLink.id}/view-logs")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+
+        given()
+            .header("Authorization", "Bearer $accessToken")
+            .`when`()
+            .get("/api/companies/${companyUser.id}/links?size=10")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.content.find { it.id == '${firstLink.id}' }.likeCount", equalTo(1))
+            .body("data.content.find { it.id == '${firstLink.id}' }.viewCount", equalTo(2))
     }
 }

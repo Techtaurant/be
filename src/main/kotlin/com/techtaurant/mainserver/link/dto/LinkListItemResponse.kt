@@ -24,6 +24,10 @@ data class LinkListItemResponse(
     val isSaved: Boolean,
     @field:Schema(description = "읽음 여부")
     val isRead: Boolean,
+    @field:Schema(description = "조회수")
+    val viewCount: Long,
+    @field:Schema(description = "좋아요수")
+    val likeCount: Long,
     @field:ArraySchema(schema = Schema(description = "링크 태그명", example = "engineering"))
     val tags: List<String>,
 ) {
@@ -43,6 +47,8 @@ data class LinkListItemResponse(
                 publishedAt = link.publishedAt,
                 isSaved = isSaved,
                 isRead = isRead,
+                viewCount = link.viewCount,
+                likeCount = link.likeCount,
                 tags =
                     link.tags
                         .map { it.name }

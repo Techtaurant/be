@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.common.status.DefaultStatus
 import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponse
 import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponses
 import com.techtaurant.mainserver.link.dto.LinkListItemResponse
+import com.techtaurant.mainserver.link.dto.RecordLinkLikeRequest
 import com.techtaurant.mainserver.link.dto.RecordLinkReadRequest
 import com.techtaurant.mainserver.link.enums.LinkStatus
 import com.techtaurant.mainserver.security.jwt.JwtStatus
@@ -56,5 +57,24 @@ interface LinkControllerDocs {
         userId: UUID,
         @Parameter(description = "링크 ID") linkId: UUID,
         @Valid request: RecordLinkReadRequest,
+    ): ApiResponse<Unit>
+
+    @Operation(
+        summary = "링크 좋아요 상태 변경",
+        description = "링크에 대한 좋아요 상태를 변경합니다. NONE: 취소, LIKE: 좋아요, DISLIKE: 싫어요. 인증된 사용자만 호출 가능합니다.",
+    )
+    @SwaggerApiResponse(responseCode = "200", description = "좋아요/싫어요 기록 성공")
+    @ApiErrorCodeResponses(
+        [
+            ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED"]),
+            ApiErrorCodeResponse(LinkStatus::class, ["LINK_NOT_FOUND"]),
+            ApiErrorCodeResponse(UserStatus::class, ["ID_NOT_FOUND"]),
+            ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
+        ],
+    )
+    fun recordLike(
+        userId: UUID,
+        @Parameter(description = "링크 ID") linkId: UUID,
+        @Valid request: RecordLinkLikeRequest,
     ): ApiResponse<Unit>
 }
