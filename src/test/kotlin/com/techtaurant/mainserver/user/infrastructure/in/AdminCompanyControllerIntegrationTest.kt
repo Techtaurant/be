@@ -247,15 +247,19 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("회사 역할이 변경되면 저장된 영구 토큰도 인증에 실패한다")
+    @DisplayName("회사 역할이 변경되면 저장된 영구 토큰이 삭제되어 재승격 후에도 인증에 실패한다")
     fun companyPermanentTokenCannotAuthenticateAfterRoleChanged() {
         // Given
         val companyUser = saveCompanyUser(name = "토스", identifier = "company-toss")
         val token = createCompanyToken(companyUser.id!!)
-        companyUser.role = UserRole.USER
-        userRepository.saveAndFlush(companyUser)
+        assertEquals(1, userTokenRepository.count())
 
-        // When & Then
+        // When
+        updateUserRole(companyUser.id!!, UserRole.USER)
+        updateUserRole(companyUser.id!!, UserRole.COMPANY)
+
+        // Then
+        assertEquals(0, userTokenRepository.count())
         given()
             .header("Authorization", "Bearer $token")
             .`when`()
@@ -338,6 +342,26 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
             .statusCode(HttpStatus.CREATED.value())
             .extract()
             .path("data.token")
+    }
+
+    private fun updateUserRole(
+        userId: UUID,
+        role: UserRole,
+    ) {
+        given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $adminAccessToken")
+            .body(
+                """
+                {
+                  "role": "${role.name}"
+                }
+                """.trimIndent(),
+            ).`when`()
+            .patch("/admin/users/$userId/role")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.role", equalTo(role.name))
     }
 
     private fun decodeJwtPayload(token: String): String {
