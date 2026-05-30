@@ -89,7 +89,7 @@ class CompanyAdminService(
         val companyId = companyUser.id ?: throw ApiException(UserStatus.ID_NOT_FOUND)
 
         linkCrawlBatchRepository.deleteAllByCompanyUserId(companyId)
-        linkRepository.deleteAllByConnectedUserId(companyId)
+        linkRepository.deleteAllOnlyConnectedByCompanyUserId(companyId)
         attachmentService.deleteAttachmentsByReference(companyId, AttachmentReferenceType.USER)
         userRepository.delete(companyUser)
     }

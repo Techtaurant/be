@@ -53,16 +53,25 @@ interface LinkRepository : JpaRepository<Link, UUID> {
     @Modifying(clearAutomatically = false, flushAutomatically = true)
     @Query(
         value = """
-        DELETE FROM links
-        WHERE id IN (
-            SELECT user_link.link_id
-            FROM user_links user_link
-            WHERE user_link.user_id = :companyUserId
+        DELETE FROM links deleted_link
+        WHERE EXISTS (
+            SELECT 1
+            FROM user_links company_user_link
+            WHERE company_user_link.link_id = deleted_link.id
+              AND company_user_link.user_id = :companyUserId
+        )
+          AND NOT EXISTS (
+            SELECT 1
+            FROM user_links other_company_user_link
+            JOIN users other_company_user ON other_company_user.id = other_company_user_link.user_id
+            WHERE other_company_user_link.link_id = deleted_link.id
+              AND other_company_user_link.user_id <> :companyUserId
+              AND other_company_user.role = 'COMPANY'
         )
         """,
         nativeQuery = true,
     )
-    fun deleteAllByConnectedUserId(
+    fun deleteAllOnlyConnectedByCompanyUserId(
         @Param("companyUserId") companyUserId: UUID,
     ): Int
 

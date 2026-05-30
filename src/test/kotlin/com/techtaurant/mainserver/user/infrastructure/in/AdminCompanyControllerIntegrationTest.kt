@@ -185,10 +185,12 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
         val linkTag = tagRepository.save(Tag(name = "backend"))
         val companyLink = saveLink(company, "토스 링크", "https://toss.tech/article/delete-target")
         val otherCompanyLink = saveLink(otherCompany, "당근 링크", "https://medium.com/daangn/delete-survivor")
+        val sharedLink = saveLink(company, "공유 링크", "https://example.com/shared-link")
 
         saveBatch(company, "토스 배치")
         saveBatch(otherCompany, "당근 배치")
         jdbcTemplate.update("INSERT INTO link_tags(link_id, tag_id) VALUES (?, ?)", companyLink.id, linkTag.id)
+        userLinkRepository.save(UserLink(user = otherCompany, link = sharedLink))
         userLinkRepository.save(UserLink(user = normalUser, link = companyLink))
         linkReadLogRepository.save(LinkReadLog(user = normalUser, link = companyLink))
 
@@ -201,16 +203,20 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
 
         val companyId = company.id!!
         val companyLinkId = companyLink.id!!
+        val sharedLinkId = sharedLink.id!!
 
         assertFalse(userRepository.existsById(companyId))
         assertTrue(userRepository.existsById(otherCompany.id!!))
         assertTrue(linkRepository.existsById(otherCompanyLink.id!!))
         assertFalse(linkRepository.existsById(companyLinkId))
+        assertTrue(linkRepository.existsById(sharedLinkId))
         assertTrue(linkCrawlBatchRepository.findAllByCompanyUserId(companyId).isEmpty())
         assertEquals(1, linkCrawlBatchRepository.findAllByCompanyUserId(otherCompany.id!!).size)
         assertEquals(0, countLinkTags(companyLinkId))
         assertTrue(tagRepository.existsById(linkTag.id!!))
         assertNull(userLinkRepository.findByUserIdAndLinkId(normalUser.id!!, companyLinkId))
+        assertNull(userLinkRepository.findByUserIdAndLinkId(companyId, sharedLinkId))
+        assertTrue(userLinkRepository.findByUserIdAndLinkId(otherCompany.id!!, sharedLinkId) != null)
         assertFalse(linkReadLogRepository.existsByUserIdAndLinkId(normalUser.id!!, companyLinkId))
     }
 
