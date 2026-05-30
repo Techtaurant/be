@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.security.jwt
 
 import com.techtaurant.mainserver.security.SecurityConstants
 import com.techtaurant.mainserver.security.helper.JwtExceptionMapper
+import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserTokenRepository
 import io.jsonwebtoken.ExpiredJwtException
 import jakarta.servlet.FilterChain
@@ -17,7 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter
  * JWT 기반 인증 필터
  *
  * AccessToken에서 userId와 role을 추출하여 Stateless 인증을 수행합니다.
- * 일반 AccessToken은 JWT만으로 인증하고, 영구 토큰은 DB 등록 여부를 추가로 확인합니다.
+ * 일반 AccessToken은 JWT만으로 인증하고, 영구 토큰은 DB 등록 여부와 현재 사용자 권한을 추가로 확인합니다.
  */
 @Component
 class JwtAuthenticationFilter(
@@ -79,9 +80,12 @@ class JwtAuthenticationFilter(
         claims: JwtClaims,
         token: String,
     ): Boolean {
-        return userTokenRepository.existsByUserIdAndTokenHash(
+        val claimedRole = UserRole.fromKey(claims.role) ?: return false
+
+        return userTokenRepository.existsByUserIdAndTokenHashAndUserRole(
             claims.userId,
             jwtTokenProvider.hashToken(token),
+            claimedRole,
         )
     }
 }

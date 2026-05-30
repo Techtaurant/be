@@ -247,6 +247,24 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
     }
 
     @Test
+    @DisplayName("회사 역할이 변경되면 저장된 영구 토큰도 인증에 실패한다")
+    fun companyPermanentTokenCannotAuthenticateAfterRoleChanged() {
+        // Given
+        val companyUser = saveCompanyUser(name = "토스", identifier = "company-toss")
+        val token = createCompanyToken(companyUser.id!!)
+        companyUser.role = UserRole.USER
+        userRepository.saveAndFlush(companyUser)
+
+        // When & Then
+        given()
+            .header("Authorization", "Bearer $token")
+            .`when`()
+            .get("/api/users/me")
+            .then()
+            .statusCode(HttpStatus.UNAUTHORIZED.value())
+    }
+
+    @Test
     @DisplayName("DB에 저장되지 않은 회사 봇 영구 토큰은 인증에 실패한다")
     fun unregisteredCompanyPermanentTokenCannotAuthenticate() {
         // Given
