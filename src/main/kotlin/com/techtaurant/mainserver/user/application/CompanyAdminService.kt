@@ -4,6 +4,8 @@ import com.techtaurant.mainserver.attachment.application.AttachmentService
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.status.DefaultStatus
+import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlBatchRepository
+import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.user.dto.CompanyResponse
 import com.techtaurant.mainserver.user.dto.CreateCompanyRequest
@@ -21,6 +23,8 @@ class CompanyAdminService(
     private val userRepository: UserRepository,
     private val attachmentService: AttachmentService,
     private val userResponseAssembler: UserResponseAssembler,
+    private val linkCrawlBatchRepository: LinkCrawlBatchRepository,
+    private val linkRepository: LinkRepository,
 ) {
     companion object {
         private const val USER_NAME_UNIQUE_CONSTRAINT = "uk_users_name"
@@ -77,6 +81,30 @@ class CompanyAdminService(
         return userRepository.findAllByRoleOrderByNameAsc(UserRole.COMPANY)
             .map(userResponseAssembler::assemble)
             .map(CompanyResponse::from)
+    }
+
+    @Transactional
+    fun deleteCompany(companyUserId: UUID) {
+        val companyUser = getCompanyUser(companyUserId)
+        val companyId = companyUser.id ?: throw ApiException(UserStatus.ID_NOT_FOUND)
+
+        linkCrawlBatchRepository.deleteAllByCompanyUserId(companyId)
+        linkRepository.deleteAllBySourceCompanyUserId(companyId)
+        attachmentService.deleteAttachmentsByReference(companyId, AttachmentReferenceType.USER)
+        userRepository.delete(companyUser)
+    }
+
+    private fun getCompanyUser(companyUserId: UUID): User {
+        val user =
+            userRepository.findById(companyUserId).orElseThrow {
+                ApiException(UserStatus.COMPANY_NOT_FOUND)
+            }
+
+        if (user.role != UserRole.COMPANY) {
+            throw ApiException(UserStatus.COMPANY_NOT_FOUND)
+        }
+
+        return user
     }
 
     private fun isUserNameUniqueConstraintViolation(exception: DataIntegrityViolationException): Boolean {
