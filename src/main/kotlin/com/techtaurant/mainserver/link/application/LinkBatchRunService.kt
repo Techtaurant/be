@@ -200,8 +200,8 @@ class LinkBatchRunService(
         val userId = user.id!!
         val linkId = link.id!!
 
-        if (userLinkRepository.findByUserIdAndLinkId(userId, linkId) == null) {
-            userLinkRepository.save(UserLink(user = user, link = link))
+        if (userLinkRepository.findSourceByUserIdAndLinkId(userId, linkId) == null) {
+            userLinkRepository.save(UserLink(user = user, link = link, isSource = true))
             return true
         }
 

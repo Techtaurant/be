@@ -86,7 +86,7 @@ class LinkReadService(
         val contentLinks = linkPage.content
         val linkIds = contentLinks.mapNotNull { it.id }
         val sourceCompanyUserIdByLinkId = findSourceCompanyUserIdByLinkId(contentLinks)
-        val savedLinkIds = userLinkRepository.findByUserIdAndLinkIdIn(userId, linkIds).map { it.link.id!! }.toSet()
+        val savedLinkIds = userLinkRepository.findSavedByUserIdAndLinkIdIn(userId, linkIds).map { it.link.id!! }.toSet()
         val readLinkIds = linkReadLogRepository.findByUserIdAndLinkIdIn(userId, linkIds).map { it.link.id!! }.toSet()
 
         val content =

@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.status.DefaultStatus
 import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlBatchRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
+import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.dto.CompanyResponse
@@ -32,6 +33,7 @@ class CompanyAdminService(
     private val userResponseAssembler: UserResponseAssembler,
     private val linkCrawlBatchRepository: LinkCrawlBatchRepository,
     private val linkRepository: LinkRepository,
+    private val postRepository: PostRepository,
 ) {
     companion object {
         private const val USER_NAME_UNIQUE_CONSTRAINT = "uk_users_name"
@@ -97,6 +99,9 @@ class CompanyAdminService(
 
         linkCrawlBatchRepository.deleteAllByCompanyUserId(companyId)
         linkRepository.deleteAllOnlyConnectedByCompanyUserId(companyId)
+        postRepository.findIdsByAuthorId(companyId).forEach { postId ->
+            attachmentService.deleteAttachmentsByReference(postId, AttachmentReferenceType.POST)
+        }
         attachmentService.deleteAttachmentsByReference(companyId, AttachmentReferenceType.USER)
         userRepository.delete(companyUser)
     }

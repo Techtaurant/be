@@ -90,7 +90,7 @@ class LinkSaveServiceTest : IntegrationTest() {
         entityManager.flush()
         entityManager.clear()
 
-        assertThat(userLinkRepository.findByUserIdAndLinkId(normalUser.id!!, testLink.id!!)).isNotNull()
+        assertThat(userLinkRepository.findSavedByUserIdAndLinkId(normalUser.id!!, testLink.id!!)).isNotNull()
         assertThat(findDailyStats()?.saveCount).isEqualTo(1)
     }
 
@@ -105,7 +105,7 @@ class LinkSaveServiceTest : IntegrationTest() {
         entityManager.flush()
         entityManager.clear()
 
-        assertThat(userLinkRepository.findByUserIdAndLinkId(normalUser.id!!, testLink.id!!)).isNull()
+        assertThat(userLinkRepository.findSavedByUserIdAndLinkId(normalUser.id!!, testLink.id!!)).isNull()
         assertThat(findDailyStats()?.saveCount).isEqualTo(0)
     }
 
@@ -128,7 +128,7 @@ class LinkSaveServiceTest : IntegrationTest() {
         entityManager.flush()
         entityManager.clear()
 
-        assertThat(userLinkRepository.findByUserIdAndLinkId(normalUser.id!!, testLink.id!!)).isNull()
+        assertThat(userLinkRepository.findSavedByUserIdAndLinkId(normalUser.id!!, testLink.id!!)).isNull()
         assertThat(linkDailyStatsRepository.findAll()).isEmpty()
     }
 

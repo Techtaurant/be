@@ -221,4 +221,15 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
         @Param("authorId") authorId: UUID,
         @Param("before") before: Date,
     ): List<Post>
+
+    @Query(
+        """
+        SELECT p.id
+        FROM Post p
+        WHERE p.author.id = :authorId
+        """,
+    )
+    fun findIdsByAuthorId(
+        @Param("authorId") authorId: UUID,
+    ): List<UUID>
 }

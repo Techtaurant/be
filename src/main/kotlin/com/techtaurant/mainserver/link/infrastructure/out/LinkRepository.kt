@@ -43,6 +43,7 @@ interface LinkRepository : JpaRepository<Link, UUID> {
             FROM UserLink userLink
             WHERE userLink.link = l
               AND userLink.user.id = :companyUserId
+              AND userLink.isSource = true
         )
         """,
     )
@@ -59,6 +60,7 @@ interface LinkRepository : JpaRepository<Link, UUID> {
             FROM user_links company_user_link
             WHERE company_user_link.link_id = deleted_link.id
               AND company_user_link.user_id = :companyUserId
+              AND company_user_link.is_source = TRUE
         )
           AND NOT EXISTS (
             SELECT 1
@@ -66,6 +68,7 @@ interface LinkRepository : JpaRepository<Link, UUID> {
             JOIN users other_company_user ON other_company_user.id = other_company_user_link.user_id
             WHERE other_company_user_link.link_id = deleted_link.id
               AND other_company_user_link.user_id <> :companyUserId
+              AND other_company_user_link.is_source = TRUE
               AND other_company_user.role = 'COMPANY'
         )
         """,
@@ -103,6 +106,7 @@ interface LinkRepository : JpaRepository<Link, UUID> {
                 FROM UserLink sourceUserLink
                 WHERE sourceUserLink.link = l
                   AND sourceUserLink.user.id = :sourceCompanyUserId
+                  AND sourceUserLink.isSource = true
             )
         )
           AND (
@@ -133,6 +137,7 @@ interface LinkRepository : JpaRepository<Link, UUID> {
                 FROM UserLink sourceUserLink
                 WHERE sourceUserLink.link = l
                   AND sourceUserLink.user.id = :sourceCompanyUserId
+                  AND sourceUserLink.isSource = true
             )
         )
           AND (

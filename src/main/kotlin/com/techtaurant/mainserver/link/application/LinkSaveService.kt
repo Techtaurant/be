@@ -39,6 +39,7 @@ class LinkSaveService(
                 id = UuidCreator.getTimeOrderedEpoch(),
                 userId = userId,
                 linkId = linkId,
+                isSource = false,
                 createdAt = savedAt,
                 updatedAt = savedAt,
             )
@@ -52,7 +53,7 @@ class LinkSaveService(
         linkId: UUID,
         userId: UUID,
     ) {
-        val existingRelation = userLinkRepository.findByUserIdAndLinkIdForUpdate(userId, linkId)
+        val existingRelation = userLinkRepository.findSavedByUserIdAndLinkIdForUpdate(userId, linkId)
         if (existingRelation != null) {
             val statDate = DateUtils.toUtcDate(existingRelation.createdAt)
             userLinkRepository.delete(existingRelation)

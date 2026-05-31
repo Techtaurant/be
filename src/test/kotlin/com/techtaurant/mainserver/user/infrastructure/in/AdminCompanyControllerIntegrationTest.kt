@@ -1,5 +1,10 @@
 package com.techtaurant.mainserver.user.infrastructure.`in`
 
+import com.techtaurant.mainserver.attachment.application.S3StorageService
+import com.techtaurant.mainserver.attachment.entity.Attachment
+import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
+import com.techtaurant.mainserver.attachment.enums.AttachmentStatus
+import com.techtaurant.mainserver.attachment.infrastructure.out.AttachmentRepository
 import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.link.entity.Link
 import com.techtaurant.mainserver.link.entity.LinkCrawlBatch
@@ -9,7 +14,10 @@ import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlBatchReposito
 import com.techtaurant.mainserver.link.infrastructure.out.LinkReadLogRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
+import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.Tag
+import com.techtaurant.mainserver.post.enums.PostStatusEnum
+import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
@@ -28,6 +36,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import java.util.Base64
 import java.util.UUID
 import kotlin.test.assertEquals
@@ -56,6 +65,12 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
     private lateinit var tagRepository: TagRepository
 
     @Autowired
+    private lateinit var postRepository: PostRepository
+
+    @Autowired
+    private lateinit var attachmentRepository: AttachmentRepository
+
+    @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
 
     @Autowired
@@ -63,6 +78,9 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
 
     @Autowired
     private lateinit var jwtTokenProvider: JwtTokenProvider
+
+    @MockitoBean
+    private lateinit var s3StorageService: S3StorageService
 
     private lateinit var adminUser: User
     private lateinit var normalUser: User
@@ -197,7 +215,9 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
         saveBatch(company, "토스 배치")
         saveBatch(otherCompany, "당근 배치")
         jdbcTemplate.update("INSERT INTO link_tags(link_id, tag_id) VALUES (?, ?)", companyLink.id, linkTag.id)
-        userLinkRepository.save(UserLink(user = otherCompany, link = sharedLink))
+        userLinkRepository.save(UserLink(user = normalUser, link = sharedLink))
+        userLinkRepository.save(UserLink(user = otherCompany, link = companyLink))
+        userLinkRepository.save(UserLink(user = otherCompany, link = sharedLink, isSource = true))
         userLinkRepository.save(UserLink(user = normalUser, link = companyLink))
         linkReadLogRepository.save(LinkReadLog(user = normalUser, link = companyLink))
 
@@ -221,10 +241,61 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
         assertEquals(1, linkCrawlBatchRepository.findAllByCompanyUserId(otherCompany.id!!).size)
         assertEquals(0, countLinkTags(companyLinkId))
         assertTrue(tagRepository.existsById(linkTag.id!!))
-        assertNull(userLinkRepository.findByUserIdAndLinkId(normalUser.id!!, companyLinkId))
-        assertNull(userLinkRepository.findByUserIdAndLinkId(companyId, sharedLinkId))
-        assertTrue(userLinkRepository.findByUserIdAndLinkId(otherCompany.id!!, sharedLinkId) != null)
+        assertNull(userLinkRepository.findSavedByUserIdAndLinkId(normalUser.id!!, companyLinkId))
+        assertNull(userLinkRepository.findSourceByUserIdAndLinkId(companyId, sharedLinkId))
+        assertTrue(userLinkRepository.findSourceByUserIdAndLinkId(otherCompany.id!!, sharedLinkId) != null)
         assertFalse(linkReadLogRepository.existsByUserIdAndLinkId(normalUser.id!!, companyLinkId))
+
+        given()
+            .`when`()
+            .get("/open-api/links/$sharedLinkId")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.sourceCompanyUserId", equalTo(otherCompany.id.toString()))
+    }
+
+    @Test
+    @DisplayName("ADMIN 권한은 회사 작성 게시물의 첨부파일을 함께 삭제할 수 있다")
+    fun adminCanDeleteCompanyWithAuthoredPostAttachments() {
+        val company = saveCompanyUser("토스")
+        val post =
+            postRepository.saveAndFlush(
+                Post(
+                    title = "회사 작성글",
+                    content = "회사 작성글 본문",
+                    author = company,
+                    status = PostStatusEnum.PUBLISHED,
+                ),
+            )
+        val attachment =
+            attachmentRepository.saveAndFlush(
+                Attachment(
+                    referenceId = post.id,
+                    referenceType = AttachmentReferenceType.POST,
+                    objectKey = "posts/${post.id}/image.png",
+                    status = AttachmentStatus.CONFIRMED,
+                    originalFileName = "image.png",
+                    contentType = "image/png",
+                    fileSize = 100,
+                ),
+            )
+        post.thumbnailImage = attachment.id
+        postRepository.saveAndFlush(post)
+
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .delete("/admin/companies/${company.id}")
+            .then()
+            .statusCode(HttpStatus.NO_CONTENT.value())
+
+        val postId = post.id!!
+        assertFalse(postRepository.existsById(postId))
+        assertTrue(
+            attachmentRepository
+                .findAllByReferenceIdAndReferenceType(postId, AttachmentReferenceType.POST)
+                .isEmpty(),
+        )
     }
 
     @Test
@@ -430,7 +501,7 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
                     summary = "링크 요약",
                 ),
             )
-        userLinkRepository.save(UserLink(user = company, link = link))
+        userLinkRepository.save(UserLink(user = company, link = link, isSource = true))
         return link
     }
 
