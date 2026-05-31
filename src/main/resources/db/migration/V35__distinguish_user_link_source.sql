@@ -3,9 +3,12 @@ ALTER TABLE user_links
 
 UPDATE user_links
 SET is_source = TRUE
-FROM users
-WHERE users.id = user_links.user_id
-  AND users.role = 'COMPANY';
+FROM links, users
+WHERE links.id = user_links.link_id
+  AND users.id = user_links.user_id
+  AND users.role = 'COMPANY'
+  AND user_links.created_at = links.created_at
+  AND user_links.updated_at = links.updated_at;
 
 ALTER TABLE user_links
     DROP CONSTRAINT uk_user_links_user_id_link_id;

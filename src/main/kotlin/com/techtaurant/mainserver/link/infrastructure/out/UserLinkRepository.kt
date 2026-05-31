@@ -91,6 +91,31 @@ interface UserLinkRepository : JpaRepository<UserLink, UUID> {
         """
         SELECT userLink
         FROM UserLink userLink
+        JOIN FETCH userLink.link
+        WHERE userLink.user.id = :userId
+          AND userLink.isSource = false
+        """,
+    )
+    fun findSavedByUserId(
+        @Param("userId") userId: UUID,
+    ): List<UserLink>
+
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
+    @Query(
+        """
+        DELETE FROM UserLink userLink
+        WHERE userLink.user.id = :userId
+          AND userLink.isSource = true
+        """,
+    )
+    fun deleteAllSourcesByUserId(
+        @Param("userId") userId: UUID,
+    ): Int
+
+    @Query(
+        """
+        SELECT userLink
+        FROM UserLink userLink
         WHERE userLink.link.id = :linkId
           AND userLink.isSource = true
           AND userLink.user.role = 'COMPANY'

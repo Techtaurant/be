@@ -11,6 +11,7 @@ import com.techtaurant.mainserver.link.entity.LinkCrawlBatch
 import com.techtaurant.mainserver.link.entity.LinkReadLog
 import com.techtaurant.mainserver.link.entity.UserLink
 import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlBatchRepository
+import com.techtaurant.mainserver.link.infrastructure.out.LinkDailyStatsRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkReadLogRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
@@ -51,6 +52,9 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
 
     @Autowired
     private lateinit var linkRepository: LinkRepository
+
+    @Autowired
+    private lateinit var linkDailyStatsRepository: LinkDailyStatsRepository
 
     @Autowired
     private lateinit var linkCrawlBatchRepository: LinkCrawlBatchRepository
@@ -296,6 +300,35 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
                 .findAllByReferenceIdAndReferenceType(postId, AttachmentReferenceType.POST)
                 .isEmpty(),
         )
+    }
+
+    @Test
+    @DisplayName("ADMIN 권한은 회사를 삭제할 때 남아 있는 저장 링크의 일별 저장수를 차감한다")
+    fun adminCanDeleteCompanyAndDecrementSavedLinkStats() {
+        val company = saveCompanyUser("토스")
+        val sourceCompany = saveCompanyUser("당근")
+        val link = saveLink(sourceCompany, "당근 링크", "https://example.com/surviving-link")
+        val companyAccessToken = jwtTokenProvider.createAccessToken(company.id!!, company.role)
+
+        given()
+            .header("Authorization", "Bearer $companyAccessToken")
+            .`when`()
+            .post("/api/links/${link.id}/save")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+
+        assertEquals(1, linkDailyStatsRepository.findAll().single().saveCount)
+
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .delete("/admin/companies/${company.id}")
+            .then()
+            .statusCode(HttpStatus.NO_CONTENT.value())
+
+        assertTrue(linkRepository.existsById(link.id!!))
+        assertEquals(0, linkDailyStatsRepository.findAll().single().saveCount)
+        assertNull(userLinkRepository.findSavedByUserIdAndLinkId(company.id!!, link.id!!))
     }
 
     @Test

@@ -100,7 +100,14 @@ interface LinkRepository : JpaRepository<Link, UUID> {
         """
         SELECT l.id
         FROM Link l
-        WHERE (
+        WHERE EXISTS (
+            SELECT validSourceUserLink.id
+            FROM UserLink validSourceUserLink
+            WHERE validSourceUserLink.link = l
+              AND validSourceUserLink.isSource = true
+              AND validSourceUserLink.user.role = 'COMPANY'
+        )
+          AND (
             :sourceCompanyUserId IS NULL OR EXISTS (
                 SELECT sourceUserLink.id
                 FROM UserLink sourceUserLink
@@ -131,7 +138,14 @@ interface LinkRepository : JpaRepository<Link, UUID> {
         """
         SELECT l.id
         FROM Link l
-        WHERE (
+        WHERE EXISTS (
+            SELECT validSourceUserLink.id
+            FROM UserLink validSourceUserLink
+            WHERE validSourceUserLink.link = l
+              AND validSourceUserLink.isSource = true
+              AND validSourceUserLink.user.role = 'COMPANY'
+        )
+          AND (
             :sourceCompanyUserId IS NULL OR EXISTS (
                 SELECT sourceUserLink.id
                 FROM UserLink sourceUserLink
