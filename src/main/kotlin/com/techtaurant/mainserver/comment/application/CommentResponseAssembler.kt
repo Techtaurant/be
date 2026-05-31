@@ -38,25 +38,32 @@ class CommentResponseAssembler(
         val authorProfileImageUrlByUserId =
             resolveAuthorProfileImageUrlByUserId(
                 comments
-                    .filterNot { bannedUserIds.contains(it.author.id) }
-                    .map { it.author }
+                    .mapNotNull { it.author }
+                    .filterNot { bannedUserIds.contains(it.id) }
                     .distinctBy { it.id },
             )
 
         return comments.map { comment ->
             val likeStatus = likeStatusMap[comment.id!!] ?: LikeStatus.NONE
-            if (!bannedUserIds.contains(comment.author.id)) {
+            val author = comment.author
+            if (author == null) {
                 CommentListResponse.from(
                     comment = comment,
                     likeStatus = likeStatus,
-                    authorProfileImageUrl = authorProfileImageUrlByUserId[comment.author.id] ?: comment.author.getFallbackProfileImageUrl(),
+                    authorProfileImageUrl = null,
+                )
+            } else if (!bannedUserIds.contains(author.id)) {
+                CommentListResponse.from(
+                    comment = comment,
+                    likeStatus = likeStatus,
+                    authorProfileImageUrl = authorProfileImageUrlByUserId[author.id] ?: author.getFallbackProfileImageUrl(),
                 )
             } else {
                 CommentListResponse.fromMasked(
                     comment = comment,
                     likeStatus = likeStatus,
-                    maskedAuthorId = bannedUserMaskingService.maskAuthorId(comment.author.id!!),
-                    maskedAuthorName = bannedUserMaskingService.maskAuthorName(comment.author.id!!),
+                    maskedAuthorId = bannedUserMaskingService.maskAuthorId(author.id!!),
+                    maskedAuthorName = bannedUserMaskingService.maskAuthorName(author.id!!),
                     maskedContent = bannedUserMaskingService.maskCommentContent(comment.id!!),
                 )
             }

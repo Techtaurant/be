@@ -2,11 +2,14 @@ package com.techtaurant.mainserver.user.application
 
 import com.techtaurant.mainserver.attachment.application.AttachmentService
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
+import com.techtaurant.mainserver.comment.application.CommentDeleteService
+import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.status.DefaultStatus
 import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.link.application.LinkDailyStatsService
 import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlBatchRepository
+import com.techtaurant.mainserver.link.infrastructure.out.LinkLikeLogRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
@@ -38,7 +41,10 @@ class CompanyAdminService(
     private val linkRepository: LinkRepository,
     private val postRepository: PostRepository,
     private val userLinkRepository: UserLinkRepository,
+    private val linkLikeLogRepository: LinkLikeLogRepository,
     private val linkDailyStatsService: LinkDailyStatsService,
+    private val commentRepository: CommentRepository,
+    private val commentDeleteService: CommentDeleteService,
 ) {
     companion object {
         private const val USER_NAME_UNIQUE_CONSTRAINT = "uk_users_name"
@@ -105,6 +111,8 @@ class CompanyAdminService(
         linkCrawlBatchRepository.deleteAllByCompanyUserId(companyId)
         linkRepository.deleteAllOnlyConnectedByCompanyUserId(companyId)
         decrementSavedLinkStats(companyId)
+        adjustLinkLikeStats(companyId)
+        softDeleteAuthoredCommentsOnSurvivingPosts(companyId)
         postRepository.findIdsByAuthorId(companyId).forEach { postId ->
             attachmentService.deleteAttachmentsByReference(postId, AttachmentReferenceType.POST)
         }
@@ -149,6 +157,25 @@ class CompanyAdminService(
                 statDate = DateUtils.toUtcDate(savedLink.createdAt),
             )
         }
+    }
+
+    private fun adjustLinkLikeStats(companyId: UUID) {
+        val statDate = DateUtils.today()
+        linkLikeLogRepository.findAllByUserIdWithLink(companyId).forEach { likeLog ->
+            val linkId = likeLog.link.id ?: return@forEach
+            if (likeLog.isLiked) {
+                linkRepository.decrementLikeCount(linkId)
+                linkDailyStatsService.decrementLikeCount(linkId, statDate)
+            } else {
+                linkRepository.incrementLikeCount(linkId)
+                linkDailyStatsService.incrementLikeCount(linkId, statDate)
+            }
+        }
+    }
+
+    private fun softDeleteAuthoredCommentsOnSurvivingPosts(companyId: UUID) {
+        commentRepository.findActiveIdsByAuthorIdAndPostAuthorIdNot(companyId)
+            .forEach { commentId -> commentDeleteService.deleteComment(commentId, companyId) }
     }
 
     private fun isUserNameUniqueConstraintViolation(exception: DataIntegrityViolationException): Boolean {

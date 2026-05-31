@@ -45,7 +45,7 @@ class CommentDeleteService(
             throw ApiException(CommentStatus.COMMENT_ALREADY_DELETED)
         }
 
-        if (comment.author.id != userId) {
+        if (comment.author?.id != userId) {
             throw ApiException(CommentStatus.COMMENT_AUTHOR_MISMATCH)
         }
 

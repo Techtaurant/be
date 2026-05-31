@@ -42,4 +42,16 @@ interface LinkLikeLogRepository : JpaRepository<LinkLikeLog, UUID> {
         userId: UUID,
         linkIds: List<UUID>,
     ): List<LinkLikeLog>
+
+    @Query(
+        """
+        SELECT likeLog
+        FROM LinkLikeLog likeLog
+        JOIN FETCH likeLog.link
+        WHERE likeLog.user.id = :userId
+        """,
+    )
+    fun findAllByUserIdWithLink(
+        @Param("userId") userId: UUID,
+    ): List<LinkLikeLog>
 }

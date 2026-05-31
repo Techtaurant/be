@@ -6,18 +6,24 @@ import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.attachment.enums.AttachmentStatus
 import com.techtaurant.mainserver.attachment.infrastructure.out.AttachmentRepository
 import com.techtaurant.mainserver.base.IntegrationTest
+import com.techtaurant.mainserver.comment.entity.Comment
+import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
+import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.link.entity.Link
 import com.techtaurant.mainserver.link.entity.LinkCrawlBatch
 import com.techtaurant.mainserver.link.entity.LinkReadLog
 import com.techtaurant.mainserver.link.entity.UserLink
 import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlBatchRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkDailyStatsRepository
+import com.techtaurant.mainserver.link.infrastructure.out.LinkLikeLogRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkReadLogRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
 import com.techtaurant.mainserver.post.entity.Post
+import com.techtaurant.mainserver.post.entity.PostDailyStats
 import com.techtaurant.mainserver.post.entity.Tag
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
+import com.techtaurant.mainserver.post.infrastructure.out.PostDailyStatsRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
@@ -42,6 +48,7 @@ import java.util.Base64
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -57,6 +64,9 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
     private lateinit var linkDailyStatsRepository: LinkDailyStatsRepository
 
     @Autowired
+    private lateinit var linkLikeLogRepository: LinkLikeLogRepository
+
+    @Autowired
     private lateinit var linkCrawlBatchRepository: LinkCrawlBatchRepository
 
     @Autowired
@@ -70,6 +80,12 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
 
     @Autowired
     private lateinit var postRepository: PostRepository
+
+    @Autowired
+    private lateinit var postDailyStatsRepository: PostDailyStatsRepository
+
+    @Autowired
+    private lateinit var commentRepository: CommentRepository
 
     @Autowired
     private lateinit var attachmentRepository: AttachmentRepository
@@ -329,6 +345,98 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
         assertTrue(linkRepository.existsById(link.id!!))
         assertEquals(0, linkDailyStatsRepository.findAll().single().saveCount)
         assertNull(userLinkRepository.findSavedByUserIdAndLinkId(company.id!!, link.id!!))
+    }
+
+    @Test
+    @DisplayName("ADMIN 권한은 회사를 삭제할 때 남아 있는 링크의 좋아요 통계를 되돌린다")
+    fun adminCanDeleteCompanyAndAdjustSurvivingLinkLikeStats() {
+        val company = saveCompanyUser("토스")
+        val sourceCompany = saveCompanyUser("당근")
+        val link = saveLink(sourceCompany, "당근 링크", "https://example.com/surviving-liked-link")
+        val companyAccessToken = jwtTokenProvider.createAccessToken(company.id!!, company.role)
+
+        given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $companyAccessToken")
+            .body("""{"likeStatus": "LIKE"}""")
+            .`when`()
+            .post("/api/links/${link.id}/like")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+
+        assertEquals(1, linkRepository.findById(link.id!!).orElseThrow().likeCount)
+        assertEquals(1, linkDailyStatsRepository.findAll().single().likeCount)
+
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .delete("/admin/companies/${company.id}")
+            .then()
+            .statusCode(HttpStatus.NO_CONTENT.value())
+
+        assertTrue(linkRepository.existsById(link.id!!))
+        assertEquals(0, linkRepository.findById(link.id!!).orElseThrow().likeCount)
+        assertEquals(0, linkDailyStatsRepository.findAll().single().likeCount)
+        assertNull(linkLikeLogRepository.findByLinkIdAndUserId(link.id!!, company.id!!))
+    }
+
+    @Test
+    @DisplayName("ADMIN 권한은 회사를 삭제할 때 남의 게시물에 작성한 댓글 스레드를 보존한다")
+    fun adminCanDeleteCompanyAndPreserveSurvivingCommentThreads() {
+        val company = saveCompanyUser("토스")
+        val post =
+            postRepository.saveAndFlush(
+                Post(
+                    title = "일반 사용자 게시물",
+                    content = "게시물 본문",
+                    author = normalUser,
+                    status = PostStatusEnum.PUBLISHED,
+                    commentCount = 2,
+                ),
+            )
+        val companyComment =
+            commentRepository.saveAndFlush(
+                Comment(
+                    content = "회사 댓글",
+                    post = post,
+                    author = company,
+                    replyCount = 1,
+                ),
+            )
+        val normalReply =
+            commentRepository.saveAndFlush(
+                Comment(
+                    content = "일반 사용자 답글",
+                    post = post,
+                    author = normalUser,
+                    parent = companyComment,
+                    depth = 1,
+                ),
+            )
+        val statDate = DateUtils.toUtcDate(companyComment.createdAt)
+        postDailyStatsRepository.saveAndFlush(
+            PostDailyStats(
+                post = post,
+                statDate = statDate,
+                commentCount = 2,
+            ),
+        )
+
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .delete("/admin/companies/${company.id}")
+            .then()
+            .statusCode(HttpStatus.NO_CONTENT.value())
+
+        val deletedCompanyComment = commentRepository.findById(companyComment.id!!).orElseThrow()
+        val survivingReply = commentRepository.findById(normalReply.id!!).orElseThrow()
+
+        assertNotNull(deletedCompanyComment.deletedAt)
+        assertNull(deletedCompanyComment.author)
+        assertEquals(companyComment.id, survivingReply.parent?.id)
+        assertEquals(1, postRepository.findById(post.id!!).orElseThrow().commentCount)
+        assertEquals(1, postDailyStatsRepository.findAll().single().commentCount)
     }
 
     @Test

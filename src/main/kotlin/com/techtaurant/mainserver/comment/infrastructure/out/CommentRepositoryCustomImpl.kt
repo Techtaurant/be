@@ -36,7 +36,7 @@ class CommentRepositoryCustomImpl : CommentRepositoryCustom {
             """
             SELECT c
             FROM Comment c
-            JOIN FETCH c.author
+            LEFT JOIN FETCH c.author
             JOIN FETCH c.post
             WHERE c.id IN :commentIds
             """.trimIndent(),
@@ -61,7 +61,7 @@ class CommentRepositoryCustomImpl : CommentRepositoryCustom {
         val cq = cb.createQuery(Comment::class.java)
         val root = cq.from(Comment::class.java)
 
-        root.fetch<Comment, User>(Comment_.AUTHOR)
+        root.fetch<Comment, User>(Comment_.AUTHOR, JoinType.LEFT)
         root.fetch<Comment, Post>(Comment_.POST, JoinType.LEFT)
 
         val predicates = mutableListOf<Predicate>()
@@ -94,7 +94,7 @@ class CommentRepositoryCustomImpl : CommentRepositoryCustom {
         val cq = cb.createQuery(Comment::class.java)
         val root = cq.from(Comment::class.java)
 
-        root.fetch<Comment, User>(Comment_.AUTHOR)
+        root.fetch<Comment, User>(Comment_.AUTHOR, JoinType.LEFT)
         root.fetch<Comment, Post>(Comment_.POST, JoinType.LEFT)
 
         val predicates = mutableListOf<Predicate>()

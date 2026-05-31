@@ -131,7 +131,7 @@ class CommentWriteService(
             throw ApiException(CommentStatus.COMMENT_ALREADY_DELETED)
         }
 
-        if (comment.author.id != userId) {
+        if (comment.author?.id != userId) {
             throw ApiException(CommentStatus.COMMENT_AUTHOR_MISMATCH)
         }
 
@@ -212,7 +212,7 @@ class CommentWriteService(
         var current = parent
 
         while (current != null) {
-            val authorId = current.author.id
+            val authorId = current.author?.id
             if (authorId != null && authorId != actorUserId && visitedAuthorIds.add(authorId)) {
                 authorIds.add(authorId)
             }
