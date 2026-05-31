@@ -2,6 +2,8 @@ package com.techtaurant.mainserver.comment.infrastructure.out
 
 import com.techtaurant.mainserver.comment.entity.CommentLikeLog
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import java.util.*
 
 interface CommentLikeLogRepository : JpaRepository<CommentLikeLog, UUID> {
@@ -28,5 +30,19 @@ interface CommentLikeLogRepository : JpaRepository<CommentLikeLog, UUID> {
     fun findByCommentIdInAndUserId(
         commentIds: List<UUID>,
         userId: UUID,
+    ): List<CommentLikeLog>
+
+    @Query(
+        """
+        SELECT likeLog
+        FROM CommentLikeLog likeLog
+        JOIN FETCH likeLog.comment likedComment
+        JOIN FETCH likedComment.post post
+        WHERE likeLog.user.id = :userId
+          AND post.author.id <> :userId
+        """,
+    )
+    fun findAllByUserIdWithCommentsOnSurvivingPosts(
+        @Param("userId") userId: UUID,
     ): List<CommentLikeLog>
 }

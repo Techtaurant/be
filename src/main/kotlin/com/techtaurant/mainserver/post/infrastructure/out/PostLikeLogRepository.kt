@@ -2,6 +2,8 @@ package com.techtaurant.mainserver.post.infrastructure.out
 
 import com.techtaurant.mainserver.post.entity.PostLikeLog
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Query
+import org.springframework.data.repository.query.Param
 import java.util.*
 
 interface PostLikeLogRepository : JpaRepository<PostLikeLog, UUID> {
@@ -28,5 +30,18 @@ interface PostLikeLogRepository : JpaRepository<PostLikeLog, UUID> {
     fun findByUserIdAndPostIdIn(
         userId: UUID,
         postIds: List<UUID>,
+    ): List<PostLikeLog>
+
+    @Query(
+        """
+        SELECT likeLog
+        FROM PostLikeLog likeLog
+        JOIN FETCH likeLog.post post
+        WHERE likeLog.user.id = :userId
+          AND post.author.id <> :userId
+        """,
+    )
+    fun findAllByUserIdWithSurvivingPost(
+        @Param("userId") userId: UUID,
     ): List<PostLikeLog>
 }

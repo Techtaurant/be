@@ -7,6 +7,7 @@ import com.techtaurant.mainserver.attachment.enums.AttachmentStatus
 import com.techtaurant.mainserver.attachment.infrastructure.out.AttachmentRepository
 import com.techtaurant.mainserver.base.IntegrationTest
 import com.techtaurant.mainserver.comment.entity.Comment
+import com.techtaurant.mainserver.comment.infrastructure.out.CommentLikeLogRepository
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
 import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.link.entity.Link
@@ -24,6 +25,7 @@ import com.techtaurant.mainserver.post.entity.PostDailyStats
 import com.techtaurant.mainserver.post.entity.Tag
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostDailyStatsRepository
+import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
@@ -86,6 +88,12 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
 
     @Autowired
     private lateinit var commentRepository: CommentRepository
+
+    @Autowired
+    private lateinit var commentLikeLogRepository: CommentLikeLogRepository
+
+    @Autowired
+    private lateinit var postLikeLogRepository: PostLikeLogRepository
 
     @Autowired
     private lateinit var attachmentRepository: AttachmentRepository
@@ -378,6 +386,67 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
         assertEquals(0, linkRepository.findById(link.id!!).orElseThrow().likeCount)
         assertEquals(0, linkDailyStatsRepository.findAll().single().likeCount)
         assertNull(linkLikeLogRepository.findByLinkIdAndUserId(link.id!!, company.id!!))
+    }
+
+    @Test
+    @DisplayName("ADMIN 권한은 회사를 삭제할 때 남아 있는 게시물과 댓글의 좋아요 통계를 되돌린다")
+    fun adminCanDeleteCompanyAndAdjustSurvivingPostAndCommentLikeStats() {
+        val company = saveCompanyUser("토스")
+        val companyAccessToken = jwtTokenProvider.createAccessToken(company.id!!, company.role)
+        val post =
+            postRepository.saveAndFlush(
+                Post(
+                    title = "일반 사용자 게시물",
+                    content = "게시물 본문",
+                    author = normalUser,
+                    status = PostStatusEnum.PUBLISHED,
+                ),
+            )
+        val comment =
+            commentRepository.saveAndFlush(
+                Comment(
+                    content = "일반 사용자 댓글",
+                    post = post,
+                    author = normalUser,
+                ),
+            )
+
+        given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $companyAccessToken")
+            .body("""{"likeStatus": "LIKE"}""")
+            .`when`()
+            .post("/api/posts/${post.id}/like")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+
+        given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $companyAccessToken")
+            .body("""{"likeStatus": "LIKE"}""")
+            .`when`()
+            .post("/api/comments/${comment.id}/like")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+
+        assertEquals(1, postRepository.findById(post.id!!).orElseThrow().likeCount)
+        assertEquals(1, postDailyStatsRepository.findAll().single().likeCount)
+        assertEquals(1, commentRepository.findById(comment.id!!).orElseThrow().likeCount)
+
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .delete("/admin/companies/${company.id}")
+            .then()
+            .statusCode(HttpStatus.NO_CONTENT.value())
+
+        assertTrue(postRepository.existsById(post.id!!))
+        assertTrue(commentRepository.existsById(comment.id!!))
+        assertEquals(0, postRepository.findById(post.id!!).orElseThrow().likeCount)
+        assertEquals(0, postDailyStatsRepository.findAll().single().likeCount)
+        assertEquals(0, commentRepository.findById(comment.id!!).orElseThrow().likeCount)
+        assertNull(postLikeLogRepository.findByPostIdAndUserId(post.id!!, company.id!!))
+        assertNull(commentLikeLogRepository.findByCommentIdAndUserId(comment.id!!, company.id!!))
     }
 
     @Test
