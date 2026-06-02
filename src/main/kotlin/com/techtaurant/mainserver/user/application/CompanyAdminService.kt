@@ -168,9 +168,9 @@ class CompanyAdminService(
     }
 
     private fun adjustLinkLikeStats(companyId: UUID) {
-        val statDate = DateUtils.today()
         linkLikeLogRepository.findAllByUserIdWithLink(companyId).forEach { likeLog ->
             val linkId = likeLog.link.id ?: return@forEach
+            val statDate = DateUtils.toUtcDate(likeLog.createdAt)
             if (likeLog.isLiked) {
                 linkRepository.decrementLikeCount(linkId)
                 linkDailyStatsService.decrementLikeCount(linkId, statDate)

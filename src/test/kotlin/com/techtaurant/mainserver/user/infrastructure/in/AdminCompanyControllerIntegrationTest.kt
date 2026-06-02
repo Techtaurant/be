@@ -12,6 +12,8 @@ import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
 import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.link.entity.Link
 import com.techtaurant.mainserver.link.entity.LinkCrawlBatch
+import com.techtaurant.mainserver.link.entity.LinkDailyStats
+import com.techtaurant.mainserver.link.entity.LinkLikeLog
 import com.techtaurant.mainserver.link.entity.LinkReadLog
 import com.techtaurant.mainserver.link.entity.UserLink
 import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlBatchRepository
@@ -385,6 +387,48 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
         assertTrue(linkRepository.existsById(link.id!!))
         assertEquals(0, linkRepository.findById(link.id!!).orElseThrow().likeCount)
         assertEquals(0, linkDailyStatsRepository.findAll().single().likeCount)
+        assertNull(linkLikeLogRepository.findByLinkIdAndUserId(link.id!!, company.id!!))
+    }
+
+    @Test
+    @DisplayName("ADMIN 권한은 회사를 삭제할 때 링크 좋아요 일별 통계를 기존 로그 생성일 기준으로 되돌린다")
+    fun adminCanDeleteCompanyAndAdjustSurvivingLinkLikeStatsOnOriginalDate() {
+        val company = saveCompanyUser("토스")
+        val sourceCompany = saveCompanyUser("당근")
+        val link = saveLink(sourceCompany, "당근 링크", "https://example.com/past-liked-link")
+        val oldStatDate = java.sql.Date.valueOf(DateUtils.today().toLocalDate().minusDays(1))
+
+        link.likeCount = 1
+        linkRepository.saveAndFlush(link)
+        linkDailyStatsRepository.saveAndFlush(
+            LinkDailyStats(
+                link = link,
+                statDate = oldStatDate,
+                likeCount = 1,
+            ),
+        )
+        val likeLog =
+            linkLikeLogRepository.saveAndFlush(
+                LinkLikeLog(
+                    link = link,
+                    user = company,
+                    isLiked = true,
+                ),
+            )
+        likeLog.createdAt = java.util.Date(oldStatDate.time)
+        likeLog.updatedAt = java.util.Date(oldStatDate.time)
+        linkLikeLogRepository.saveAndFlush(likeLog)
+
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .delete("/admin/companies/${company.id}")
+            .then()
+            .statusCode(HttpStatus.NO_CONTENT.value())
+
+        assertTrue(linkRepository.existsById(link.id!!))
+        assertEquals(0, linkRepository.findById(link.id!!).orElseThrow().likeCount)
+        assertEquals(0, linkDailyStatsRepository.findAll().single { it.statDate == oldStatDate }.likeCount)
         assertNull(linkLikeLogRepository.findByLinkIdAndUserId(link.id!!, company.id!!))
     }
 

@@ -8,15 +8,10 @@ WHERE links.id = user_links.link_id
   AND users.id = user_links.user_id
   AND users.role = 'COMPANY'
   AND (
-    (
-      user_links.created_at = links.created_at
+    user_links.created_at = links.created_at
+    OR (
+      user_links.created_at = links.updated_at
       AND user_links.updated_at = links.updated_at
-    )
-    OR EXISTS (
-      SELECT 1
-      FROM link_crawl_batches link_crawl_batch
-      WHERE link_crawl_batch.company_user_id = user_links.user_id
-        AND LEFT(links.url, LENGTH(link_crawl_batch.base_url)) = link_crawl_batch.base_url
     )
   );
 
