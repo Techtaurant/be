@@ -13,7 +13,7 @@ import java.util.UUID
  * - LATEST: updatedAt(최신 수정 시간), id
  * - VIEW/LIKE/COMMENT: sortValue(해당 count), createdAt, id
  *
- * @property sortValue 정렬 기준 값 (조회수, 좋아요수, 댓글수)
+ * @property sortValue 정렬 기준 값 (LATEST는 updatedAt epoch milliseconds, 그 외는 조회수/좋아요수/댓글수)
  * @property createdAt LATEST 정렬 시 updatedAt, 그 외 정렬 시 createdAt을 담는 보조 정렬 시간 필드
  * @property id 게시물 ID
  * @property sortType 정렬 타입
@@ -68,7 +68,7 @@ data class PostCursor(
         ): PostCursor {
             val sortValue =
                 when (sortType) {
-                    PostSortType.LATEST -> 0L
+                    PostSortType.LATEST -> post.updatedAt.time
                     PostSortType.VIEW -> post.viewCount
                     PostSortType.LIKE -> post.likeCount
                     PostSortType.COMMENT -> post.commentCount

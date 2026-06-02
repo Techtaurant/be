@@ -225,7 +225,7 @@ class PostListReadService(
         }
 
         return when (sortType) {
-            PostSortType.LATEST -> 0L
+            PostSortType.LATEST -> post.updatedAt.time
             PostSortType.VIEW -> post.viewCount
             PostSortType.LIKE -> post.likeCount
             PostSortType.COMMENT -> post.commentCount
