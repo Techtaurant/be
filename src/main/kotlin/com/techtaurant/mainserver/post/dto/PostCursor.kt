@@ -1,5 +1,6 @@
 package com.techtaurant.mainserver.post.dto
 
+import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostSortType
 import java.util.Base64
 import java.util.Date
@@ -56,24 +57,37 @@ data class PostCursor(
         }
 
         /**
-         * Post 엔티티에서 커서 생성
+         * Post 엔티티의 누적 정렬값으로 커서를 생성합니다.
          *
          * @param post 게시물 엔티티
          * @param sortType 정렬 타입
          */
         fun from(
-            post: com.techtaurant.mainserver.post.entity.Post,
+            post: Post,
             sortType: PostSortType,
-            sortValueOverride: Long? = null,
         ): PostCursor {
             val sortValue =
                 when (sortType) {
                     PostSortType.LATEST -> 0L
-                    PostSortType.VIEW -> sortValueOverride ?: post.viewCount
-                    PostSortType.LIKE -> sortValueOverride ?: post.likeCount
-                    PostSortType.COMMENT -> sortValueOverride ?: post.commentCount
+                    PostSortType.VIEW -> post.viewCount
+                    PostSortType.LIKE -> post.likeCount
+                    PostSortType.COMMENT -> post.commentCount
                 }
-            // LATEST 정렬은 updatedAt 기준이므로 커서에 updatedAt을 저장합니다.
+            return from(post, sortType, sortValue)
+        }
+
+        /**
+         * 쿼리에서 실제 정렬에 사용한 값으로 커서를 생성합니다.
+         *
+         * @param post 게시물 엔티티
+         * @param sortType 정렬 타입
+         * @param sortValue 정렬에 사용된 값
+         */
+        fun from(
+            post: Post,
+            sortType: PostSortType,
+            sortValue: Long,
+        ): PostCursor {
             val cursorDate = if (sortType == PostSortType.LATEST) post.updatedAt else post.createdAt
             return PostCursor(sortValue, cursorDate, post.id!!, sortType)
         }

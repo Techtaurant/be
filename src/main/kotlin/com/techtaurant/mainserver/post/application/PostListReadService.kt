@@ -184,7 +184,7 @@ class PostListReadService(
 
         val nextCursor =
             if (hasNext && content.isNotEmpty()) {
-                createPostCursor(content.last(), period, sortType).encode()
+                createPostCursor(createPostWithSortValue(content.last(), period, sortType), sortType).encode()
             } else {
                 null
             }
@@ -198,34 +198,52 @@ class PostListReadService(
     }
 
     private fun createPostCursor(
-        post: Post,
-        period: PostPeriod,
+        sortedPost: PostWithSortValue,
         sortType: PostSortType,
     ): PostCursor {
         return PostCursor.from(
-            post = post,
+            post = sortedPost.post,
             sortType = sortType,
-            sortValueOverride = resolvePeriodSortValue(post, period, sortType),
+            sortValue = sortedPost.sortValue,
         )
     }
 
-    private fun resolvePeriodSortValue(
+    private fun createPostWithSortValue(
         post: Post,
         period: PostPeriod,
         sortType: PostSortType,
-    ): Long? {
-        val days = period.days ?: return null
-        if (sortType == PostSortType.LATEST) {
-            return null
+    ): PostWithSortValue = PostWithSortValue(post = post, sortValue = resolveCursorSortValue(post, period, sortType))
+
+    private fun resolveCursorSortValue(
+        post: Post,
+        period: PostPeriod,
+        sortType: PostSortType,
+    ): Long {
+        val days = period.days
+        if (days != null && sortType != PostSortType.LATEST) {
+            return resolveDailyStatsSortValue(post, days, sortType)
         }
 
-        val postId = post.id ?: return null
+        return when (sortType) {
+            PostSortType.LATEST -> 0L
+            PostSortType.VIEW -> post.viewCount
+            PostSortType.LIKE -> post.likeCount
+            PostSortType.COMMENT -> post.commentCount
+        }
+    }
+
+    private fun resolveDailyStatsSortValue(
+        post: Post,
+        days: Int,
+        sortType: PostSortType,
+    ): Long {
+        val postId = post.id ?: return 0L
         val cutoffDate = dailyStatsCutoffDate(days)
         return when (sortType) {
             PostSortType.VIEW -> postDailyStatsRepository.sumViewCountSince(postId, cutoffDate)
             PostSortType.LIKE -> postDailyStatsRepository.sumLikeCountSince(postId, cutoffDate)
             PostSortType.COMMENT -> postDailyStatsRepository.sumCommentCountSince(postId, cutoffDate)
-            PostSortType.LATEST -> null
+            PostSortType.LATEST -> 0L
         }
     }
 
