@@ -64,13 +64,14 @@ data class PostCursor(
         fun from(
             post: com.techtaurant.mainserver.post.entity.Post,
             sortType: PostSortType,
+            sortValueOverride: Long? = null,
         ): PostCursor {
             val sortValue =
                 when (sortType) {
                     PostSortType.LATEST -> 0L
-                    PostSortType.VIEW -> post.viewCount
-                    PostSortType.LIKE -> post.likeCount
-                    PostSortType.COMMENT -> post.commentCount
+                    PostSortType.VIEW -> sortValueOverride ?: post.viewCount
+                    PostSortType.LIKE -> sortValueOverride ?: post.likeCount
+                    PostSortType.COMMENT -> sortValueOverride ?: post.commentCount
                 }
             // LATEST 정렬은 updatedAt 기준이므로 커서에 updatedAt을 저장합니다.
             val cursorDate = if (sortType == PostSortType.LATEST) post.updatedAt else post.createdAt

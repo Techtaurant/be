@@ -14,13 +14,17 @@ import com.techtaurant.mainserver.post.dto.PostViewerStateResponse
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
+import com.techtaurant.mainserver.post.infrastructure.out.PostDailyStatsRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.user.application.UserProfileImageResolver
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.Calendar
 import java.util.Date
 import java.util.UUID
+import java.sql.Date as SqlDate
 
 /**
  * 게시물 목록 조회 서비스
@@ -29,6 +33,7 @@ import java.util.UUID
 @Transactional(readOnly = true)
 class PostListReadService(
     private val postRepository: PostRepository,
+    private val postDailyStatsRepository: PostDailyStatsRepository,
     private val attachmentService: AttachmentService,
     private val postMetadataReadService: PostMetadataReadService,
     private val postViewerStateReadService: PostViewerStateReadService,
@@ -179,7 +184,7 @@ class PostListReadService(
 
         val nextCursor =
             if (hasNext && content.isNotEmpty()) {
-                PostCursor.from(content.last(), sortType).encode()
+                createPostCursor(content.last(), period, sortType).encode()
             } else {
                 null
             }
@@ -191,6 +196,40 @@ class PostListReadService(
             size = content.size,
         )
     }
+
+    private fun createPostCursor(
+        post: Post,
+        period: PostPeriod,
+        sortType: PostSortType,
+    ): PostCursor {
+        return PostCursor.from(
+            post = post,
+            sortType = sortType,
+            sortValueOverride = resolvePeriodSortValue(post, period, sortType),
+        )
+    }
+
+    private fun resolvePeriodSortValue(
+        post: Post,
+        period: PostPeriod,
+        sortType: PostSortType,
+    ): Long? {
+        val days = period.days ?: return null
+        if (sortType == PostSortType.LATEST) {
+            return null
+        }
+
+        val postId = post.id ?: return null
+        val cutoffDate = dailyStatsCutoffDate(days)
+        return when (sortType) {
+            PostSortType.VIEW -> postDailyStatsRepository.sumViewCountSince(postId, cutoffDate)
+            PostSortType.LIKE -> postDailyStatsRepository.sumLikeCountSince(postId, cutoffDate)
+            PostSortType.COMMENT -> postDailyStatsRepository.sumCommentCountSince(postId, cutoffDate)
+            PostSortType.LATEST -> null
+        }
+    }
+
+    private fun dailyStatsCutoffDate(days: Int): SqlDate = SqlDate.valueOf(LocalDate.now(ZoneOffset.UTC).minusDays(days.toLong()))
 
     private fun emptyPostPage(): CursorPageResponse<Post> =
         CursorPageResponse(
