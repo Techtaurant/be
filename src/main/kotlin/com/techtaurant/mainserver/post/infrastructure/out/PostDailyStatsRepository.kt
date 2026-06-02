@@ -9,42 +9,6 @@ import java.sql.Date
 import java.util.UUID
 
 interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
-    @Query(
-        """
-        SELECT COALESCE(SUM(stats.viewCount), 0)
-        FROM PostDailyStats stats
-        WHERE stats.post.id = :postId AND stats.statDate >= :cutoffDate
-        """,
-    )
-    fun sumViewCountSince(
-        @Param("postId") postId: UUID,
-        @Param("cutoffDate") cutoffDate: Date,
-    ): Long
-
-    @Query(
-        """
-        SELECT COALESCE(SUM(stats.likeCount), 0)
-        FROM PostDailyStats stats
-        WHERE stats.post.id = :postId AND stats.statDate >= :cutoffDate
-        """,
-    )
-    fun sumLikeCountSince(
-        @Param("postId") postId: UUID,
-        @Param("cutoffDate") cutoffDate: Date,
-    ): Long
-
-    @Query(
-        """
-        SELECT COALESCE(SUM(stats.commentCount), 0)
-        FROM PostDailyStats stats
-        WHERE stats.post.id = :postId AND stats.statDate >= :cutoffDate
-        """,
-    )
-    fun sumCommentCountSince(
-        @Param("postId") postId: UUID,
-        @Param("cutoffDate") cutoffDate: Date,
-    ): Long
-
     /**
      * 특정 게시물의 일별 조회수를 원자적으로 1 증가시킵니다.
      *
