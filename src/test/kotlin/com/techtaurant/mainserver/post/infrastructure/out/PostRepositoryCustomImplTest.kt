@@ -368,6 +368,35 @@ class PostRepositoryCustomImplTest : IntegrationTest() {
         }
 
         @Test
+        @DisplayName("조회순 전체 랭킹도 post 누적값이 아니라 일별 집계 전체 합계로 정렬한다")
+        fun findPostsWithConditions_viewAllStatsRanking_usesDailyStatsTotalSum() {
+            // given
+            val postWithMoreDailyStats = movePostCreatedAt(createPost(userA), daysAgo = 500)
+            postWithMoreDailyStats.viewCount = 1
+            createDailyStats(postWithMoreDailyStats, daysAgo = 100, viewCount = 7)
+
+            val postWithFewerDailyStats = movePostCreatedAt(createPost(userA), daysAgo = 400)
+            postWithFewerDailyStats.viewCount = 100
+            createDailyStats(postWithFewerDailyStats, daysAgo = 1, viewCount = 3)
+            postRepository.saveAllAndFlush(listOf(postWithMoreDailyStats, postWithFewerDailyStats))
+
+            // when
+            val result =
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 10,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.VIEW,
+                )
+
+            // then
+            assertThat(result).extracting("id").containsExactly(
+                postWithMoreDailyStats.id,
+                postWithFewerDailyStats.id,
+            )
+        }
+
+        @Test
         @DisplayName("조회순 기간 랭킹은 기간 내 일별 조회 집계 합계로 정렬한다")
         fun findPostsWithConditions_viewPeriodRanking_usesRecentDailyStatsSum() {
             // given

@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.post.infrastructure.out
 
 import com.techtaurant.mainserver.common.base.EntityBase_
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.post.application.PostWithSortValue
 import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
@@ -21,7 +22,6 @@ import jakarta.persistence.PersistenceContext
 import jakarta.persistence.Tuple
 import jakarta.persistence.criteria.CommonAbstractCriteria
 import jakarta.persistence.criteria.CriteriaBuilder
-import jakarta.persistence.criteria.CriteriaQuery
 import jakarta.persistence.criteria.Expression
 import jakarta.persistence.criteria.JoinType
 import jakarta.persistence.criteria.Path
@@ -67,9 +67,21 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         visibleToUserId: UUID?,
         tagIds: List<UUID>?,
         viewerId: UUID?,
-    ): List<Post> {
-        if (usesDailyStatsPeriodRanking(period, sortType)) {
-            return findPostsWithDailyStatsPeriodRanking(
+    ): List<PostWithSortValue> {
+        return if (sortType == PostSortType.LATEST) {
+            findLatestPostsWithConditions(
+                cursor = cursor,
+                size = size,
+                period = period,
+                authorId = authorId,
+                statuses = statuses,
+                categoryId = categoryId,
+                visibleToUserId = visibleToUserId,
+                tagIds = tagIds,
+                viewerId = viewerId,
+            )
+        } else {
+            findPostsWithStatsRanking(
                 cursor = cursor,
                 size = size,
                 period = period,
@@ -82,7 +94,19 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
                 viewerId = viewerId,
             )
         }
+    }
 
+    private fun findLatestPostsWithConditions(
+        cursor: PostCursor?,
+        size: Int,
+        period: PostPeriod,
+        authorId: UUID?,
+        statuses: List<PostStatusEnum>?,
+        categoryId: UUID?,
+        visibleToUserId: UUID?,
+        tagIds: List<UUID>?,
+        viewerId: UUID?,
+    ): List<PostWithSortValue> {
         val cb = entityManager.criteriaBuilder
         val cq = cb.createQuery(Post::class.java)
         val root = cq.from(Post::class.java)
@@ -105,22 +129,25 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
             viewerId = viewerId,
             predicates = predicates,
         )
-        addPostCreatedAtPeriodCondition(cb, root, period, sortType, predicates)
-        addCursorCondition(cb, root, cursor, sortType, predicates)
+        addLatestPeriodCondition(cb, root, period, predicates)
+        cursor?.let { predicates.add(buildLatestCursorCondition(cb, root, it)) }
 
         if (predicates.isNotEmpty()) {
             cq.where(*predicates.toTypedArray())
         }
-
-        applyOrdering(cb, cq, root, sortType)
+        cq.orderBy(
+            cb.desc(root.get(EntityBase_.updatedAt)),
+            cb.desc(root.get(EntityBase_.id)),
+        )
 
         return entityManager.createQuery(cq)
             .setMaxResults(size)
             .resultList
             .distinctBy { it.id }
+            .map { post -> PostWithSortValue(post = post, sortValue = post.updatedAt.time) }
     }
 
-    private fun findPostsWithDailyStatsPeriodRanking(
+    private fun findPostsWithStatsRanking(
         cursor: PostCursor?,
         size: Int,
         period: PostPeriod,
@@ -131,9 +158,9 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         visibleToUserId: UUID?,
         tagIds: List<UUID>?,
         viewerId: UUID?,
-    ): List<Post> {
+    ): List<PostWithSortValue> {
         val rankedPostIds =
-            findRankedPostIdsWithDailyStats(
+            findRankedPostIdsWithStats(
                 cursor = cursor,
                 size = size,
                 period = period,
@@ -146,10 +173,10 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
                 viewerId = viewerId,
             )
 
-        return findPostsByIdsInOrder(rankedPostIds.map { it.postId })
+        return findPostsByRankedIdsInOrder(rankedPostIds)
     }
 
-    private fun findRankedPostIdsWithDailyStats(
+    private fun findRankedPostIdsWithStats(
         cursor: PostCursor?,
         size: Int,
         period: PostPeriod,
@@ -182,7 +209,7 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
             viewerId = viewerId,
             predicates = predicates,
         )
-        addDailyStatsJoinCondition(cb, root, statsRoot, period, predicates)
+        addStatsJoinCondition(cb, root, statsRoot, period, predicates)
 
         cq.multiselect(postIdPath, sortExpression)
         cq.where(*predicates.toTypedArray())
@@ -202,10 +229,13 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
             sortValue = (get(1) as Number).toLong(),
         )
 
-    private fun findPostsByIdsInOrder(postIds: List<UUID>): List<Post> {
-        if (postIds.isEmpty()) {
+    private fun findPostsByRankedIdsInOrder(rankedPostIds: List<RankedPostId>): List<PostWithSortValue> {
+        if (rankedPostIds.isEmpty()) {
             return emptyList()
         }
+
+        val postIds = rankedPostIds.map { it.postId }
+        val sortValueByPostId = rankedPostIds.associate { it.postId to it.sortValue }
 
         val cb = entityManager.criteriaBuilder
         val cq = cb.createQuery(Post::class.java)
@@ -222,6 +252,7 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
             .resultList
             .distinctBy { it.id }
             .sortedBy { orderByPostId.getValue(it.id!!) }
+            .map { post -> PostWithSortValue(post = post, sortValue = sortValueByPostId.getValue(post.id!!)) }
     }
 
     override fun findVisiblePostDetailById(
@@ -299,55 +330,29 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         predicates.add(cb.exists(tagSubquery))
     }
 
-    private fun addPostCreatedAtPeriodCondition(
+    private fun addLatestPeriodCondition(
         cb: CriteriaBuilder,
         root: Root<Post>,
         period: PostPeriod,
-        sortType: PostSortType,
         predicates: MutableList<Predicate>,
     ) {
-        if (sortType != PostSortType.LATEST) {
-            return
-        }
-
         period.days?.let { days ->
             val cutoffDate = UtilDate.from(Instant.now().minus(days.toLong(), ChronoUnit.DAYS))
             predicates.add(cb.greaterThanOrEqualTo(root.get(EntityBase_.createdAt), cutoffDate))
         }
     }
 
-    private fun addDailyStatsJoinCondition(
+    private fun addStatsJoinCondition(
         cb: CriteriaBuilder,
         root: Root<Post>,
         statsRoot: Root<PostDailyStats>,
         period: PostPeriod,
         predicates: MutableList<Predicate>,
     ) {
-        val days = period.days ?: return
         predicates.add(cb.equal(statsRoot.get(PostDailyStats_.post).get(EntityBase_.id), root.get(EntityBase_.id)))
-        predicates.add(cb.greaterThanOrEqualTo(statsRoot.get(PostDailyStats_.statDate), statsCutoffDate(days)))
-    }
-
-    /**
-     * 정렬 타입에 따른 커서 조건 추가
-     *
-     * 최신순은 updatedAt + id 기준, 그 외(조회/추천/댓글순)는 해당 count + createdAt + id 기준
-     */
-    private fun addCursorCondition(
-        cb: CriteriaBuilder,
-        root: Root<Post>,
-        cursor: PostCursor?,
-        sortType: PostSortType,
-        predicates: MutableList<Predicate>,
-    ) {
-        cursor ?: return
-
-        val cursorPredicate =
-            when (sortType) {
-                PostSortType.LATEST -> buildLatestCursorCondition(cb, root, cursor)
-                else -> buildCountCursorCondition(cb, root, cursor, postCountExpression(root, sortType))
-            }
-        predicates.add(cursorPredicate)
+        period.days?.let { days ->
+            predicates.add(cb.greaterThanOrEqualTo(statsRoot.get(PostDailyStats_.statDate), statsCutoffDate(days)))
+        }
     }
 
     private fun addViewerBanCondition(
@@ -423,31 +428,6 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         return cb.or(countLess, countEqualCreatedAtLess, countEqualCreatedAtEqualIdLess)
     }
 
-    /**
-     * 정렬 타입에 따른 ORDER BY 절 적용
-     *
-     * 모든 정렬은 DESC이며 동점자 처리를 위해 createdAt, id를 보조 정렬 키로 추가합니다.
-     * 최신순(LATEST)은 updatedAt 기준입니다. createdAt을 기준으로 하면 한 번 생성된 게시물이
-     * 영구히 낮은 순위에 머물 수 있으므로, 수정된 게시물도 상단에 노출될 수 있도록 updatedAt을 사용합니다.
-     */
-    private fun applyOrdering(
-        cb: CriteriaBuilder,
-        cq: CriteriaQuery<*>,
-        root: Root<Post>,
-        sortType: PostSortType,
-    ) {
-        val orders =
-            when (sortType) {
-                PostSortType.LATEST ->
-                    listOf(
-                        cb.desc(root.get(EntityBase_.updatedAt)),
-                        cb.desc(root.get(EntityBase_.id)),
-                    )
-                else -> countSortOrders(cb, root, postCountExpression(root, sortType))
-            }
-        cq.orderBy(orders)
-    }
-
     private fun countSortOrders(
         cb: CriteriaBuilder,
         root: Root<Post>,
@@ -464,17 +444,6 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         sortType: PostSortType,
     ): Expression<Long> = cb.coalesce(cb.sum(dailyStatsCountExpression(statsRoot, sortType)), 0L)
 
-    private fun postCountExpression(
-        root: Root<Post>,
-        sortType: PostSortType,
-    ): Path<Long> =
-        when (sortType) {
-            PostSortType.VIEW -> root.get(Post_.viewCount)
-            PostSortType.LIKE -> root.get(Post_.likeCount)
-            PostSortType.COMMENT -> root.get(Post_.commentCount)
-            else -> throw ApiException(PostStatus.INVALID_SORT_TYPE)
-        }
-
     private fun dailyStatsCountExpression(
         statsRoot: Root<PostDailyStats>,
         sortType: PostSortType,
@@ -485,11 +454,6 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
             PostSortType.COMMENT -> statsRoot.get(PostDailyStats_.commentCount)
             else -> throw ApiException(PostStatus.INVALID_SORT_TYPE)
         }
-
-    private fun usesDailyStatsPeriodRanking(
-        period: PostPeriod,
-        sortType: PostSortType,
-    ): Boolean = sortType != PostSortType.LATEST && period.days != null
 
     private fun statsCutoffDate(days: Int): SqlDate = SqlDate.valueOf(LocalDate.now(ZoneOffset.UTC).minusDays(days.toLong()))
 }

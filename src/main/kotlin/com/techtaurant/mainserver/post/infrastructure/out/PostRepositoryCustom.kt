@@ -1,5 +1,6 @@
 package com.techtaurant.mainserver.post.infrastructure.out
 
+import com.techtaurant.mainserver.post.application.PostWithSortValue
 import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
@@ -23,7 +24,7 @@ interface PostRepositoryCustom {
      * @param categoryId 카테고리 ID 필터 (null이면 미적용)
      * @param visibleToUserId PUBLISHED + 해당 사용자의 PRIVATE 게시물 조회 (null이면 미적용, statuses보다 우선)
      * @param tagIds 태그 UUID 필터 (여러 개 전달 시 OR 조건)
-     * @return 게시물 목록
+     * @return 실제 정렬값을 포함한 게시물 목록
      */
     fun findPostsWithConditions(
         cursor: PostCursor?,
@@ -36,7 +37,7 @@ interface PostRepositoryCustom {
         visibleToUserId: UUID? = null,
         tagIds: List<UUID>? = null,
         viewerId: UUID? = null,
-    ): List<Post>
+    ): List<PostWithSortValue>
 
     fun findVisiblePostDetailById(
         postId: UUID,

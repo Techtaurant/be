@@ -264,6 +264,44 @@ class PostReadOpenApiControllerIntegrationTest : IntegrationTest() {
     }
 
     @Test
+    @DisplayName("조회순 전체 랭킹은 post 누적 조회수가 아니라 일별 집계 전체 합계로 정렬한다")
+    fun getPosts_allViewRanking_usesDailyStatsTotalSum() {
+        // given
+        val postWithMoreDailyStats =
+            createPublishedPost(
+                title = "누적 조회수는 낮지만 전체 집계 조회수가 높은 게시물",
+                daysAgo = 500,
+                viewCount = 1,
+            )
+        createDailyStats(postWithMoreDailyStats, daysAgo = 100, viewCount = 7)
+
+        val postWithFewerDailyStats =
+            createPublishedPost(
+                title = "누적 조회수는 높지만 전체 집계 조회수가 낮은 게시물",
+                daysAgo = 400,
+                viewCount = 100,
+            )
+        createDailyStats(postWithFewerDailyStats, daysAgo = 1, viewCount = 3)
+
+        // when & then
+        given()
+            .queryParam("period", "ALL")
+            .queryParam("sort", "VIEW")
+            .queryParam("size", 10)
+            .`when`()
+            .get("/open-api/posts")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body(
+                "data.content.id",
+                contains(
+                    postWithMoreDailyStats.id.toString(),
+                    postWithFewerDailyStats.id.toString(),
+                ),
+            )
+    }
+
+    @Test
     @DisplayName("댓글순 30일 랭킹 커서는 전체 누적 댓글수가 아니라 기간 내 일별 댓글 집계 합계로 다음 페이지를 조회한다")
     fun getPosts_monthCommentRankingCursor_usesRecentDailyStatsSortValue() {
         // given

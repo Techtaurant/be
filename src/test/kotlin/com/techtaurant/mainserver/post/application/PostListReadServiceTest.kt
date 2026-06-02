@@ -11,7 +11,6 @@ import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostReadLog
 import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
-import com.techtaurant.mainserver.post.infrastructure.out.PostDailyStatsRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
@@ -34,7 +33,6 @@ import java.util.UUID
 
 class PostListReadServiceTest {
     private val postRepository: PostRepository = mockk()
-    private val postDailyStatsRepository: PostDailyStatsRepository = mockk()
     private val postReadLogRepository: PostReadLogRepository = mockk()
     private val postLikeLogRepository: PostLikeLogRepository = mockk()
     private val attachmentService: AttachmentService = mockk()
@@ -63,7 +61,6 @@ class PostListReadServiceTest {
     private fun createPostListReadService(postListQueryStrategies: List<PostListQueryStrategy> = createPostListQueryStrategies()) =
         PostListReadService(
             postRepository = postRepository,
-            postDailyStatsRepository = postDailyStatsRepository,
             attachmentService = attachmentService,
             postMetadataReadService = postMetadataReadService,
             postViewerStateReadService = postViewerStateReadService,
@@ -118,6 +115,9 @@ class PostListReadServiceTest {
             category = category,
             status = status,
         ).apply { id = UUID.randomUUID() }
+
+    private fun List<Post>.withSortValues(sortValueResolver: (Post) -> Long = { it.updatedAt.time }): List<PostWithSortValue> =
+        map { post -> PostWithSortValue(post = post, sortValue = sortValueResolver(post)) }
 
     private fun createAttachment(
         postId: UUID,
@@ -232,7 +232,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -269,7 +269,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns posts
+            } returns posts.withSortValues()
 
             // when
             postListReadService.getPosts(cursor = null, size = 20, currentUserId = null)
@@ -305,7 +305,7 @@ class PostListReadServiceTest {
                     tagIds = listOf(firstTagId, secondTagId),
                     viewerId = null,
                 )
-            } returns posts
+            } returns posts.withSortValues()
 
             // when
             postListReadService.getPosts(
@@ -356,7 +356,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns listOf(post)
+            } returns listOf(post).withSortValues()
             every {
                 attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(post.id!!), AttachmentReferenceType.POST)
             } returns mapOf(post.id!! to listOf(laterAttachment, firstAttachment))
@@ -398,7 +398,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns listOf(post)
+            } returns listOf(post).withSortValues()
             every {
                 attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(post.id!!), AttachmentReferenceType.POST)
             } returns mapOf(post.id!! to listOf(otherAttachment, thumbnailAttachment))
@@ -437,7 +437,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns listOf(post)
+            } returns listOf(post).withSortValues()
 
             // when
             val result = postListReadService.getPostContents(cursor = null, size = 20)
@@ -490,7 +490,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -536,7 +536,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -582,7 +582,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -628,7 +628,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns posts
+            } returns posts.withSortValues()
 
             // when
             val result =
@@ -692,7 +692,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -730,13 +730,10 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues { post -> if (post.id == lastContentPost.id) 5 else 10 }
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
-            every {
-                postDailyStatsRepository.sumCommentCountSince(lastContentPost.id!!, any())
-            } returns 5
 
             // when
             val result =
@@ -771,7 +768,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -812,7 +809,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns listOf(readLog)
@@ -850,7 +847,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns posts
+            } returns posts.withSortValues()
 
             // when
             val result =
@@ -890,7 +887,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(otherUser.id!!), AttachmentReferenceType.USER)
             } returns mapOf(otherUser.id!! to listOf(profileAttachment))
