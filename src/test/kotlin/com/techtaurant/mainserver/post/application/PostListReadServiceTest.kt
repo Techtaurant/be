@@ -4,12 +4,14 @@ import com.techtaurant.mainserver.attachment.application.AttachmentService
 import com.techtaurant.mainserver.attachment.entity.Attachment
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.attachment.enums.AttachmentStatus
+import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostReadLog
 import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
+import com.techtaurant.mainserver.post.infrastructure.out.PostDailyStatsRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostReadLogRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
@@ -32,6 +34,7 @@ import java.util.UUID
 
 class PostListReadServiceTest {
     private val postRepository: PostRepository = mockk()
+    private val postDailyStatsRepository: PostDailyStatsRepository = mockk()
     private val postReadLogRepository: PostReadLogRepository = mockk()
     private val postLikeLogRepository: PostLikeLogRepository = mockk()
     private val attachmentService: AttachmentService = mockk()
@@ -60,6 +63,7 @@ class PostListReadServiceTest {
     private fun createPostListReadService(postListQueryStrategies: List<PostListQueryStrategy> = createPostListQueryStrategies()) =
         PostListReadService(
             postRepository = postRepository,
+            postDailyStatsRepository = postDailyStatsRepository,
             attachmentService = attachmentService,
             postMetadataReadService = postMetadataReadService,
             postViewerStateReadService = postViewerStateReadService,
@@ -706,6 +710,48 @@ class PostListReadServiceTest {
             assertThat(result.hasNext).isTrue()
             assertThat(result.nextCursor).isNotNull()
             assertThat(result.content).hasSize(2)
+        }
+
+        @Test
+        @DisplayName("기간 랭킹 nextCursor는 전체 누적값이 아니라 기간 내 일별 집계 합계를 담는다")
+        fun getPosts_periodRankingNextCursor_usesDailyStatsSortValue() {
+            // given
+            val posts = (1..3).map { createPost(testUser) }
+            val lastContentPost = posts[1].apply { commentCount = 100 }
+            every {
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 3,
+                    period = PostPeriod.MONTH,
+                    sortType = PostSortType.COMMENT,
+                    authorId = testUser.id!!,
+                    statuses = listOf(PostStatusEnum.PUBLISHED, PostStatusEnum.PRIVATE),
+                    categoryId = null,
+                    tagIds = null,
+                    viewerId = testUser.id!!,
+                )
+            } returns posts
+            every {
+                postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
+            } returns emptyList()
+            every {
+                postDailyStatsRepository.sumCommentCountSince(lastContentPost.id!!, any())
+            } returns 5
+
+            // when
+            val result =
+                postListReadService.getPosts(
+                    cursor = null,
+                    size = 2,
+                    period = PostPeriod.MONTH,
+                    sortType = PostSortType.COMMENT,
+                    currentUserId = testUser.id!!,
+                    authorId = testUser.id!!,
+                )
+
+            // then
+            val decodedCursor = PostCursor.decode(result.nextCursor!!)
+            assertThat(decodedCursor?.sortValue).isEqualTo(5)
         }
 
         @Test
