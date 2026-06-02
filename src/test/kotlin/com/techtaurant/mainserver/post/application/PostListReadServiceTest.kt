@@ -4,6 +4,7 @@ import com.techtaurant.mainserver.attachment.application.AttachmentService
 import com.techtaurant.mainserver.attachment.entity.Attachment
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.attachment.enums.AttachmentStatus
+import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
@@ -114,6 +115,9 @@ class PostListReadServiceTest {
             category = category,
             status = status,
         ).apply { id = UUID.randomUUID() }
+
+    private fun List<Post>.withSortValues(sortValueResolver: (Post) -> Long = { it.updatedAt.time }): List<PostWithSortValue> =
+        map { post -> PostWithSortValue(post = post, sortValue = sortValueResolver(post)) }
 
     private fun createAttachment(
         postId: UUID,
@@ -228,7 +232,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -265,7 +269,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns posts
+            } returns posts.withSortValues()
 
             // when
             postListReadService.getPosts(cursor = null, size = 20, currentUserId = null)
@@ -301,7 +305,7 @@ class PostListReadServiceTest {
                     tagIds = listOf(firstTagId, secondTagId),
                     viewerId = null,
                 )
-            } returns posts
+            } returns posts.withSortValues()
 
             // when
             postListReadService.getPosts(
@@ -352,7 +356,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns listOf(post)
+            } returns listOf(post).withSortValues()
             every {
                 attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(post.id!!), AttachmentReferenceType.POST)
             } returns mapOf(post.id!! to listOf(laterAttachment, firstAttachment))
@@ -394,7 +398,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns listOf(post)
+            } returns listOf(post).withSortValues()
             every {
                 attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(post.id!!), AttachmentReferenceType.POST)
             } returns mapOf(post.id!! to listOf(otherAttachment, thumbnailAttachment))
@@ -433,7 +437,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns listOf(post)
+            } returns listOf(post).withSortValues()
 
             // when
             val result = postListReadService.getPostContents(cursor = null, size = 20)
@@ -486,7 +490,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -532,7 +536,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -578,7 +582,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -624,7 +628,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns posts
+            } returns posts.withSortValues()
 
             // when
             val result =
@@ -688,7 +692,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -709,6 +713,45 @@ class PostListReadServiceTest {
         }
 
         @Test
+        @DisplayName("기간 랭킹 nextCursor는 전체 누적값이 아니라 기간 내 일별 집계 합계를 담는다")
+        fun getPosts_periodRankingNextCursor_usesDailyStatsSortValue() {
+            // given
+            val posts = (1..3).map { createPost(testUser) }
+            val lastContentPost = posts[1].apply { commentCount = 100 }
+            every {
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 3,
+                    period = PostPeriod.MONTH,
+                    sortType = PostSortType.COMMENT,
+                    authorId = testUser.id!!,
+                    statuses = listOf(PostStatusEnum.PUBLISHED, PostStatusEnum.PRIVATE),
+                    categoryId = null,
+                    tagIds = null,
+                    viewerId = testUser.id!!,
+                )
+            } returns posts.withSortValues { post -> if (post.id == lastContentPost.id) 5 else 10 }
+            every {
+                postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
+            } returns emptyList()
+
+            // when
+            val result =
+                postListReadService.getPosts(
+                    cursor = null,
+                    size = 2,
+                    period = PostPeriod.MONTH,
+                    sortType = PostSortType.COMMENT,
+                    currentUserId = testUser.id!!,
+                    authorId = testUser.id!!,
+                )
+
+            // then
+            val decodedCursor = PostCursor.decode(result.nextCursor!!)
+            assertThat(decodedCursor?.sortValue).isEqualTo(5)
+        }
+
+        @Test
         @DisplayName("다음 페이지가 없으면 hasNext가 false이고 nextCursor가 null이다")
         fun getPosts_noMorePosts_returnsHasNextFalse() {
             // given
@@ -725,7 +768,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -766,7 +809,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns listOf(readLog)
@@ -804,7 +847,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns posts
+            } returns posts.withSortValues()
 
             // when
             val result =
@@ -844,7 +887,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(otherUser.id!!), AttachmentReferenceType.USER)
             } returns mapOf(otherUser.id!! to listOf(profileAttachment))

@@ -173,13 +173,14 @@ class PostListReadService(
                 categoryId = categoryId,
                 tagIds = normalizedTagIds,
             )
-        val posts = selectPostListQueryStrategy(postListQueryCriteria).findPosts(postListQueryCriteria)
-        val hasNext = posts.size > size
-        val content = posts.take(size)
+        val sortedPosts = selectPostListQueryStrategy(postListQueryCriteria).findPosts(postListQueryCriteria)
+        val hasNext = sortedPosts.size > size
+        val contentWithSortValues = sortedPosts.take(size)
+        val content = contentWithSortValues.map { it.post }
 
         val nextCursor =
-            if (hasNext && content.isNotEmpty()) {
-                PostCursor.from(content.last(), sortType).encode()
+            if (hasNext && contentWithSortValues.isNotEmpty()) {
+                createPostCursor(contentWithSortValues.last(), sortType).encode()
             } else {
                 null
             }
@@ -189,6 +190,17 @@ class PostListReadService(
             nextCursor = nextCursor,
             hasNext = hasNext,
             size = content.size,
+        )
+    }
+
+    private fun createPostCursor(
+        sortedPost: PostWithSortValue,
+        sortType: PostSortType,
+    ): PostCursor {
+        return PostCursor.from(
+            post = sortedPost.post,
+            sortType = sortType,
+            sortValue = sortedPost.sortValue,
         )
     }
 

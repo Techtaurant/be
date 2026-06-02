@@ -1,6 +1,5 @@
 package com.techtaurant.mainserver.post.application
 
-import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import org.springframework.stereotype.Component
@@ -11,7 +10,7 @@ internal class AuthorPublicPostsQueryStrategy(
 ) : PostListQueryStrategy {
     override val queryType: PostListQueryType = PostListQueryType.AUTHOR_PUBLIC
 
-    override fun findPosts(criteria: PostListQueryCriteria): List<Post> =
+    override fun findPosts(criteria: PostListQueryCriteria): List<PostWithSortValue> =
         postRepository.findPostsWithConditions(
             cursor = criteria.cursor,
             size = criteria.querySize,
