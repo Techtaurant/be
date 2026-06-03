@@ -28,8 +28,6 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.UUID
-import java.sql.Date as SqlDate
-import java.util.Date as UtilDate
 
 @DisplayName("PostReadOpenApiController 통합 테스트")
 class PostReadOpenApiControllerIntegrationTest : IntegrationTest() {
@@ -421,7 +419,7 @@ class PostReadOpenApiControllerIntegrationTest : IntegrationTest() {
         likeCount: Long = 0,
         commentCount: Long = 0,
     ): Post {
-        val createdAt = UtilDate.from(Instant.now().minus(daysAgo, ChronoUnit.DAYS))
+        val createdAt = Instant.now().minus(daysAgo, ChronoUnit.DAYS)
         val post =
             postRepository.saveAndFlush(
                 Post(
@@ -457,5 +455,5 @@ class PostReadOpenApiControllerIntegrationTest : IntegrationTest() {
             ),
         )
 
-    private fun statDateDaysAgo(daysAgo: Long): SqlDate = SqlDate.valueOf(LocalDate.now(ZoneOffset.UTC).minusDays(daysAgo))
+    private fun statDateDaysAgo(daysAgo: Long): LocalDate = LocalDate.now(ZoneOffset.UTC).minusDays(daysAgo)
 }

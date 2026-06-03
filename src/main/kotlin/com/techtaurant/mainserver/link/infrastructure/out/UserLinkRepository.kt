@@ -14,7 +14,7 @@ interface UserLinkRepository : JpaRepository<UserLink, UUID> {
     @Modifying(clearAutomatically = false, flushAutomatically = true)
     @Query(
         """
-        INSERT INTO user_links (id, user_id, link_id, created_at, updated_at)
+        INSERT INTO user_links (id, user_id, link_id, created_at_utc, updated_at_utc)
         VALUES (:id, :userId, :linkId, NOW(), NOW())
         ON CONFLICT ON CONSTRAINT uk_user_links_user_id_link_id DO NOTHING
         """,

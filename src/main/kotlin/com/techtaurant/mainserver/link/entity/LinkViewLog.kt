@@ -14,8 +14,8 @@ import jakarta.persistence.Table
 @Table(
     name = "link_view_log",
     indexes = [
-        Index(name = "idx_link_view_log_link_created", columnList = "link_id,created_at"),
-        Index(name = "idx_link_view_log_created", columnList = "created_at"),
+        Index(name = "idx_link_view_log_link_created_utc", columnList = "link_id,created_at_utc"),
+        Index(name = "idx_link_view_log_created_utc", columnList = "created_at_utc"),
     ],
 )
 class LinkViewLog(

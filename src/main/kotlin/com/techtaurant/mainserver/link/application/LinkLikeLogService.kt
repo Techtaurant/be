@@ -12,6 +12,7 @@ import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
 import java.util.UUID
 
 @Service
@@ -53,7 +54,7 @@ class LinkLikeLogService(
         existingLog: LinkLikeLog,
         linkId: UUID,
         likeStatus: LikeStatus,
-        eventStatDate: java.sql.Date,
+        eventStatDate: LocalDate,
     ) {
         val previousIsLiked = existingLog.isLiked
 
@@ -86,7 +87,7 @@ class LinkLikeLogService(
         userId: UUID,
         likeStatus: LikeStatus,
         isLiked: Boolean,
-        eventStatDate: java.sql.Date,
+        eventStatDate: LocalDate,
     ) {
         val inserted =
             linkLikeLogRepository.insertIfAbsent(
@@ -109,7 +110,7 @@ class LinkLikeLogService(
     private fun updateLikeCount(
         linkId: UUID,
         increment: Boolean,
-        statDate: java.sql.Date,
+        statDate: LocalDate,
     ) {
         if (increment) {
             linkRepository.incrementLikeCount(linkId)

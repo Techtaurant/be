@@ -33,8 +33,6 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.UUID
-import java.sql.Date as SqlDate
-import java.util.Date as UtilDate
 
 /**
  * 게시물 동적 쿼리 구현체
@@ -144,7 +142,7 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
             .setMaxResults(size)
             .resultList
             .distinctBy { it.id }
-            .map { post -> PostWithSortValue(post = post, sortValue = post.updatedAt.time) }
+            .map { post -> PostWithSortValue(post = post, sortValue = post.updatedAt.toEpochMilli()) }
     }
 
     private fun findPostsWithStatsRanking(
@@ -193,7 +191,7 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         val root = cq.from(Post::class.java)
         val statsRoot = cq.from(PostDailyStats::class.java)
         val postIdPath = root.get<UUID>(EntityBase_.id)
-        val createdAtPath = root.get<UtilDate>(EntityBase_.createdAt)
+        val createdAtPath = root.get<Instant>(EntityBase_.createdAt)
         val sortExpression = dailyStatsSumExpression(cb, statsRoot, sortType)
         val predicates = mutableListOf<Predicate>()
 
@@ -337,7 +335,7 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
         predicates: MutableList<Predicate>,
     ) {
         period.days?.let { days ->
-            val cutoffDate = UtilDate.from(Instant.now().minus(days.toLong(), ChronoUnit.DAYS))
+            val cutoffDate = Instant.now().minus(days.toLong(), ChronoUnit.DAYS)
             predicates.add(cb.greaterThanOrEqualTo(root.get(EntityBase_.createdAt), cutoffDate))
         }
     }
@@ -455,5 +453,5 @@ class PostRepositoryCustomImpl : PostRepositoryCustom {
             else -> throw ApiException(PostStatus.INVALID_SORT_TYPE)
         }
 
-    private fun statsCutoffDate(days: Int): SqlDate = SqlDate.valueOf(LocalDate.now(ZoneOffset.UTC).minusDays(days.toLong()))
+    private fun statsCutoffDate(days: Int): LocalDate = LocalDate.now(ZoneOffset.UTC).minusDays(days.toLong())
 }

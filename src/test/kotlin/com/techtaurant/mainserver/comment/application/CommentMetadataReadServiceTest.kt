@@ -11,7 +11,7 @@ import io.mockk.mockk
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 class CommentMetadataReadServiceTest {
@@ -25,7 +25,7 @@ class CommentMetadataReadServiceTest {
         val author = createUser("작성자")
         val post = createPost(author)
         val activeComment = createComment(post = post, author = author, likeCount = 7, replyCount = 2)
-        val deletedComment = createComment(post = post, author = author, likeCount = 3, replyCount = 1).apply { deletedAt = Date() }
+        val deletedComment = createComment(post = post, author = author, likeCount = 3, replyCount = 1).apply { deletedAt = Instant.now() }
 
         every {
             commentRepository.findCommentsByIdsIncludingDeleted(listOf(deletedComment.id!!, activeComment.id!!))

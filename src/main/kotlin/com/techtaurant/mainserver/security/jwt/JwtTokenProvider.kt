@@ -9,6 +9,7 @@ import io.jsonwebtoken.UnsupportedJwtException
 import io.jsonwebtoken.security.Keys
 import org.springframework.stereotype.Component
 import java.security.MessageDigest
+import java.time.Instant
 import java.util.Date
 import java.util.HexFormat
 import java.util.UUID
@@ -26,15 +27,15 @@ class JwtTokenProvider(
         userId: UUID,
         role: UserRole,
     ): String {
-        val now = Date()
-        val expiryDate = Date(now.time + jwtProperties.accessTokenExpireMs)
+        val now = Instant.now()
+        val expiryAt = now.plusMillis(jwtProperties.accessTokenExpireMs)
 
         return Jwts.builder()
             .subject(userId.toString())
             .claim(JwtConstants.ROLE_CLAIM, role.key)
             .claim(JwtConstants.PERMANENT_CLAIM, JwtConstants.EXPIRING_ACCESS_TOKEN_IS_PERMANENT)
-            .issuedAt(now)
-            .expiration(expiryDate)
+            .issuedAt(Date.from(now))
+            .expiration(Date.from(expiryAt))
             .signWith(secretKey)
             .compact()
     }
@@ -43,14 +44,14 @@ class JwtTokenProvider(
         userId: UUID,
         role: UserRole,
     ): String {
-        val now = Date()
+        val now = Instant.now()
 
         return Jwts.builder()
             .id(UUID.randomUUID().toString())
             .subject(userId.toString())
             .claim(JwtConstants.ROLE_CLAIM, role.key)
             .claim(JwtConstants.PERMANENT_CLAIM, JwtConstants.PERMANENT_ACCESS_TOKEN_IS_PERMANENT)
-            .issuedAt(now)
+            .issuedAt(Date.from(now))
             .signWith(secretKey)
             .compact()
     }
@@ -63,13 +64,13 @@ class JwtTokenProvider(
         userId: UUID,
         expiration: Long,
     ): String {
-        val now = Date()
-        val expiryDate = Date(now.time + expiration)
+        val now = Instant.now()
+        val expiryAt = now.plusMillis(expiration)
 
         return Jwts.builder()
             .subject(userId.toString())
-            .issuedAt(now)
-            .expiration(expiryDate)
+            .issuedAt(Date.from(now))
+            .expiration(Date.from(expiryAt))
             .signWith(secretKey)
             .compact()
     }

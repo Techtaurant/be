@@ -4,7 +4,7 @@ import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.enums.PostStatus
 import io.swagger.v3.oas.annotations.media.Schema
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -27,9 +27,9 @@ data class PostResponse(
     @field:Schema(description = "태그 목록", example = "[\"spring\", \"backend\"]")
     val tags: List<String>,
     @field:Schema(description = "생성일시")
-    val createdAt: Date,
+    val createdAt: Instant,
     @field:Schema(description = "수정일시")
-    val updatedAt: Date,
+    val updatedAt: Instant,
 ) {
     companion object {
         fun from(post: Post): PostResponse {

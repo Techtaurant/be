@@ -22,7 +22,6 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import java.time.Instant
-import java.util.Date
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -379,19 +378,19 @@ class NotificationControllerIntegrationTest : IntegrationTest() {
             NotificationRecipient(
                 notification = notification,
                 recipientUser = recipient,
-                readAt = readAt?.let(Date::from),
+                readAt = readAt,
             ),
         )
 
         val savedNotification = notificationRepository.save(notification)
         val savedRecipient = savedNotification.recipients.single()
-        val createdAtDate = Date.from(createdAt)
+        val createdAtDate = createdAt
 
         savedNotification.createdAt = createdAtDate
         savedNotification.updatedAt = createdAtDate
         savedRecipient.createdAt = createdAtDate
         savedRecipient.updatedAt = createdAtDate
-        savedRecipient.readAt = readAt?.let(Date::from)
+        savedRecipient.readAt = readAt
 
         notificationRepository.save(savedNotification)
         notificationRecipientRepository.save(savedRecipient)

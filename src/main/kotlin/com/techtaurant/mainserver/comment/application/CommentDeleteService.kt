@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -50,7 +50,7 @@ class CommentDeleteService(
         }
 
         comment.content = hashContent(comment.content)
-        comment.deletedAt = Date()
+        comment.deletedAt = Instant.now()
 
         commentRepository.save(comment)
         comment.parent?.id?.let(commentRepository::decrementReplyCount)

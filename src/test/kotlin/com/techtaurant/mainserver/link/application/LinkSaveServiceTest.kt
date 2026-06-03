@@ -19,6 +19,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.transaction.annotation.Transactional
+import java.time.ZoneOffset
 import java.util.UUID
 
 @DisplayName("LinkSaveService 통합 테스트")
@@ -112,7 +113,7 @@ class LinkSaveServiceTest : IntegrationTest() {
     @Test
     @DisplayName("일별 통계가 없는 기존 저장을 취소해도 음수 저장수 레코드를 만들지 않는다")
     fun unsave_whenLegacyRelationWithoutDailyStats_shouldNotCreateNegativeDailyStats() {
-        val oldStatDate = java.sql.Date.valueOf(DateUtils.today().toLocalDate().minusDays(1))
+        val oldStatDate = DateUtils.today().minusDays(1)
         val existingRelation =
             userLinkRepository.saveAndFlush(
                 UserLink(
@@ -120,7 +121,7 @@ class LinkSaveServiceTest : IntegrationTest() {
                     link = testLink,
                 ),
             )
-        existingRelation.createdAt = java.util.Date(oldStatDate.time)
+        existingRelation.createdAt = oldStatDate.atStartOfDay(ZoneOffset.UTC).toInstant()
         userLinkRepository.saveAndFlush(existingRelation)
         entityManager.clear()
 

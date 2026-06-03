@@ -1,6 +1,6 @@
 package com.techtaurant.mainserver.post.infrastructure.out
 
-import java.time.LocalDateTime
+import java.time.Instant
 import java.util.UUID
 
 interface TagWithPostCountProjection {
@@ -8,9 +8,9 @@ interface TagWithPostCountProjection {
 
     fun getName(): String
 
-    fun getCreatedAt(): LocalDateTime
+    fun getCreatedAt(): Instant
 
-    fun getUpdatedAt(): LocalDateTime
+    fun getUpdatedAt(): Instant
 
     fun getPostCount(): Long
 }

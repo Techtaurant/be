@@ -28,7 +28,6 @@ import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
-import java.sql.Date as SqlDate
 
 @DisplayName("게시물 목록 조회 API")
 class PostControllerTest : IntegrationTest() {
@@ -537,7 +536,7 @@ class PostControllerTest : IntegrationTest() {
                 set(Calendar.MINUTE, 0)
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
-            }.time
+            }.toInstant()
         val post1 =
             Post(
                 title = "Post 1 - 50 days ago",
@@ -558,7 +557,7 @@ class PostControllerTest : IntegrationTest() {
                 set(Calendar.MINUTE, 0)
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
-            }.time
+            }.toInstant()
         val post2 =
             Post(
                 title = "Post 2 - 5 days ago",
@@ -579,7 +578,7 @@ class PostControllerTest : IntegrationTest() {
                 set(Calendar.MINUTE, 0)
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
-            }.time
+            }.toInstant()
         val post3 =
             Post(
                 title = "Post 3 - 1 day ago",
@@ -600,7 +599,7 @@ class PostControllerTest : IntegrationTest() {
         savedPosts[2].tags.add(tag3)
 
         val savedPostsWithTags = postRepository.saveAll(savedPosts)
-        val today = SqlDate.valueOf(LocalDate.now(ZoneOffset.UTC))
+        val today = LocalDate.now(ZoneOffset.UTC)
         postDailyStatsRepository.saveAll(
             savedPostsWithTags.map { post ->
                 PostDailyStats(

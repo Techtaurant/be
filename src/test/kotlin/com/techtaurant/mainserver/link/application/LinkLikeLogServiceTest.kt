@@ -24,6 +24,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.UUID
 
 @DisplayName("LinkLikeLogService 통합 테스트")
@@ -143,7 +145,7 @@ class LinkLikeLogServiceTest : IntegrationTest() {
     @DisplayName("과거 좋아요를 오늘 취소하면 오늘 일별 좋아요수만 감소한다")
     fun recordLike_fromPastLikeToNone_shouldRecordDailyStatsOnEventDate() {
         val today = DateUtils.today()
-        val oldStatDate = java.sql.Date.valueOf(today.toLocalDate().minusDays(1))
+        val oldStatDate = today.minusDays(1)
         testLink.likeCount = 1
         linkRepository.saveAndFlush(testLink)
         linkDailyStatsRepository.saveAndFlush(LinkDailyStats(link = testLink, statDate = oldStatDate, likeCount = 1))
@@ -155,7 +157,7 @@ class LinkLikeLogServiceTest : IntegrationTest() {
                     isLiked = true,
                 ),
             )
-        existingLog.createdAt = java.util.Date(oldStatDate.time)
+        existingLog.createdAt = oldStatDate.atStartOfDay(ZoneOffset.UTC).toInstant()
         linkLikeLogRepository.saveAndFlush(existingLog)
         entityManager.clear()
 
@@ -192,7 +194,7 @@ class LinkLikeLogServiceTest : IntegrationTest() {
             .isEqualTo(UserStatus.ID_NOT_FOUND)
     }
 
-    private fun findDailyStats(statDate: java.sql.Date = DateUtils.today()): LinkDailyStats? {
+    private fun findDailyStats(statDate: LocalDate = DateUtils.today()): LinkDailyStats? {
         return linkDailyStatsRepository.findAll()
             .find { it.link.id == testLink.id && it.statDate.toString() == statDate.toString() }
     }

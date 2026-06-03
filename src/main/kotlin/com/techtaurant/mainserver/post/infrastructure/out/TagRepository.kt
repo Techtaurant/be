@@ -13,12 +13,12 @@ interface TagRepository : JpaRepository<Tag, UUID> {
 
     @Query(
         value = """
-            SELECT t.id, t.name, t.created_at as createdAt, t.updated_at as updatedAt,
+            SELECT t.id, t.name, t.created_at_utc as createdAt, t.updated_at_utc as updatedAt,
                    COALESCE(COUNT(pt.post_id), 0) as postCount
             FROM tags t
             JOIN post_tags pt ON t.id = pt.tag_id
             WHERE (:name IS NULL OR t.name ILIKE '%' || :name || '%')
-            GROUP BY t.id, t.name, t.created_at, t.updated_at
+            GROUP BY t.id, t.name, t.created_at_utc, t.updated_at_utc
             ORDER BY postCount DESC, t.id ASC
             LIMIT :limit
         """,
@@ -41,12 +41,12 @@ interface TagRepository : JpaRepository<Tag, UUID> {
      */
     @Query(
         value = """
-            SELECT t.id, t.name, t.created_at as createdAt, t.updated_at as updatedAt,
+            SELECT t.id, t.name, t.created_at_utc as createdAt, t.updated_at_utc as updatedAt,
                    COALESCE(COUNT(pt.post_id), 0) as postCount
             FROM tags t
             JOIN post_tags pt ON t.id = pt.tag_id
             WHERE (:name IS NULL OR t.name ILIKE '%' || :name || '%')
-            GROUP BY t.id, t.name, t.created_at, t.updated_at
+            GROUP BY t.id, t.name, t.created_at_utc, t.updated_at_utc
             HAVING COALESCE(COUNT(pt.post_id), 0) < :lastPostCount
                 OR (COALESCE(COUNT(pt.post_id), 0) = :lastPostCount AND t.id > :lastTagId)
             ORDER BY postCount DESC, t.id ASC

@@ -11,7 +11,7 @@ import com.techtaurant.mainserver.notification.infrastructure.out.NotificationRe
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -101,7 +101,7 @@ class NotificationReadService(
 
         val unreadRecipientsByNotificationId = unreadRecipients.associateBy { it.notification.id!! }
         val updatedRecipients = distinctNotificationIds.mapNotNull(unreadRecipientsByNotificationId::get)
-        val readAt = Date()
+        val readAt = Instant.now()
         updatedRecipients.forEach { recipient ->
             recipient.markAsRead(readAt)
         }
