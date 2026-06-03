@@ -27,7 +27,6 @@ import org.springframework.http.HttpStatus
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
 import java.time.Instant
-import java.util.Date
 import java.util.UUID
 
 @DisplayName("LinkReadOpenApiController 통합 테스트")
@@ -381,8 +380,8 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                     ),
                 )
             userLinkRepository.save(UserLink(user = managedSourceCompanyUser, link = link))
-            link.createdAt = Date(createdAtMillis)
-            link.updatedAt = Date(createdAtMillis)
+            link.createdAt = Instant.ofEpochMilli(createdAtMillis)
+            link.updatedAt = Instant.ofEpochMilli(createdAtMillis)
             linkRepository.saveAndFlush(link)
         } ?: throw IllegalStateException("링크 저장에 실패했습니다")
     }

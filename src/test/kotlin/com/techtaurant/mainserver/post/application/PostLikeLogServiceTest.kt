@@ -24,8 +24,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.transaction.annotation.Transactional
-import java.sql.Date
 import java.sql.Timestamp
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -321,7 +321,7 @@ class PostLikeLogServiceTest : IntegrationTest() {
         entityManager.clear()
 
         // Then - 취소 통계가 기존 로그 생성일 버킷에 반영됨
-        val targetStatDate = DateUtils.toUtcDate(Date(targetCreatedAt.time))
+        val targetStatDate = DateUtils.toUtcDate(targetCreatedAt.toInstant())
         val targetDailyStats = findDailyStats(targetStatDate)
         assertThat(targetDailyStats).isNotNull
         assertThat(targetDailyStats?.likeCount).isEqualTo(-1)
@@ -338,7 +338,7 @@ class PostLikeLogServiceTest : IntegrationTest() {
         entityManager.flush()
     }
 
-    private fun findDailyStats(statDate: Date) =
+    private fun findDailyStats(statDate: LocalDate) =
         postDailyStatsRepository.findAll()
             .find { it.post.id == testPost.id && it.statDate.toString() == statDate.toString() }
 }

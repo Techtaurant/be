@@ -5,7 +5,7 @@ import com.techtaurant.mainserver.notification.entity.NotificationRecipient
 import com.techtaurant.mainserver.notification.enums.NotificationTargetType
 import com.techtaurant.mainserver.notification.enums.NotificationType
 import io.swagger.v3.oas.annotations.media.Schema
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 @Schema(description = "알림 목록 아이템")
@@ -21,9 +21,9 @@ data class NotificationListItemResponse(
     @field:Schema(description = "읽음 여부")
     val isRead: Boolean,
     @field:Schema(description = "읽음 시각", nullable = true)
-    val readAt: Date?,
+    val readAt: Instant?,
     @field:Schema(description = "알림 생성 시각")
-    val createdAt: Date,
+    val createdAt: Instant,
     @field:Schema(description = "알림 메시지 인자 목록")
     val arguments: List<NotificationArgumentResponse>,
 ) {

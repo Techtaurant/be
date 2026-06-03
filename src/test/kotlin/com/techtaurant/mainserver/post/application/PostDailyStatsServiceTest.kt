@@ -17,7 +17,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.transaction.annotation.Transactional
-import java.sql.Date
+import java.time.LocalDate
 
 @DisplayName("PostDailyStatsService 통합 테스트")
 @Transactional
@@ -253,7 +253,7 @@ class PostDailyStatsServiceTest : IntegrationTest() {
         // given
         val user = createAndSaveUser("comment-decrement-date@example.com")
         val post = createAndSavePost("댓글 날짜별 감소 테스트 게시글", user)
-        val statDate = Date.valueOf("2026-03-01")
+        val statDate = LocalDate.parse("2026-03-01")
         createDailyStats(post, statDate, commentCount = 2)
 
         // when
@@ -297,7 +297,7 @@ class PostDailyStatsServiceTest : IntegrationTest() {
 
     private fun createDailyStats(
         post: Post,
-        statDate: Date,
+        statDate: LocalDate,
         viewCount: Long = 0,
         likeCount: Long = 0,
         commentCount: Long = 0,
@@ -314,7 +314,7 @@ class PostDailyStatsServiceTest : IntegrationTest() {
     }
 
     private fun isSameUtcDate(
-        actual: Date,
-        expected: Date,
-    ): Boolean = actual.toString() == expected.toString()
+        actual: LocalDate,
+        expected: LocalDate,
+    ): Boolean = actual == expected
 }

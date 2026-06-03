@@ -2,7 +2,7 @@ package com.techtaurant.mainserver.post.dto
 
 import com.techtaurant.mainserver.post.entity.Post
 import io.swagger.v3.oas.annotations.media.Schema
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -26,9 +26,9 @@ data class DraftListItemResponse(
     @field:Schema(description = "게시물 본문 미리보기 (최대 100자)", example = "Empty")
     val contentPreview: String,
     @field:Schema(description = "생성일시")
-    val createdAt: Date,
+    val createdAt: Instant,
     @field:Schema(description = "최종 수정일시")
-    val updatedAt: Date,
+    val updatedAt: Instant,
 ) {
     companion object {
         fun from(post: Post): DraftListItemResponse {

@@ -27,8 +27,6 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
 import java.util.UUID
-import java.sql.Date as SqlDate
-import java.util.Date as UtilDate
 
 @Transactional
 @ActiveProfiles("test")
@@ -110,7 +108,7 @@ class PostRepositoryCustomImplTest : IntegrationTest() {
         post: Post,
         daysAgo: Long,
     ): Post {
-        val createdAt = UtilDate.from(Instant.now().minus(daysAgo, ChronoUnit.DAYS))
+        val createdAt = Instant.now().minus(daysAgo, ChronoUnit.DAYS)
         post.createdAt = createdAt
         post.updatedAt = createdAt
         return postRepository.saveAndFlush(post)
@@ -133,7 +131,7 @@ class PostRepositoryCustomImplTest : IntegrationTest() {
             ),
         )
 
-    private fun statDateDaysAgo(daysAgo: Long): SqlDate = SqlDate.valueOf(LocalDate.now(ZoneOffset.UTC).minusDays(daysAgo))
+    private fun statDateDaysAgo(daysAgo: Long): LocalDate = LocalDate.now(ZoneOffset.UTC).minusDays(daysAgo)
 
     @Nested
     @DisplayName("authorId 필터링")

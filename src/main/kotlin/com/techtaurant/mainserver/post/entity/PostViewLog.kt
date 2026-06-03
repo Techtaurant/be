@@ -17,8 +17,8 @@ import jakarta.persistence.*
 @Table(
     name = "post_view_log",
     indexes = [
-        Index(name = "idx_post_view_log_post_created", columnList = "post_id,created_at"),
-        Index(name = "idx_post_view_log_created", columnList = "created_at"),
+        Index(name = "idx_post_view_log_post_created_utc", columnList = "post_id,created_at_utc"),
+        Index(name = "idx_post_view_log_created_utc", columnList = "created_at_utc"),
     ],
 )
 class PostViewLog(

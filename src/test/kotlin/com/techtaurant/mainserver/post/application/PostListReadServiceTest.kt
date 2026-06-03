@@ -28,7 +28,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 class PostListReadServiceTest {
@@ -116,13 +116,13 @@ class PostListReadServiceTest {
             status = status,
         ).apply { id = UUID.randomUUID() }
 
-    private fun List<Post>.withSortValues(sortValueResolver: (Post) -> Long = { it.updatedAt.time }): List<PostWithSortValue> =
+    private fun List<Post>.withSortValues(sortValueResolver: (Post) -> Long = { it.updatedAt.toEpochMilli() }): List<PostWithSortValue> =
         map { post -> PostWithSortValue(post = post, sortValue = sortValueResolver(post)) }
 
     private fun createAttachment(
         postId: UUID,
         objectKey: String,
-        createdAt: Date,
+        createdAt: Instant,
     ): Attachment =
         Attachment(
             referenceId = postId,
@@ -338,13 +338,13 @@ class PostListReadServiceTest {
                 createAttachment(
                     postId = post.id!!,
                     objectKey = "posts/${post.id}/uuid-1/first.jpg",
-                    createdAt = Date(1_000L),
+                    createdAt = Instant.ofEpochMilli(1_000L),
                 )
             val laterAttachment =
                 createAttachment(
                     postId = post.id!!,
                     objectKey = "posts/${post.id}/uuid-2/later.jpg",
-                    createdAt = Date(2_000L),
+                    createdAt = Instant.ofEpochMilli(2_000L),
                 )
             every {
                 postRepository.findPostsWithConditions(
@@ -385,9 +385,9 @@ class PostListReadServiceTest {
                 createAttachment(
                     post.id!!,
                     "posts/thumbnail-object-key.jpg",
-                    Date(1_000L),
+                    Instant.ofEpochMilli(1_000L),
                 ).apply { id = thumbnailAttachmentId }
-            val otherAttachment = createAttachment(post.id!!, "posts/other-object-key.jpg", Date(2_000L))
+            val otherAttachment = createAttachment(post.id!!, "posts/other-object-key.jpg", Instant.ofEpochMilli(2_000L))
             every {
                 postRepository.findPostsWithConditions(
                     cursor = null,

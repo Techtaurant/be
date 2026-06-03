@@ -13,7 +13,7 @@ interface LinkLikeLogRepository : JpaRepository<LinkLikeLog, UUID> {
     @Modifying(clearAutomatically = false, flushAutomatically = true)
     @Query(
         """
-        INSERT INTO link_like_log (id, link_id, user_id, is_liked, created_at, updated_at)
+        INSERT INTO link_like_log (id, link_id, user_id, is_liked, created_at_utc, updated_at_utc)
         VALUES (:id, :linkId, :userId, :isLiked, NOW(), NOW())
         ON CONFLICT ON CONSTRAINT uk_link_like_log_link_id_user_id DO NOTHING
         """,

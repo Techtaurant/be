@@ -16,8 +16,8 @@ import jakarta.persistence.UniqueConstraint
     name = "link_like_log",
     uniqueConstraints = [UniqueConstraint(name = "uk_link_like_log_link_id_user_id", columnNames = ["link_id", "user_id"])],
     indexes = [
-        Index(name = "idx_link_like_log_link_created", columnList = "link_id,created_at"),
-        Index(name = "idx_link_like_log_created", columnList = "created_at"),
+        Index(name = "idx_link_like_log_link_created_utc", columnList = "link_id,created_at_utc"),
+        Index(name = "idx_link_like_log_created_utc", columnList = "created_at_utc"),
     ],
 )
 class LinkLikeLog(

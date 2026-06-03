@@ -15,7 +15,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 class PostMetadataReadServiceTest {
@@ -51,8 +51,8 @@ class PostMetadataReadServiceTest {
         // given
         val firstPost = createPost(title = "첫 번째 게시물", viewCount = 10, likeCount = 2, commentCount = 1)
         val secondPost = createPost(title = "두 번째 게시물", viewCount = 20, likeCount = 5, commentCount = 3)
-        val thumbnailAttachment = createAttachment(firstPost.id!!, "posts/${firstPost.id}/thumbnail.jpg", Date(1_000L))
-        val bodyAttachment = createAttachment(firstPost.id!!, "posts/${firstPost.id}/body.jpg", Date(2_000L))
+        val thumbnailAttachment = createAttachment(firstPost.id!!, "posts/${firstPost.id}/thumbnail.jpg", Instant.ofEpochMilli(1_000L))
+        val bodyAttachment = createAttachment(firstPost.id!!, "posts/${firstPost.id}/body.jpg", Instant.ofEpochMilli(2_000L))
         firstPost.thumbnailImage = thumbnailAttachment.id
 
         every { postRepository.findPublishedPostsByIdIn(listOf(secondPost.id!!, firstPost.id!!)) } returns listOf(firstPost, secondPost)
@@ -100,7 +100,7 @@ class PostMetadataReadServiceTest {
     private fun createAttachment(
         postId: UUID,
         objectKey: String,
-        createdAt: Date,
+        createdAt: Instant,
     ): Attachment =
         Attachment(
             referenceId = postId,

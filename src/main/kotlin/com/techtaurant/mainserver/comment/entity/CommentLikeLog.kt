@@ -18,8 +18,8 @@ import jakarta.persistence.*
     name = "comment_like_log",
     uniqueConstraints = [UniqueConstraint(columnNames = ["comment_id", "user_id"])],
     indexes = [
-        Index(name = "idx_comment_like_log_comment_created", columnList = "comment_id,created_at"),
-        Index(name = "idx_comment_like_log_created", columnList = "created_at"),
+        Index(name = "idx_comment_like_log_comment_created_utc", columnList = "comment_id,created_at_utc"),
+        Index(name = "idx_comment_like_log_created_utc", columnList = "created_at_utc"),
     ],
 )
 class CommentLikeLog(
