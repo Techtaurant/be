@@ -8,7 +8,7 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
-import java.sql.Date
+import java.time.LocalDate
 
 @Entity
 @Table(
@@ -20,7 +20,7 @@ class LinkDailyStats(
     @JoinColumn(name = "link_id", nullable = false)
     var link: Link,
     @Column(name = "stat_date", nullable = false)
-    var statDate: Date,
+    var statDate: LocalDate,
     @Column(name = "view_count", nullable = false)
     var viewCount: Long = 0,
     @Column(name = "like_count", nullable = false)

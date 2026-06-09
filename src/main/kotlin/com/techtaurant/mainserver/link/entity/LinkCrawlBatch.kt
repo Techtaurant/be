@@ -47,6 +47,6 @@ class LinkCrawlBatch(
     var startPage: Int = 1,
     @Column(nullable = false)
     var active: Boolean = true,
-    @Column(name = "last_triggered_at")
+    @Column(name = "last_triggered_at_utc")
     var lastTriggeredAt: Instant? = null,
 ) : EntityBase()

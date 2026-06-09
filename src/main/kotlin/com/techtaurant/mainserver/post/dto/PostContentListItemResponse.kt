@@ -2,7 +2,7 @@ package com.techtaurant.mainserver.post.dto
 
 import com.techtaurant.mainserver.post.entity.Post
 import io.swagger.v3.oas.annotations.media.Schema
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 @Schema(description = "게시물 정적 콘텐츠 목록 아이템")
@@ -20,9 +20,9 @@ data class PostContentListItemResponse(
     @field:Schema(description = "태그 목록")
     val tags: List<PostListTagResponse>,
     @field:Schema(description = "작성일")
-    val createdAt: Date,
+    val createdAt: Instant,
     @field:Schema(description = "최종 수정일")
-    val updatedAt: Date,
+    val updatedAt: Instant,
 ) {
     companion object {
         private const val CONTENT_MAX_LENGTH = 2000

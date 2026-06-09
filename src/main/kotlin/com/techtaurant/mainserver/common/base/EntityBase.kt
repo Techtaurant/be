@@ -7,7 +7,7 @@ import jakarta.persistence.MappedSuperclass
 import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedDate
 import org.springframework.data.jpa.domain.support.AuditingEntityListener
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 @MappedSuperclass
@@ -18,9 +18,9 @@ open class EntityBase(
     @Column(columnDefinition = "UUID")
     var id: UUID? = null,
     @CreatedDate
-    @Column(name = "created_at")
-    var createdAt: Date = Date(),
+    @Column(name = "created_at_utc")
+    var createdAt: Instant = Instant.now(),
     @LastModifiedDate
-    @Column(name = "updated_at")
-    var updatedAt: Date = Date(),
+    @Column(name = "updated_at_utc")
+    var updatedAt: Instant = Instant.now(),
 )

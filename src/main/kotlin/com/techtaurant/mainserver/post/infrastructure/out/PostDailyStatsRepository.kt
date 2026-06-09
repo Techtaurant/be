@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
-import java.sql.Date
+import java.time.LocalDate
 import java.util.UUID
 
 interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
@@ -20,14 +20,14 @@ interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
     @Query(
         """
         UPDATE post_daily_stats
-        SET view_count = view_count + 1, updated_at = NOW()
+        SET view_count = view_count + 1, updated_at_utc = NOW()
         WHERE post_id = :postId AND stat_date = :statDate
         """,
         nativeQuery = true,
     )
     fun incrementViewCount(
         @Param("postId") postId: UUID,
-        @Param("statDate") statDate: Date,
+        @Param("statDate") statDate: LocalDate,
     ): Int
 
     /**
@@ -41,14 +41,14 @@ interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
     @Query(
         """
         UPDATE post_daily_stats
-        SET like_count = like_count + 1, updated_at = NOW()
+        SET like_count = like_count + 1, updated_at_utc = NOW()
         WHERE post_id = :postId AND stat_date = :statDate
         """,
         nativeQuery = true,
     )
     fun incrementLikeCount(
         @Param("postId") postId: UUID,
-        @Param("statDate") statDate: Date,
+        @Param("statDate") statDate: LocalDate,
     ): Int
 
     /**
@@ -63,14 +63,14 @@ interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
     @Query(
         """
         UPDATE post_daily_stats
-        SET like_count = like_count - 1, updated_at = NOW()
+        SET like_count = like_count - 1, updated_at_utc = NOW()
         WHERE post_id = :postId AND stat_date = :statDate
         """,
         nativeQuery = true,
     )
     fun decrementLikeCount(
         @Param("postId") postId: UUID,
-        @Param("statDate") statDate: Date,
+        @Param("statDate") statDate: LocalDate,
     ): Int
 
     /**
@@ -84,14 +84,14 @@ interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
     @Query(
         """
         UPDATE post_daily_stats
-        SET comment_count = comment_count + 1, updated_at = NOW()
+        SET comment_count = comment_count + 1, updated_at_utc = NOW()
         WHERE post_id = :postId AND stat_date = :statDate
         """,
         nativeQuery = true,
     )
     fun incrementCommentCount(
         @Param("postId") postId: UUID,
-        @Param("statDate") statDate: Date,
+        @Param("statDate") statDate: LocalDate,
     ): Int
 
     /**
@@ -106,13 +106,13 @@ interface PostDailyStatsRepository : JpaRepository<PostDailyStats, UUID> {
     @Query(
         """
         UPDATE post_daily_stats
-        SET comment_count = comment_count - 1, updated_at = NOW()
+        SET comment_count = comment_count - 1, updated_at_utc = NOW()
         WHERE post_id = :postId AND stat_date = :statDate
         """,
         nativeQuery = true,
     )
     fun decrementCommentCount(
         @Param("postId") postId: UUID,
-        @Param("statDate") statDate: Date,
+        @Param("statDate") statDate: LocalDate,
     ): Int
 }

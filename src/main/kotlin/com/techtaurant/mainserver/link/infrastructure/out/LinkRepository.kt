@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 interface LinkRepository : JpaRepository<Link, UUID> {
@@ -173,7 +173,7 @@ interface LinkRepository : JpaRepository<Link, UUID> {
     fun findNextPageIds(
         @Param("sourceCompanyUserId") sourceCompanyUserId: UUID?,
         @Param("tag") tag: String?,
-        @Param("cursorCreatedAt") cursorCreatedAt: Date,
+        @Param("cursorCreatedAt") cursorCreatedAt: Instant,
         @Param("cursorId") cursorId: UUID,
         pageable: Pageable,
     ): List<UUID>

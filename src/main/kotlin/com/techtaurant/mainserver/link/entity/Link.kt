@@ -26,7 +26,7 @@ class Link(
     var url: String,
     @Column(nullable = false, columnDefinition = "TEXT")
     var summary: String,
-    @Column(name = "published_at")
+    @Column(name = "published_at_utc")
     var publishedAt: Instant? = null,
     @ManyToMany(fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
     @JoinTable(

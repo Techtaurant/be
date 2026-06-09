@@ -18,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import java.time.LocalDate
 import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
@@ -193,7 +194,7 @@ class LinkInteractionConcurrencyTest : IntegrationTest() {
         assertThat(dailyStats?.saveCount).isEqualTo(0)
     }
 
-    private fun findDailyStats(statDate: java.sql.Date = DateUtils.today()): LinkDailyStats? {
+    private fun findDailyStats(statDate: LocalDate = DateUtils.today()): LinkDailyStats? {
         return linkDailyStatsRepository.findAll()
             .find { it.link.id == testLink.id && it.statDate.toString() == statDate.toString() }
     }

@@ -2,7 +2,7 @@ package com.techtaurant.mainserver.post.entity
 
 import com.techtaurant.mainserver.common.base.EntityBase
 import jakarta.persistence.*
-import java.sql.Date
+import java.time.LocalDate
 
 /**
  * 일별 게시물 통계 엔티티
@@ -23,7 +23,7 @@ class PostDailyStats(
     @JoinColumn(name = "post_id", nullable = false)
     var post: Post,
     @Column(name = "stat_date", nullable = false)
-    var statDate: Date,
+    var statDate: LocalDate,
     @Column(name = "view_count", nullable = false)
     var viewCount: Long = 0,
     @Column(name = "like_count", nullable = false)

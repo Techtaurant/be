@@ -4,7 +4,6 @@ import com.techtaurant.mainserver.link.entity.Link
 import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
 import java.time.Instant
-import java.util.Date
 import java.util.UUID
 
 @Schema(description = "링크 정적 콘텐츠 목록 아이템")
@@ -24,9 +23,9 @@ data class LinkContentListItemResponse(
     @field:ArraySchema(schema = Schema(description = "링크 태그명", example = "engineering"))
     val tags: List<String>,
     @field:Schema(description = "생성일")
-    val createdAt: Date,
+    val createdAt: Instant,
     @field:Schema(description = "최종 수정일")
-    val updatedAt: Date,
+    val updatedAt: Instant,
 ) {
     companion object {
         fun from(

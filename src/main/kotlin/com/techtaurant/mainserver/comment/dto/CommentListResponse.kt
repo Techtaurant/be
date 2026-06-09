@@ -3,7 +3,8 @@ package com.techtaurant.mainserver.comment.dto
 import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.common.enums.LikeStatus
 import io.swagger.v3.oas.annotations.media.Schema
-import java.util.*
+import java.time.Instant
+import java.util.UUID
 
 /**
  * 댓글 목록 응답 DTO
@@ -37,9 +38,9 @@ data class CommentListResponse(
     @field:Schema(description = "현재 사용자가 차단한 작성자의 댓글인지 여부")
     val isBanned: Boolean,
     @field:Schema(description = "생성 시각")
-    val createdAt: Date,
+    val createdAt: Instant,
     @field:Schema(description = "수정 시각")
-    val updatedAt: Date,
+    val updatedAt: Instant,
 ) {
     companion object {
         private val DELETED_AUTHOR_ID: UUID = UUID(0, 0)

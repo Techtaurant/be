@@ -4,7 +4,7 @@ import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.status.DefaultStatus
 import com.techtaurant.mainserver.user.entity.UserToken
 import io.swagger.v3.oas.annotations.media.Schema
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 @Schema(description = "사용자 토큰 발급 응답")
@@ -20,7 +20,7 @@ data class UserTokenResponse(
     @field:Schema(description = "영구 토큰 여부", example = "true")
     val permanent: Boolean,
     @field:Schema(description = "토큰 생성 시각")
-    val createdAt: Date,
+    val createdAt: Instant,
 ) {
     companion object {
         fun from(

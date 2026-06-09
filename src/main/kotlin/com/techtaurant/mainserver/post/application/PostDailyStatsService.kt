@@ -6,7 +6,7 @@ import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import org.slf4j.LoggerFactory
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
-import java.sql.Date
+import java.time.LocalDate
 import java.util.UUID
 
 /**
@@ -28,7 +28,7 @@ class PostDailyStatsService(
      */
     fun incrementViewCount(
         postId: UUID,
-        statDate: Date,
+        statDate: LocalDate,
     ) {
         applyDailyStatsChange(postId, statDate, postDailyStatsRepository::incrementViewCount)
     }
@@ -40,7 +40,7 @@ class PostDailyStatsService(
      */
     fun incrementLikeCount(
         postId: UUID,
-        statDate: Date,
+        statDate: LocalDate,
     ) {
         applyDailyStatsChange(postId, statDate, postDailyStatsRepository::incrementLikeCount)
     }
@@ -53,7 +53,7 @@ class PostDailyStatsService(
      */
     fun decrementLikeCount(
         postId: UUID,
-        statDate: Date,
+        statDate: LocalDate,
     ) {
         applyDailyStatsChange(postId, statDate, postDailyStatsRepository::decrementLikeCount)
     }
@@ -65,7 +65,7 @@ class PostDailyStatsService(
      */
     fun incrementCommentCount(
         postId: UUID,
-        statDate: Date,
+        statDate: LocalDate,
     ) {
         applyDailyStatsChange(postId, statDate, postDailyStatsRepository::incrementCommentCount)
     }
@@ -79,15 +79,15 @@ class PostDailyStatsService(
      */
     fun decrementCommentCount(
         postId: UUID,
-        statDate: Date,
+        statDate: LocalDate,
     ) {
         applyDailyStatsChange(postId, statDate, postDailyStatsRepository::decrementCommentCount)
     }
 
     private fun applyDailyStatsChange(
         postId: UUID,
-        statDate: Date,
-        changeFn: (UUID, Date) -> Int,
+        statDate: LocalDate,
+        changeFn: (UUID, LocalDate) -> Int,
     ) {
         if (changeFn(postId, statDate) == 0) {
             retryDailyStatsChangeAfterCreate(postId, statDate, changeFn)
@@ -100,8 +100,8 @@ class PostDailyStatsService(
      */
     private fun retryDailyStatsChangeAfterCreate(
         postId: UUID,
-        statDate: Date,
-        changeFn: (UUID, Date) -> Int,
+        statDate: LocalDate,
+        changeFn: (UUID, LocalDate) -> Int,
     ) {
         try {
             createDailyStats(postId, statDate)
@@ -116,7 +116,7 @@ class PostDailyStatsService(
      */
     private fun createDailyStats(
         postId: UUID,
-        statDate: Date,
+        statDate: LocalDate,
     ) {
         val post = postRepository.getReferenceById(postId)
         val dailyStats = PostDailyStats(post = post, statDate = statDate)

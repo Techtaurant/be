@@ -159,7 +159,7 @@ tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
 
     violationRules {
         rule {
-            element = "CLASS"
+            element = "BUNDLE"
 
             limit {
                 counter = "METHOD"

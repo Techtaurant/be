@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
@@ -53,7 +53,7 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
     )
     fun findDraftsByAuthorWithCursor(
         @Param("authorId") authorId: UUID,
-        @Param("cursorUpdatedAt") cursorUpdatedAt: Date,
+        @Param("cursorUpdatedAt") cursorUpdatedAt: Instant,
         @Param("cursorId") cursorId: UUID,
         @Param("limit") limit: Int,
     ): List<Post>
@@ -219,7 +219,7 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
     )
     fun findStaleDraftsByAuthor(
         @Param("authorId") authorId: UUID,
-        @Param("before") before: Date,
+        @Param("before") before: Instant,
     ): List<Post>
 
     @Query(

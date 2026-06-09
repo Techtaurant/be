@@ -8,14 +8,14 @@ import org.springframework.data.jpa.repository.Lock
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 interface UserLinkRepository : JpaRepository<UserLink, UUID> {
     @Modifying(clearAutomatically = false, flushAutomatically = true)
     @Query(
         """
-        INSERT INTO user_links (id, user_id, link_id, is_source, created_at, updated_at)
+        INSERT INTO user_links (id, user_id, link_id, is_source, created_at_utc, updated_at_utc)
         VALUES (:id, :userId, :linkId, :isSource, :createdAt, :updatedAt)
         ON CONFLICT ON CONSTRAINT uk_user_links_user_id_link_id_is_source DO NOTHING
         """,
@@ -26,8 +26,8 @@ interface UserLinkRepository : JpaRepository<UserLink, UUID> {
         @Param("userId") userId: UUID,
         @Param("linkId") linkId: UUID,
         @Param("isSource") isSource: Boolean,
-        @Param("createdAt") createdAt: Date,
-        @Param("updatedAt") updatedAt: Date,
+        @Param("createdAt") createdAt: Instant,
+        @Param("updatedAt") updatedAt: Instant,
     ): Int
 
     @Query(

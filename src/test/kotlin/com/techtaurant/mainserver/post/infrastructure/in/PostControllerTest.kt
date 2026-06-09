@@ -5,7 +5,9 @@ import com.techtaurant.mainserver.common.dto.ApiResponse
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.post.dto.PostListItemResponse
 import com.techtaurant.mainserver.post.entity.Post
+import com.techtaurant.mainserver.post.entity.PostDailyStats
 import com.techtaurant.mainserver.post.entity.Tag
+import com.techtaurant.mainserver.post.infrastructure.out.PostDailyStatsRepository
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
@@ -19,6 +21,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.Calendar
 import java.util.UUID
 import kotlin.test.assertEquals
@@ -31,6 +35,9 @@ class PostControllerTest : IntegrationTest() {
     private lateinit var postRepository: PostRepository
 
     @Autowired
+    private lateinit var postDailyStatsRepository: PostDailyStatsRepository
+
+    @Autowired
     private lateinit var userRepository: UserRepository
 
     @Autowired
@@ -41,6 +48,7 @@ class PostControllerTest : IntegrationTest() {
 
     @BeforeEach
     fun setup() {
+        postDailyStatsRepository.deleteAllInBatch()
         postRepository.deleteAllInBatch()
         userRepository.deleteAllInBatch()
 
@@ -482,7 +490,7 @@ class PostControllerTest : IntegrationTest() {
         @Test
         @DisplayName("기간 필터와 정렬을 함께 적용하면 올바르게 로딩되어야 한다")
         fun whenApplyBothPeriodAndSort_thenCorrectPostsLoaded() {
-            // When: 최근 7일의 게시물을 조회수 기준으로 정렬해서 조회
+            // When: 최근 7일 내 일별 집계가 있는 게시물을 조회수 기준으로 정렬해서 조회
             val response =
                 RestAssured
                     .given()
@@ -496,9 +504,9 @@ class PostControllerTest : IntegrationTest() {
                     .extract()
                     .`as`(object : TypeRef<ApiResponse<CursorPageResponse<PostListItemResponse>>>() {})
 
-            // Then: 필터된 데이터가 정렬되어 로드되어야 함
+            // Then: 게시물 작성일이 아니라 최근 일별 집계 데이터를 기준으로 필터링/정렬되어야 함
             val content = response.data!!.content
-            assertEquals(3, content.size, "최근 7일 내 게시물은 2개여야 함")
+            assertEquals(3, content.size, "최근 7일 내 일별 집계가 있는 게시물은 3개여야 함")
             assertTrue(
                 content[0].viewCount >= content[1].viewCount,
                 "조회수 기준 내림차순 정렬되어야 함",
@@ -528,7 +536,7 @@ class PostControllerTest : IntegrationTest() {
                 set(Calendar.MINUTE, 0)
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
-            }.time
+            }.toInstant()
         val post1 =
             Post(
                 title = "Post 1 - 50 days ago",
@@ -549,7 +557,7 @@ class PostControllerTest : IntegrationTest() {
                 set(Calendar.MINUTE, 0)
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
-            }.time
+            }.toInstant()
         val post2 =
             Post(
                 title = "Post 2 - 5 days ago",
@@ -570,7 +578,7 @@ class PostControllerTest : IntegrationTest() {
                 set(Calendar.MINUTE, 0)
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
-            }.time
+            }.toInstant()
         val post3 =
             Post(
                 title = "Post 3 - 1 day ago",
@@ -590,6 +598,20 @@ class PostControllerTest : IntegrationTest() {
         savedPosts[1].tags.add(tag2)
         savedPosts[2].tags.add(tag3)
 
-        return postRepository.saveAll(savedPosts)
+        val savedPostsWithTags = postRepository.saveAll(savedPosts)
+        val today = LocalDate.now(ZoneOffset.UTC)
+        postDailyStatsRepository.saveAll(
+            savedPostsWithTags.map { post ->
+                PostDailyStats(
+                    post = post,
+                    statDate = today,
+                    viewCount = post.viewCount,
+                    likeCount = post.likeCount,
+                    commentCount = post.commentCount,
+                )
+            },
+        )
+
+        return savedPostsWithTags
     }
 }

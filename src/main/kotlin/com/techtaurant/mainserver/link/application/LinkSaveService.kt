@@ -10,7 +10,7 @@ import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -32,7 +32,7 @@ class LinkSaveService(
             ApiException(UserStatus.USER_NOT_FOUND)
         }
 
-        val savedAt = Date()
+        val savedAt = Instant.now()
         val statDate = DateUtils.toUtcDate(savedAt)
         val inserted =
             userLinkRepository.insertIfAbsent(

@@ -18,8 +18,8 @@ import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.user.application.UserProfileImageResolver
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.util.Calendar
-import java.util.Date
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 /**
@@ -173,13 +173,14 @@ class PostListReadService(
                 categoryId = categoryId,
                 tagIds = normalizedTagIds,
             )
-        val posts = selectPostListQueryStrategy(postListQueryCriteria).findPosts(postListQueryCriteria)
-        val hasNext = posts.size > size
-        val content = posts.take(size)
+        val sortedPosts = selectPostListQueryStrategy(postListQueryCriteria).findPosts(postListQueryCriteria)
+        val hasNext = sortedPosts.size > size
+        val contentWithSortValues = sortedPosts.take(size)
+        val content = contentWithSortValues.map { it.post }
 
         val nextCursor =
-            if (hasNext && content.isNotEmpty()) {
-                PostCursor.from(content.last(), sortType).encode()
+            if (hasNext && contentWithSortValues.isNotEmpty()) {
+                createPostCursor(contentWithSortValues.last(), sortType).encode()
             } else {
                 null
             }
@@ -189,6 +190,17 @@ class PostListReadService(
             nextCursor = nextCursor,
             hasNext = hasNext,
             size = content.size,
+        )
+    }
+
+    private fun createPostCursor(
+        sortedPost: PostWithSortValue,
+        sortType: PostSortType,
+    ): PostCursor {
+        return PostCursor.from(
+            post = sortedPost.post,
+            sortType = sortType,
+            sortValue = sortedPost.sortValue,
         )
     }
 
@@ -267,18 +279,19 @@ class PostListReadService(
         )
     }
 
-    private fun parseDraftCursor(cursor: String): Pair<java.util.Date, UUID> {
+    private fun parseDraftCursor(cursor: String): Pair<Instant, UUID> {
         val parts = cursor.split("_")
-        val updatedAtMillis = parts[0].toLong()
         val id = UUID.fromString(parts[1])
-        return Pair(java.util.Date(updatedAtMillis), id)
+        return Pair(parseCursorInstant(parts[0]), id)
     }
 
+    private fun parseCursorInstant(value: String): Instant = value.toLongOrNull()?.let(Instant::ofEpochMilli) ?: Instant.parse(value)
+
     private fun encodeDraftCursor(
-        updatedAt: java.util.Date,
+        updatedAt: Instant,
         id: UUID,
     ): String {
-        return "${updatedAt.time}_$id"
+        return "${updatedAt}_$id"
     }
 
     /**
@@ -288,11 +301,7 @@ class PostListReadService(
      * @param userId 사용자 ID
      */
     private fun deleteExpiredDrafts(userId: UUID) {
-        val calendar =
-            Calendar.getInstance().apply {
-                add(Calendar.DAY_OF_MONTH, -STALE_DRAFT_DAYS)
-            }
-        val expirationDate = calendar.time
+        val expirationDate = Instant.now().minus(STALE_DRAFT_DAYS.toLong(), ChronoUnit.DAYS)
 
         val staleDrafts = postRepository.findStaleDraftsByAuthor(userId, expirationDate)
         staleDrafts.forEach { post ->

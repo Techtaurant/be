@@ -15,7 +15,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.transaction.annotation.Transactional
-import java.sql.Date
+import java.time.LocalDate
 import java.util.UUID
 
 @DisplayName("LinkDailyStatsService 통합 테스트")
@@ -66,7 +66,7 @@ class LinkDailyStatsServiceTest : IntegrationTest() {
     @Test
     @DisplayName("일별 통계 레코드가 없으면 생성 후 조회수와 저장수를 증가시킨다")
     fun incrementStats_whenDailyStatsNotExists_shouldCreateAndUpdate() {
-        val statDate = Date.valueOf("2026-05-18")
+        val statDate = LocalDate.parse("2026-05-18")
 
         linkDailyStatsService.incrementViewCount(testLink.id!!, statDate)
         linkDailyStatsService.incrementSaveCount(testLink.id!!, statDate)
@@ -84,7 +84,7 @@ class LinkDailyStatsServiceTest : IntegrationTest() {
     @Test
     @DisplayName("좋아요 감소는 레코드가 없으면 생성 후 음수 값을 기록할 수 있다")
     fun decrementLikeCount_whenDailyStatsNotExists_shouldCreateAndAllowNegativeCount() {
-        val statDate = Date.valueOf("2026-05-18")
+        val statDate = LocalDate.parse("2026-05-18")
 
         linkDailyStatsService.decrementLikeCount(testLink.id!!, statDate)
         entityManager.flush()
@@ -98,7 +98,7 @@ class LinkDailyStatsServiceTest : IntegrationTest() {
     @Test
     @DisplayName("저장수 감소는 레코드가 없으면 생성하지 않고 기존 레코드가 있으면 감소한다")
     fun decrementSaveCount_whenDailyStatsNotExists_shouldNotCreateDailyStats() {
-        val statDate = Date.valueOf("2026-05-18")
+        val statDate = LocalDate.parse("2026-05-18")
 
         linkDailyStatsService.decrementSaveCount(testLink.id!!, statDate)
         entityManager.flush()

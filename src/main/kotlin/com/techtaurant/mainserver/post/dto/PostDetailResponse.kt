@@ -5,7 +5,7 @@ import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import com.techtaurant.mainserver.user.entity.User
 import io.swagger.v3.oas.annotations.media.Schema
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -56,9 +56,9 @@ data class PostDetailResponse(
     @field:Schema(description = "attachmentId와 presigned URL 매핑 목록")
     val attachmentPresignedUrls: List<PostDetailAttachmentPresignedUrlResponse>,
     @field:Schema(description = "작성일")
-    val createdAt: Date,
+    val createdAt: Instant,
     @field:Schema(description = "수정일")
-    val updatedAt: Date,
+    val updatedAt: Instant,
 ) {
     companion object {
         /**

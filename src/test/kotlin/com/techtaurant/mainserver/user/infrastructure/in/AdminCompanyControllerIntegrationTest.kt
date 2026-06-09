@@ -48,6 +48,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.bean.override.mockito.MockitoBean
+import java.time.ZoneOffset
 import java.util.Base64
 import java.util.UUID
 import kotlin.test.assertEquals
@@ -396,7 +397,7 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
         val company = saveCompanyUser("토스")
         val sourceCompany = saveCompanyUser("당근")
         val link = saveLink(sourceCompany, "당근 링크", "https://example.com/past-liked-link")
-        val oldStatDate = java.sql.Date.valueOf(DateUtils.today().toLocalDate().minusDays(1))
+        val oldStatDate = DateUtils.today().minusDays(1)
 
         link.likeCount = 1
         linkRepository.saveAndFlush(link)
@@ -415,8 +416,8 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
                     isLiked = true,
                 ),
             )
-        likeLog.createdAt = java.util.Date(oldStatDate.time)
-        likeLog.updatedAt = java.util.Date(oldStatDate.time)
+        likeLog.createdAt = oldStatDate.atStartOfDay(ZoneOffset.UTC).toInstant()
+        likeLog.updatedAt = oldStatDate.atStartOfDay(ZoneOffset.UTC).toInstant()
         linkLikeLogRepository.saveAndFlush(likeLog)
 
         given()

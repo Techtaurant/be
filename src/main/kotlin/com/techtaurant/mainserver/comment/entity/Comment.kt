@@ -4,7 +4,7 @@ import com.techtaurant.mainserver.common.base.EntityBase
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.user.entity.User
 import jakarta.persistence.*
-import java.util.Date
+import java.time.Instant
 
 /**
  * 댓글 엔티티
@@ -43,6 +43,6 @@ class Comment(
     var replyCount: Long = 0,
     @OneToMany(mappedBy = "parent", cascade = [CascadeType.ALL], orphanRemoval = true)
     var children: MutableList<Comment> = mutableListOf(),
-    @Column(name = "deleted_at")
-    var deletedAt: Date? = null,
+    @Column(name = "deleted_at_utc")
+    var deletedAt: Instant? = null,
 ) : EntityBase()
