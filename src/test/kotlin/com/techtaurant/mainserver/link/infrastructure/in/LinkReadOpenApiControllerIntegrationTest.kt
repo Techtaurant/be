@@ -246,6 +246,57 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
     }
 
     @Test
+    @DisplayName("공개 회사 링크 목록은 인증 없이 회사별 링크를 커서 기반으로 조회한다")
+    fun getCompanyLinkContents_paginatesCompanyLinksWithoutAuthentication() {
+        val oldest = saveLink("Oldest Company Link", "https://example.com/company-oldest", firstCompany, 1_000)
+        val middle = saveLink("Middle Company Link", "https://example.com/company-middle", firstCompany, 2_000)
+        val newest = saveLink("Newest Company Link", "https://example.com/company-newest", firstCompany, 3_000)
+        val otherCompanyLink = saveLink("Other Company Link", "https://example.com/company-other", secondCompany, 4_000)
+
+        val nextCursor =
+            given()
+                .queryParam("size", 2)
+                .`when`()
+                .get("/open-api/companies/${firstCompany.id}/links")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+                .body("data.content", hasSize<Any>(2))
+                .body("data.content[0].id", equalTo(newest.id.toString()))
+                .body("data.content[1].id", equalTo(middle.id.toString()))
+                .body("data.content.id", not(hasItem(otherCompanyLink.id.toString())))
+                .body("data.nextCursor", notNullValue())
+                .body("data.hasNext", equalTo(true))
+                .body("data.size", equalTo(2))
+                .extract()
+                .path<String>("data.nextCursor")
+
+        given()
+            .queryParam("cursor", nextCursor)
+            .queryParam("size", 2)
+            .`when`()
+            .get("/open-api/companies/${firstCompany.id}/links")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.content", hasSize<Any>(1))
+            .body("data.content[0].id", equalTo(oldest.id.toString()))
+            .body("data.nextCursor", nullValue())
+            .body("data.hasNext", equalTo(false))
+            .body("data.size", equalTo(1))
+    }
+
+    @Test
+    @DisplayName("공개 회사 링크 목록은 없는 회사 ID면 COMPANY_NOT_FOUND를 반환한다")
+    fun getCompanyLinkContents_missingCompany_returnsCompanyNotFound() {
+        given()
+            .`when`()
+            .get("/open-api/companies/${UUID.randomUUID()}/links")
+            .then()
+            .statusCode(HttpStatus.NOT_FOUND.value())
+            .body("status", equalTo(1010))
+            .body("message", equalTo("회사를 찾을 수 없습니다"))
+    }
+
+    @Test
     @DisplayName("공개 링크 목록은 결과가 없으면 빈 커서 페이지를 반환한다")
     fun getLinkContents_returnsEmptyPageForNoMatches() {
         saveLink("Valid Link", "https://example.com/valid-link", firstCompany, 1_000)

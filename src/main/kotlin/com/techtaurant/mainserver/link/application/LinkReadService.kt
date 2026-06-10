@@ -56,6 +56,21 @@ class LinkReadService(
         )
     }
 
+    fun getPublicCompanyLinkContents(
+        companyUserId: UUID,
+        cursor: String?,
+        size: Int,
+    ): CursorPageResponse<LinkContentListItemResponse> {
+        validateCompany(companyUserId)
+
+        return getPublicLinkContents(
+            cursor = cursor,
+            size = size,
+            sourceCompanyUserId = companyUserId,
+            tag = null,
+        )
+    }
+
     fun getPublicLinkContentDetail(linkId: UUID): LinkContentDetailResponse {
         val link =
             linkRepository.findByIdWithTags(linkId)

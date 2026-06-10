@@ -7,6 +7,7 @@ import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.attachment.enums.AttachmentStatus
 import com.techtaurant.mainserver.attachment.infrastructure.out.AttachmentRepository
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.common.status.DefaultStatus
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.UUID
 
 class AttachmentServiceTest {
@@ -140,6 +142,49 @@ class AttachmentServiceTest {
             )
 
             // then
+            verify(exactly = 0) { s3StorageService.copyObject(any(), any()) }
+        }
+
+        @Test
+        @DisplayName("요청한 Attachment를 찾지 못하면 404 예외를 던진다")
+        fun confirmAttachmentsByIds_missingAttachment_throwsNotFound() {
+            // given
+            val missingAttachmentId = UUID.randomUUID()
+            every { attachmentRepository.findAllById(listOf(missingAttachmentId)) } returns emptyList()
+
+            // when & then
+            val exception =
+                assertThrows<ApiException> {
+                    attachmentService.confirmAttachmentsByIds(
+                        referenceId = postId,
+                        referenceType = AttachmentReferenceType.POST,
+                        attachmentIds = listOf(missingAttachmentId),
+                    )
+                }
+
+            assertThat(exception.status).isEqualTo(DefaultStatus.NOT_FOUND)
+            assertThat(exception).hasMessage("첨부파일을 찾을 수 없습니다")
+        }
+
+        @Test
+        @DisplayName("요청한 Attachment 중 일부를 찾지 못해도 404 예외를 던진다")
+        fun confirmAttachmentsByIds_partiallyMissingAttachment_throwsNotFound() {
+            // given
+            val missingAttachmentId = UUID.randomUUID()
+            every { attachmentRepository.findAllById(listOf(tmpAttachment.id!!, missingAttachmentId)) } returns listOf(tmpAttachment)
+
+            // when & then
+            val exception =
+                assertThrows<ApiException> {
+                    attachmentService.confirmAttachmentsByIds(
+                        referenceId = postId,
+                        referenceType = AttachmentReferenceType.POST,
+                        attachmentIds = listOf(tmpAttachment.id!!, missingAttachmentId),
+                    )
+                }
+
+            assertThat(exception.status).isEqualTo(DefaultStatus.NOT_FOUND)
+            assertThat(exception).hasMessage("첨부파일을 찾을 수 없습니다")
             verify(exactly = 0) { s3StorageService.copyObject(any(), any()) }
         }
 
