@@ -59,6 +59,7 @@ class CommentResponseAssembler(
                     likeStatus = likeStatus,
                     maskedAuthorId = bannedUserMaskingService.maskAuthorId(authorId),
                     maskedAuthorName = bannedUserMaskingService.maskAuthorName(authorId),
+                    maskedAuthorProfileImageUrl = author.getFallbackProfileImageUrl(),
                     maskedContent = bannedUserMaskingService.maskCommentContent(comment.id!!),
                 )
             }
