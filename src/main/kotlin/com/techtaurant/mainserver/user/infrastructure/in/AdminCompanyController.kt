@@ -8,8 +8,10 @@ import com.techtaurant.mainserver.user.dto.CompanyResponse
 import com.techtaurant.mainserver.user.dto.CreateCompanyRequest
 import com.techtaurant.mainserver.user.dto.CreateUserTokenRequest
 import com.techtaurant.mainserver.user.dto.UserTokenResponse
+import com.techtaurant.mainserver.user.enums.UserStatus
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -37,6 +39,15 @@ class AdminCompanyController(
     @GetMapping
     override fun getCompanies(): ApiResponse<List<CompanyResponse>> {
         return ApiResponse.ok(companyAdminService.getCompanies())
+    }
+
+    @ApiErrorResponses(users = [UserStatus.COMPANY_NOT_FOUND], includeAuthenticationErrors = true)
+    @DeleteMapping("/{companyUserId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    override fun deleteCompany(
+        @PathVariable companyUserId: UUID,
+    ) {
+        companyAdminService.deleteCompany(companyUserId)
     }
 
     @ApiErrorResponses(includeAuthenticationErrors = true, includeValidationError = true)

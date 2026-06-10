@@ -4,6 +4,7 @@ import com.techtaurant.mainserver.attachment.application.AttachmentService
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.status.DefaultStatus
+import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
 import com.techtaurant.mainserver.user.dto.UpdateUserRequest
 import com.techtaurant.mainserver.user.dto.UpdateUserRoleResponse
 import com.techtaurant.mainserver.user.dto.UserResponse
@@ -22,6 +23,7 @@ class UserWriteService(
     private val attachmentService: AttachmentService,
     private val userResponseAssembler: UserResponseAssembler,
     private val userTokenRepository: UserTokenRepository,
+    private val userLinkRepository: UserLinkRepository,
 ) {
     companion object {
         private const val USER_NAME_UNIQUE_CONSTRAINT = "uk_users_name"
@@ -87,6 +89,7 @@ class UserWriteService(
             }
 
         revokePermanentTokensOnRoleChange(targetUserId, user.role, role)
+        deleteSourceLinksOnCompanyDemotion(targetUserId, user.role, role)
         user.role = role
 
         return UpdateUserRoleResponse.from(user)
@@ -99,6 +102,16 @@ class UserWriteService(
     ) {
         if (currentRole != requestedRole) {
             userTokenRepository.deleteAllByUserId(targetUserId)
+        }
+    }
+
+    private fun deleteSourceLinksOnCompanyDemotion(
+        targetUserId: UUID,
+        currentRole: UserRole,
+        requestedRole: UserRole,
+    ) {
+        if (currentRole == UserRole.COMPANY && requestedRole != UserRole.COMPANY) {
+            userLinkRepository.deleteAllSourcesByUserId(targetUserId)
         }
     }
 

@@ -21,8 +21,8 @@ data class CommentListResponse(
     val authorId: UUID,
     @field:Schema(description = "작성자 이름")
     val authorName: String,
-    @field:Schema(description = "작성자 프로필 이미지 URL", nullable = true)
-    val authorProfileImageUrl: String?,
+    @field:Schema(description = "작성자 프로필 이미지 URL")
+    val authorProfileImageUrl: String,
     @field:Schema(description = "부모 댓글 ID", nullable = true)
     val parentId: UUID?,
     @field:Schema(description = "댓글 깊이 (0: 댓글, 1: 대댓글)")
@@ -72,6 +72,7 @@ data class CommentListResponse(
             likeStatus: LikeStatus,
             maskedAuthorId: UUID,
             maskedAuthorName: String,
+            maskedAuthorProfileImageUrl: String,
             maskedContent: String,
         ): CommentListResponse {
             return CommentListResponse(
@@ -80,7 +81,7 @@ data class CommentListResponse(
                 postId = comment.post.id!!,
                 authorId = maskedAuthorId,
                 authorName = maskedAuthorName,
-                authorProfileImageUrl = null,
+                authorProfileImageUrl = maskedAuthorProfileImageUrl,
                 parentId = comment.parent?.id,
                 depth = comment.depth,
                 likeCount = comment.likeCount,

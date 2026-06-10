@@ -41,7 +41,7 @@ class CommentViewerStateReadService(
             CommentViewerStateResponse(
                 commentId = commentId,
                 likeStatus = likeStatusByCommentId[commentId] ?: LikeStatus.NONE,
-                isBanned = comment.author.id?.let { it in bannedUserIds } ?: false,
+                isBanned = comment.author.id!! in bannedUserIds,
             )
         }
     }

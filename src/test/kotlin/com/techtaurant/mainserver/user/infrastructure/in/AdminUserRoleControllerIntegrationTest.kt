@@ -1,6 +1,10 @@
 package com.techtaurant.mainserver.user.infrastructure.`in`
 
 import com.techtaurant.mainserver.base.IntegrationTest
+import com.techtaurant.mainserver.link.entity.Link
+import com.techtaurant.mainserver.link.entity.UserLink
+import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
+import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.entity.User
@@ -8,6 +12,7 @@ import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.restassured.RestAssured.given
 import org.hamcrest.Matchers.equalTo
+import org.hamcrest.Matchers.hasSize
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -15,11 +20,18 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 @DisplayName("AdminUserRoleController 통합 테스트")
 class AdminUserRoleControllerIntegrationTest : IntegrationTest() {
     @Autowired
     private lateinit var userRepository: UserRepository
+
+    @Autowired
+    private lateinit var linkRepository: LinkRepository
+
+    @Autowired
+    private lateinit var userLinkRepository: UserLinkRepository
 
     @Autowired
     private lateinit var jwtTokenProvider: JwtTokenProvider
@@ -88,6 +100,49 @@ class AdminUserRoleControllerIntegrationTest : IntegrationTest() {
 
         val updatedUser = userRepository.findById(targetUser.id!!).orElseThrow()
         assertEquals(UserRole.ADMIN, updatedUser.role)
+    }
+
+    @Test
+    @DisplayName("ADMIN 권한은 COMPANY를 USER로 변경할 때 링크 source 관계를 삭제한다")
+    fun adminCanDemoteCompanyAndRemoveLinkSources() {
+        val company =
+            userRepository.save(
+                User(
+                    name = "회사",
+                    email = "company-${UUID.randomUUID()}@example.com",
+                    provider = OAuthProvider.SYSTEM,
+                    identifier = "company-${UUID.randomUUID()}",
+                    role = UserRole.COMPANY,
+                    profileImageUrl = "https://example.com/company-profile.jpg",
+                ),
+            )
+        val link =
+            linkRepository.save(
+                Link(
+                    title = "회사 출처 링크",
+                    url = "https://example.com/company-source",
+                    summary = "회사 출처 링크 요약",
+                ),
+            )
+        userLinkRepository.save(UserLink(user = company, link = link, isSource = true))
+
+        given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $adminAccessToken")
+            .body("""{"role":"USER"}""")
+            .`when`()
+            .patch("/admin/users/${company.id}/role")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.role", equalTo(UserRole.USER.name))
+
+        assertNull(userLinkRepository.findSourceByUserIdAndLinkId(company.id!!, link.id!!))
+        given()
+            .`when`()
+            .get("/open-api/links")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.content", hasSize<Any>(0))
     }
 
     @Test

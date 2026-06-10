@@ -91,7 +91,7 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                 publishedAt = publishedAt,
                 tags = mutableSetOf(linkTag, anotherLinkTag),
             )
-        userLinkRepository.saveAndFlush(UserLink(user = secondCompany, link = link))
+        userLinkRepository.saveAndFlush(UserLink(user = secondCompany, link = link, isSource = true))
 
         given()
             .queryParam("size", 1)
@@ -355,7 +355,7 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                 publishedAt = publishedAt,
                 tags = mutableSetOf(linkTag, anotherLinkTag),
             )
-        userLinkRepository.saveAndFlush(UserLink(user = secondCompany, link = link))
+        userLinkRepository.saveAndFlush(UserLink(user = secondCompany, link = link, isSource = true))
 
         given()
             .`when`()
@@ -430,7 +430,7 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                         tags = managedTags,
                     ),
                 )
-            userLinkRepository.save(UserLink(user = managedSourceCompanyUser, link = link))
+            userLinkRepository.save(UserLink(user = managedSourceCompanyUser, link = link, isSource = true))
             link.createdAt = Instant.ofEpochMilli(createdAtMillis)
             link.updatedAt = Instant.ofEpochMilli(createdAtMillis)
             linkRepository.saveAndFlush(link)

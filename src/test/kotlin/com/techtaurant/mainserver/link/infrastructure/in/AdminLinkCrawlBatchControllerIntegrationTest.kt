@@ -207,7 +207,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
         assertEquals(3, savedLinks.size)
         assertEquals(
             3,
-            userLinkRepository.findByUserIdAndLinkIdIn(companyUser.id!!, savedLinks.map { it.id!! }).size,
+            savedLinks.count { link -> userLinkRepository.findSourceByUserIdAndLinkId(companyUser.id!!, link.id!!) != null },
         )
         assertTrue(savedLinks.all { it.tags.map { tag -> tag.name }.containsAll(listOf("engineering", "backend")) })
         assertEquals(
@@ -289,8 +289,20 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
         val existingLinkIds = existingLinks.map { it.id!! }
         assertEquals(1, pageRequestCount(1))
         assertEquals(1, pageRequestCount(2))
-        assertEquals(3, userLinkRepository.findByUserIdAndLinkIdIn(companyUser.id!!, existingLinkIds).size)
-        assertEquals(3, userLinkRepository.findByUserIdAndLinkIdIn(anotherCompany.id!!, existingLinkIds).size)
+        assertEquals(
+            3,
+            existingLinkIds.count {
+                    linkId ->
+                userLinkRepository.findSourceByUserIdAndLinkId(companyUser.id!!, linkId) != null
+            },
+        )
+        assertEquals(
+            3,
+            existingLinkIds.count {
+                    linkId ->
+                userLinkRepository.findSourceByUserIdAndLinkId(anotherCompany.id!!, linkId) != null
+            },
+        )
     }
 
     @Test
@@ -372,7 +384,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                     publishedAt = Instant.parse("2026-04-20T00:00:00Z"),
                 ),
             )
-        userLinkRepository.saveAndFlush(UserLink(user = sourceCompanyUser, link = link))
+        userLinkRepository.saveAndFlush(UserLink(user = sourceCompanyUser, link = link, isSource = true))
 
         return link
     }

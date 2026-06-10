@@ -378,7 +378,7 @@ class CommentReadControllerTest : IntegrationTest() {
         assertEquals(13, maskedComment.authorName.length)
         assertTrue(maskedComment.content.startsWith("banned_"))
         assertEquals(13, maskedComment.content.length)
-        assertEquals(null, maskedComment.authorProfileImageUrl)
+        assertEquals(blockedUser.profileImageUrl, maskedComment.authorProfileImageUrl)
         assertTrue(maskedComment.authorId != blockedUser.id)
     }
 

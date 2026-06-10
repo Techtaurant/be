@@ -32,7 +32,7 @@ class LinkViewerStateReadService(
 
         val savedLinkIds =
             userLinkRepository
-                .findByUserIdAndLinkIdIn(userId = userId, linkIds = loadedLinkIds)
+                .findSavedByUserIdAndLinkIdIn(userId = userId, linkIds = loadedLinkIds)
                 .map { it.link.id!! }
                 .toSet()
         val readLinkIds =

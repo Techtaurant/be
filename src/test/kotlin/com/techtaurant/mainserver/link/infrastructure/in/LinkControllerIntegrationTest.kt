@@ -74,7 +74,7 @@ class LinkControllerIntegrationTest : IntegrationTest() {
                     summary = "지표 리뷰를 실행으로 연결한 사례입니다.",
                 ),
             )
-        userLinkRepository.save(UserLink(user = companyUser, link = firstLink))
+        userLinkRepository.save(UserLink(user = companyUser, link = firstLink, isSource = true))
 
         secondLink =
             linkRepository.save(
@@ -84,7 +84,7 @@ class LinkControllerIntegrationTest : IntegrationTest() {
                     summary = "멀티테넌트 워크로드 격리 전략을 소개합니다.",
                 ),
             )
-        userLinkRepository.save(UserLink(user = companyUser, link = secondLink))
+        userLinkRepository.save(UserLink(user = companyUser, link = secondLink, isSource = true))
     }
 
     @Test

@@ -38,7 +38,7 @@ class LinkViewerStateReadServiceTest {
         val missingLinkId = UUID.randomUUID()
 
         every { linkRepository.findAllById(listOf(readLink.id!!, savedLink.id!!, missingLinkId)) } returns listOf(savedLink, readLink)
-        every { userLinkRepository.findByUserIdAndLinkIdIn(viewer.id!!, listOf(readLink.id!!, savedLink.id!!)) } returns
+        every { userLinkRepository.findSavedByUserIdAndLinkIdIn(viewer.id!!, listOf(readLink.id!!, savedLink.id!!)) } returns
             listOf(UserLink(user = viewer, link = savedLink))
         every { linkReadLogRepository.findByUserIdAndLinkIdIn(viewer.id!!, listOf(readLink.id!!, savedLink.id!!)) } returns
             listOf(LinkReadLog(user = viewer, link = readLink))

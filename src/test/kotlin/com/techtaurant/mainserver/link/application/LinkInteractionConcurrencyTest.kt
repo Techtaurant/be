@@ -170,11 +170,11 @@ class LinkInteractionConcurrencyTest : IntegrationTest() {
             linkSaveService.save(testLink.id!!, normalUser.id!!)
         }
 
-        val userLink = userLinkRepository.findByUserIdAndLinkId(normalUser.id!!, testLink.id!!)
+        val userLink = userLinkRepository.findSavedByUserIdAndLinkId(normalUser.id!!, testLink.id!!)
         val dailyStats = findDailyStats()
 
         assertThat(userLink).isNotNull
-        assertThat(userLinkRepository.findByUserIdAndLinkIdIn(normalUser.id!!, listOf(testLink.id!!))).hasSize(1)
+        assertThat(userLinkRepository.findSavedByUserIdAndLinkIdIn(normalUser.id!!, listOf(testLink.id!!))).hasSize(1)
         assertThat(dailyStats?.saveCount).isEqualTo(1)
     }
 
@@ -187,7 +187,7 @@ class LinkInteractionConcurrencyTest : IntegrationTest() {
             linkSaveService.unsave(testLink.id!!, normalUser.id!!)
         }
 
-        val userLink = userLinkRepository.findByUserIdAndLinkId(normalUser.id!!, testLink.id!!)
+        val userLink = userLinkRepository.findSavedByUserIdAndLinkId(normalUser.id!!, testLink.id!!)
         val dailyStats = findDailyStats()
 
         assertThat(userLink).isNull()

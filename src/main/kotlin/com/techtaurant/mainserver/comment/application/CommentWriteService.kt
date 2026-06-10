@@ -212,8 +212,8 @@ class CommentWriteService(
         var current = parent
 
         while (current != null) {
-            val authorId = current.author.id
-            if (authorId != null && authorId != actorUserId && visitedAuthorIds.add(authorId)) {
+            val authorId = current.author.id!!
+            if (authorId != actorUserId && visitedAuthorIds.add(authorId)) {
                 authorIds.add(authorId)
             }
             current = current.parent

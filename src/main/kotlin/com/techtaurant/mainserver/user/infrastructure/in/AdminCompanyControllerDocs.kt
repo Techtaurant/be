@@ -43,6 +43,22 @@ interface AdminCompanyControllerDocs {
     fun getCompanies(): ApiResponse<List<CompanyResponse>>
 
     @Operation(
+        summary = "회사 삭제",
+        description = "관리자가 등록한 COMPANY 사용자를 삭제하고 해당 회사의 링크 크롤 배치와 수집 링크를 함께 삭제합니다",
+    )
+    @SwaggerApiResponse(responseCode = "204", description = "회사 삭제 성공")
+    @ApiErrorCodeResponses(
+        [
+            ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED", "ACCESS_DENIED"]),
+            ApiErrorCodeResponse(UserStatus::class, ["COMPANY_NOT_FOUND"]),
+            ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
+        ],
+    )
+    fun deleteCompany(
+        @Parameter(description = "회사 사용자 ID") companyUserId: UUID,
+    )
+
+    @Operation(
         summary = "회사 봇 영구 토큰 발급",
         description = "관리자가 회사 봇에서 사용할 만료 없는 JWT를 발급하고 사용자 토큰 저장소에 등록합니다",
     )

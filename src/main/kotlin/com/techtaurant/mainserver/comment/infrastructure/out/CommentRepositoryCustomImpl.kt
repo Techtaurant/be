@@ -61,8 +61,8 @@ class CommentRepositoryCustomImpl : CommentRepositoryCustom {
         val cq = cb.createQuery(Comment::class.java)
         val root = cq.from(Comment::class.java)
 
-        root.fetch<Comment, User>(Comment_.AUTHOR)
-        root.fetch<Comment, Post>(Comment_.POST, JoinType.LEFT)
+        root.fetch<Comment, User>(Comment_.AUTHOR, JoinType.INNER)
+        root.fetch<Comment, Post>(Comment_.POST, JoinType.INNER)
 
         val predicates = mutableListOf<Predicate>()
 
@@ -94,8 +94,8 @@ class CommentRepositoryCustomImpl : CommentRepositoryCustom {
         val cq = cb.createQuery(Comment::class.java)
         val root = cq.from(Comment::class.java)
 
-        root.fetch<Comment, User>(Comment_.AUTHOR)
-        root.fetch<Comment, Post>(Comment_.POST, JoinType.LEFT)
+        root.fetch<Comment, User>(Comment_.AUTHOR, JoinType.INNER)
+        root.fetch<Comment, Post>(Comment_.POST, JoinType.INNER)
 
         val predicates = mutableListOf<Predicate>()
 

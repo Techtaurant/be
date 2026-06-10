@@ -1,6 +1,35 @@
 package com.techtaurant.mainserver.user.infrastructure.`in`
 
+import com.techtaurant.mainserver.attachment.application.S3StorageService
+import com.techtaurant.mainserver.attachment.entity.Attachment
+import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
+import com.techtaurant.mainserver.attachment.enums.AttachmentStatus
+import com.techtaurant.mainserver.attachment.infrastructure.out.AttachmentRepository
 import com.techtaurant.mainserver.base.IntegrationTest
+import com.techtaurant.mainserver.comment.entity.Comment
+import com.techtaurant.mainserver.comment.infrastructure.out.CommentLikeLogRepository
+import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
+import com.techtaurant.mainserver.common.util.DateUtils
+import com.techtaurant.mainserver.link.entity.Link
+import com.techtaurant.mainserver.link.entity.LinkCrawlBatch
+import com.techtaurant.mainserver.link.entity.LinkDailyStats
+import com.techtaurant.mainserver.link.entity.LinkLikeLog
+import com.techtaurant.mainserver.link.entity.LinkReadLog
+import com.techtaurant.mainserver.link.entity.UserLink
+import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlBatchRepository
+import com.techtaurant.mainserver.link.infrastructure.out.LinkDailyStatsRepository
+import com.techtaurant.mainserver.link.infrastructure.out.LinkLikeLogRepository
+import com.techtaurant.mainserver.link.infrastructure.out.LinkReadLogRepository
+import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
+import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
+import com.techtaurant.mainserver.post.entity.Post
+import com.techtaurant.mainserver.post.entity.PostDailyStats
+import com.techtaurant.mainserver.post.entity.Tag
+import com.techtaurant.mainserver.post.enums.PostStatusEnum
+import com.techtaurant.mainserver.post.infrastructure.out.PostDailyStatsRepository
+import com.techtaurant.mainserver.post.infrastructure.out.PostLikeLogRepository
+import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
+import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.entity.User
@@ -17,10 +46,14 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
+import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.test.context.bean.override.mockito.MockitoBean
+import java.time.ZoneOffset
 import java.util.Base64
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @DisplayName("AdminCompanyController 통합 테스트")
@@ -29,10 +62,55 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
     private lateinit var userRepository: UserRepository
 
     @Autowired
+    private lateinit var linkRepository: LinkRepository
+
+    @Autowired
+    private lateinit var linkDailyStatsRepository: LinkDailyStatsRepository
+
+    @Autowired
+    private lateinit var linkLikeLogRepository: LinkLikeLogRepository
+
+    @Autowired
+    private lateinit var linkCrawlBatchRepository: LinkCrawlBatchRepository
+
+    @Autowired
+    private lateinit var userLinkRepository: UserLinkRepository
+
+    @Autowired
+    private lateinit var linkReadLogRepository: LinkReadLogRepository
+
+    @Autowired
+    private lateinit var tagRepository: TagRepository
+
+    @Autowired
+    private lateinit var postRepository: PostRepository
+
+    @Autowired
+    private lateinit var postDailyStatsRepository: PostDailyStatsRepository
+
+    @Autowired
+    private lateinit var commentRepository: CommentRepository
+
+    @Autowired
+    private lateinit var commentLikeLogRepository: CommentLikeLogRepository
+
+    @Autowired
+    private lateinit var postLikeLogRepository: PostLikeLogRepository
+
+    @Autowired
+    private lateinit var attachmentRepository: AttachmentRepository
+
+    @Autowired
+    private lateinit var jdbcTemplate: JdbcTemplate
+
+    @Autowired
     private lateinit var userTokenRepository: UserTokenRepository
 
     @Autowired
     private lateinit var jwtTokenProvider: JwtTokenProvider
+
+    @MockitoBean
+    private lateinit var s3StorageService: S3StorageService
 
     private lateinit var adminUser: User
     private lateinit var normalUser: User
@@ -155,12 +233,284 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
     }
 
     @Test
+    @DisplayName("ADMIN 권한은 회사와 관련 배치 및 링크를 삭제할 수 있다")
+    fun adminCanDeleteCompanyWithBatchesAndLinks() {
+        val company = saveCompanyUser("토스")
+        val otherCompany = saveCompanyUser("당근")
+        val linkTag = tagRepository.save(Tag(name = "backend"))
+        val companyLink = saveLink(company, "토스 링크", "https://toss.tech/article/delete-target")
+        val otherCompanyLink = saveLink(otherCompany, "당근 링크", "https://medium.com/daangn/delete-survivor")
+        val sharedLink = saveLink(company, "공유 링크", "https://example.com/shared-link")
+
+        saveBatch(company, "토스 배치")
+        saveBatch(otherCompany, "당근 배치")
+        jdbcTemplate.update("INSERT INTO link_tags(link_id, tag_id) VALUES (?, ?)", companyLink.id, linkTag.id)
+        userLinkRepository.save(UserLink(user = normalUser, link = sharedLink))
+        userLinkRepository.save(UserLink(user = otherCompany, link = companyLink))
+        userLinkRepository.save(UserLink(user = otherCompany, link = sharedLink, isSource = true))
+        userLinkRepository.save(UserLink(user = normalUser, link = companyLink))
+        linkReadLogRepository.save(LinkReadLog(user = normalUser, link = companyLink))
+
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .delete("/admin/companies/${company.id}")
+            .then()
+            .statusCode(HttpStatus.NO_CONTENT.value())
+
+        val companyId = company.id!!
+        val companyLinkId = companyLink.id!!
+        val sharedLinkId = sharedLink.id!!
+
+        assertFalse(userRepository.existsById(companyId))
+        assertTrue(userRepository.existsById(otherCompany.id!!))
+        assertTrue(linkRepository.existsById(otherCompanyLink.id!!))
+        assertFalse(linkRepository.existsById(companyLinkId))
+        assertTrue(linkRepository.existsById(sharedLinkId))
+        assertTrue(linkCrawlBatchRepository.findAllByCompanyUserId(companyId).isEmpty())
+        assertEquals(1, linkCrawlBatchRepository.findAllByCompanyUserId(otherCompany.id!!).size)
+        assertEquals(0, countLinkTags(companyLinkId))
+        assertTrue(tagRepository.existsById(linkTag.id!!))
+        assertNull(userLinkRepository.findSavedByUserIdAndLinkId(normalUser.id!!, companyLinkId))
+        assertNull(userLinkRepository.findSourceByUserIdAndLinkId(companyId, sharedLinkId))
+        assertTrue(userLinkRepository.findSourceByUserIdAndLinkId(otherCompany.id!!, sharedLinkId) != null)
+        assertFalse(linkReadLogRepository.existsByUserIdAndLinkId(normalUser.id!!, companyLinkId))
+
+        given()
+            .`when`()
+            .get("/open-api/links/$sharedLinkId")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.sourceCompanyUserId", equalTo(otherCompany.id.toString()))
+    }
+
+    @Test
+    @DisplayName("ADMIN 권한은 회사 작성 게시물의 첨부파일을 함께 삭제할 수 있다")
+    fun adminCanDeleteCompanyWithAuthoredPostAttachments() {
+        val company = saveCompanyUser("토스")
+        val post =
+            postRepository.saveAndFlush(
+                Post(
+                    title = "회사 작성글",
+                    content = "회사 작성글 본문",
+                    author = company,
+                    status = PostStatusEnum.PUBLISHED,
+                ),
+            )
+        val attachment =
+            attachmentRepository.saveAndFlush(
+                Attachment(
+                    referenceId = post.id,
+                    referenceType = AttachmentReferenceType.POST,
+                    objectKey = "posts/${post.id}/image.png",
+                    status = AttachmentStatus.CONFIRMED,
+                    originalFileName = "image.png",
+                    contentType = "image/png",
+                    fileSize = 100,
+                ),
+            )
+        post.thumbnailImage = attachment.id
+        postRepository.saveAndFlush(post)
+
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .delete("/admin/companies/${company.id}")
+            .then()
+            .statusCode(HttpStatus.NO_CONTENT.value())
+
+        val postId = post.id!!
+        assertFalse(postRepository.existsById(postId))
+        assertTrue(
+            attachmentRepository
+                .findAllByReferenceIdAndReferenceType(postId, AttachmentReferenceType.POST)
+                .isEmpty(),
+        )
+    }
+
+    @Test
+    @DisplayName("ADMIN 권한은 회사를 삭제할 때 남아 있는 저장 링크의 일별 저장수를 차감한다")
+    fun adminCanDeleteCompanyAndDecrementSavedLinkStats() {
+        val company = saveCompanyUser("토스")
+        val sourceCompany = saveCompanyUser("당근")
+        val link = saveLink(sourceCompany, "당근 링크", "https://example.com/surviving-link")
+        val companyAccessToken = jwtTokenProvider.createAccessToken(company.id!!, company.role)
+
+        given()
+            .header("Authorization", "Bearer $companyAccessToken")
+            .`when`()
+            .post("/api/links/${link.id}/save")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+
+        assertEquals(1, linkDailyStatsRepository.findAll().single().saveCount)
+
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .delete("/admin/companies/${company.id}")
+            .then()
+            .statusCode(HttpStatus.NO_CONTENT.value())
+
+        assertTrue(linkRepository.existsById(link.id!!))
+        assertEquals(0, linkDailyStatsRepository.findAll().single().saveCount)
+        assertNull(userLinkRepository.findSavedByUserIdAndLinkId(company.id!!, link.id!!))
+    }
+
+    @Test
+    @DisplayName("ADMIN 권한은 회사를 삭제할 때 남아 있는 링크의 좋아요 통계를 되돌린다")
+    fun adminCanDeleteCompanyAndAdjustSurvivingLinkLikeStats() {
+        val company = saveCompanyUser("토스")
+        val sourceCompany = saveCompanyUser("당근")
+        val link = saveLink(sourceCompany, "당근 링크", "https://example.com/surviving-liked-link")
+        val companyAccessToken = jwtTokenProvider.createAccessToken(company.id!!, company.role)
+
+        given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $companyAccessToken")
+            .body("""{"likeStatus": "LIKE"}""")
+            .`when`()
+            .post("/api/links/${link.id}/like")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+
+        assertEquals(1, linkRepository.findById(link.id!!).orElseThrow().likeCount)
+        assertEquals(1, linkDailyStatsRepository.findAll().single().likeCount)
+
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .delete("/admin/companies/${company.id}")
+            .then()
+            .statusCode(HttpStatus.NO_CONTENT.value())
+
+        assertTrue(linkRepository.existsById(link.id!!))
+        assertEquals(0, linkRepository.findById(link.id!!).orElseThrow().likeCount)
+        assertEquals(0, linkDailyStatsRepository.findAll().single().likeCount)
+        assertNull(linkLikeLogRepository.findByLinkIdAndUserId(link.id!!, company.id!!))
+    }
+
+    @Test
+    @DisplayName("ADMIN 권한은 회사를 삭제할 때 링크 좋아요 일별 통계를 기존 로그 생성일 기준으로 되돌린다")
+    fun adminCanDeleteCompanyAndAdjustSurvivingLinkLikeStatsOnOriginalDate() {
+        val company = saveCompanyUser("토스")
+        val sourceCompany = saveCompanyUser("당근")
+        val link = saveLink(sourceCompany, "당근 링크", "https://example.com/past-liked-link")
+        val oldStatDate = DateUtils.today().minusDays(1)
+
+        link.likeCount = 1
+        linkRepository.saveAndFlush(link)
+        linkDailyStatsRepository.saveAndFlush(
+            LinkDailyStats(
+                link = link,
+                statDate = oldStatDate,
+                likeCount = 1,
+            ),
+        )
+        val likeLog =
+            linkLikeLogRepository.saveAndFlush(
+                LinkLikeLog(
+                    link = link,
+                    user = company,
+                    isLiked = true,
+                ),
+            )
+        likeLog.createdAt = oldStatDate.atStartOfDay(ZoneOffset.UTC).toInstant()
+        likeLog.updatedAt = oldStatDate.atStartOfDay(ZoneOffset.UTC).toInstant()
+        linkLikeLogRepository.saveAndFlush(likeLog)
+
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .delete("/admin/companies/${company.id}")
+            .then()
+            .statusCode(HttpStatus.NO_CONTENT.value())
+
+        assertTrue(linkRepository.existsById(link.id!!))
+        assertEquals(0, linkRepository.findById(link.id!!).orElseThrow().likeCount)
+        assertEquals(0, linkDailyStatsRepository.findAll().single { it.statDate == oldStatDate }.likeCount)
+        assertNull(linkLikeLogRepository.findByLinkIdAndUserId(link.id!!, company.id!!))
+    }
+
+    @Test
+    @DisplayName("ADMIN 권한은 회사를 삭제할 때 남아 있는 게시물과 댓글의 좋아요 통계를 되돌린다")
+    fun adminCanDeleteCompanyAndAdjustSurvivingPostAndCommentLikeStats() {
+        val company = saveCompanyUser("토스")
+        val companyAccessToken = jwtTokenProvider.createAccessToken(company.id!!, company.role)
+        val post =
+            postRepository.saveAndFlush(
+                Post(
+                    title = "일반 사용자 게시물",
+                    content = "게시물 본문",
+                    author = normalUser,
+                    status = PostStatusEnum.PUBLISHED,
+                ),
+            )
+        val comment =
+            commentRepository.saveAndFlush(
+                Comment(
+                    content = "일반 사용자 댓글",
+                    post = post,
+                    author = normalUser,
+                ),
+            )
+
+        given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $companyAccessToken")
+            .body("""{"likeStatus": "LIKE"}""")
+            .`when`()
+            .post("/api/posts/${post.id}/like")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+
+        given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $companyAccessToken")
+            .body("""{"likeStatus": "LIKE"}""")
+            .`when`()
+            .post("/api/comments/${comment.id}/like")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+
+        assertEquals(1, postRepository.findById(post.id!!).orElseThrow().likeCount)
+        assertEquals(1, postDailyStatsRepository.findAll().single().likeCount)
+        assertEquals(1, commentRepository.findById(comment.id!!).orElseThrow().likeCount)
+
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .delete("/admin/companies/${company.id}")
+            .then()
+            .statusCode(HttpStatus.NO_CONTENT.value())
+
+        assertTrue(postRepository.existsById(post.id!!))
+        assertTrue(commentRepository.existsById(comment.id!!))
+        assertEquals(0, postRepository.findById(post.id!!).orElseThrow().likeCount)
+        assertEquals(0, postDailyStatsRepository.findAll().single().likeCount)
+        assertEquals(0, commentRepository.findById(comment.id!!).orElseThrow().likeCount)
+        assertNull(postLikeLogRepository.findByPostIdAndUserId(post.id!!, company.id!!))
+        assertNull(commentLikeLogRepository.findByCommentIdAndUserId(comment.id!!, company.id!!))
+    }
+
+    @Test
+    @DisplayName("ADMIN 권한이라도 COMPANY 역할이 아닌 사용자는 회사 삭제 대상으로 처리하지 않는다")
+    fun adminCannotDeleteNonCompanyUserAsCompany() {
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .delete("/admin/companies/${normalUser.id}")
+            .then()
+            .statusCode(HttpStatus.NOT_FOUND.value())
+
+        assertTrue(userRepository.existsById(normalUser.id!!))
+    }
+
+    @Test
     @DisplayName("ADMIN 권한은 회사 봇 영구 토큰을 발급하고 DB에 저장할 수 있다")
     fun adminCanCreateCompanyPermanentToken() {
-        // Given
         val companyUser = saveCompanyUser(name = "토스", identifier = "company-toss")
 
-        // When
         val token =
             given()
                 .contentType("application/json")
@@ -184,7 +534,6 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
                 .extract()
                 .path<String>("data.token")
 
-        // Then
         val savedToken = userTokenRepository.findAll().single()
         val payloadJson = decodeJwtPayload(token)
 
@@ -198,14 +547,11 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
     @Test
     @DisplayName("회사 봇 영구 토큰을 재발급하면 기존 토큰은 삭제되고 새 토큰만 남는다")
     fun creatingCompanyPermanentTokenAgainReplacesExistingToken() {
-        // Given
         val companyUser = saveCompanyUser(name = "토스", identifier = "company-toss")
         val firstToken = createCompanyToken(companyUser.id!!, "첫 번째 수집 봇")
 
-        // When
         val secondToken = createCompanyToken(companyUser.id!!, "두 번째 수집 봇")
 
-        // Then
         val savedToken = userTokenRepository.findAll().single()
         assertEquals(companyUser.id, savedToken.user.id)
         assertEquals("두 번째 수집 봇", savedToken.name)
@@ -231,11 +577,9 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
     @Test
     @DisplayName("DB에 저장된 회사 봇 영구 토큰은 사용자 API 인증에 사용할 수 있다")
     fun registeredCompanyPermanentTokenCanAuthenticate() {
-        // Given
         val companyUser = saveCompanyUser(name = "토스", identifier = "company-toss")
         val token = createCompanyToken(companyUser.id!!)
 
-        // When & Then
         given()
             .header("Authorization", "Bearer $token")
             .`when`()
@@ -249,16 +593,13 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
     @Test
     @DisplayName("회사 역할이 변경되면 저장된 영구 토큰이 삭제되어 재승격 후에도 인증에 실패한다")
     fun companyPermanentTokenCannotAuthenticateAfterRoleChanged() {
-        // Given
         val companyUser = saveCompanyUser(name = "토스", identifier = "company-toss")
         val token = createCompanyToken(companyUser.id!!)
         assertEquals(1, userTokenRepository.count())
 
-        // When
         updateUserRole(companyUser.id!!, UserRole.USER)
         updateUserRole(companyUser.id!!, UserRole.COMPANY)
 
-        // Then
         assertEquals(0, userTokenRepository.count())
         given()
             .header("Authorization", "Bearer $token")
@@ -271,12 +612,10 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
     @Test
     @DisplayName("DB에 저장되지 않은 회사 봇 영구 토큰은 인증에 실패한다")
     fun unregisteredCompanyPermanentTokenCannotAuthenticate() {
-        // Given
         val companyUser = saveCompanyUser(name = "토스", identifier = "company-toss")
         val token = createCompanyToken(companyUser.id!!)
         userTokenRepository.deleteAllInBatch()
 
-        // When & Then
         given()
             .header("Authorization", "Bearer $token")
             .`when`()
@@ -288,10 +627,8 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
     @Test
     @DisplayName("USER 권한은 회사 봇 영구 토큰을 발급할 수 없다")
     fun userCannotCreateCompanyPermanentToken() {
-        // Given
         val companyUser = saveCompanyUser(name = "토스", identifier = "company-toss")
 
-        // When & Then
         given()
             .contentType("application/json")
             .header("Authorization", "Bearer $userAccessToken")
@@ -309,7 +646,7 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
 
     private fun saveCompanyUser(
         name: String,
-        identifier: String,
+        identifier: String = "company-${UUID.randomUUID()}",
     ): User {
         return userRepository.save(
             User(
@@ -321,6 +658,54 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
                 profileImageUrl = "https://example.com/$identifier.png",
             ),
         )
+    }
+
+    private fun saveBatch(
+        company: User,
+        name: String,
+    ): LinkCrawlBatch {
+        return linkCrawlBatchRepository.save(
+            LinkCrawlBatch(
+                companyUser = company,
+                name = name,
+                baseUrl = "https://example.com",
+                pageUriTemplate = "/articles?page={page}",
+                itemSelector = ".article-card",
+                articleLinkSelector = "a.article-link",
+                titleSelector = ".title",
+                summarySelector = ".summary",
+                publishedAtSelectors = "time",
+                tagNames = "backend",
+                cronExpression = "0 0 * * * *",
+                startPage = 1,
+                active = true,
+            ),
+        )
+    }
+
+    private fun saveLink(
+        company: User,
+        title: String,
+        url: String,
+    ): Link {
+        val link =
+            linkRepository.save(
+                Link(
+                    title = title,
+                    url = url,
+                    summary = "링크 요약",
+                ),
+            )
+        userLinkRepository.save(UserLink(user = company, link = link, isSource = true))
+        return link
+    }
+
+    private fun countLinkTags(linkId: UUID): Int {
+        return jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM link_tags WHERE link_id = ?",
+            Int::class.java,
+            linkId,
+        ) ?: 0
     }
 
     private fun createCompanyToken(

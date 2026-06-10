@@ -43,12 +43,40 @@ interface LinkRepository : JpaRepository<Link, UUID> {
             FROM UserLink userLink
             WHERE userLink.link = l
               AND userLink.user.id = :companyUserId
+              AND userLink.isSource = true
         )
         """,
     )
     fun findAllByConnectedUserIdWithTags(
         @Param("companyUserId") companyUserId: UUID,
     ): List<Link>
+
+    @Modifying(clearAutomatically = false, flushAutomatically = true)
+    @Query(
+        value = """
+        DELETE FROM links deleted_link
+        WHERE EXISTS (
+            SELECT 1
+            FROM user_links company_user_link
+            WHERE company_user_link.link_id = deleted_link.id
+              AND company_user_link.user_id = :companyUserId
+              AND company_user_link.is_source = TRUE
+        )
+          AND NOT EXISTS (
+            SELECT 1
+            FROM user_links other_company_user_link
+            JOIN users other_company_user ON other_company_user.id = other_company_user_link.user_id
+            WHERE other_company_user_link.link_id = deleted_link.id
+              AND other_company_user_link.user_id <> :companyUserId
+              AND other_company_user_link.is_source = TRUE
+              AND other_company_user.role = 'COMPANY'
+        )
+        """,
+        nativeQuery = true,
+    )
+    fun deleteAllOnlyConnectedByCompanyUserId(
+        @Param("companyUserId") companyUserId: UUID,
+    ): Int
 
     @Modifying(clearAutomatically = false, flushAutomatically = true)
     @Query("UPDATE Link l SET l.viewCount = l.viewCount + 1 WHERE l.id = :linkId")
@@ -72,12 +100,20 @@ interface LinkRepository : JpaRepository<Link, UUID> {
         """
         SELECT l.id
         FROM Link l
-        WHERE (
+        WHERE EXISTS (
+            SELECT validSourceUserLink.id
+            FROM UserLink validSourceUserLink
+            WHERE validSourceUserLink.link = l
+              AND validSourceUserLink.isSource = true
+              AND validSourceUserLink.user.role = 'COMPANY'
+        )
+          AND (
             :sourceCompanyUserId IS NULL OR EXISTS (
                 SELECT sourceUserLink.id
                 FROM UserLink sourceUserLink
                 WHERE sourceUserLink.link = l
                   AND sourceUserLink.user.id = :sourceCompanyUserId
+                  AND sourceUserLink.isSource = true
             )
         )
           AND (
@@ -102,12 +138,20 @@ interface LinkRepository : JpaRepository<Link, UUID> {
         """
         SELECT l.id
         FROM Link l
-        WHERE (
+        WHERE EXISTS (
+            SELECT validSourceUserLink.id
+            FROM UserLink validSourceUserLink
+            WHERE validSourceUserLink.link = l
+              AND validSourceUserLink.isSource = true
+              AND validSourceUserLink.user.role = 'COMPANY'
+        )
+          AND (
             :sourceCompanyUserId IS NULL OR EXISTS (
                 SELECT sourceUserLink.id
                 FROM UserLink sourceUserLink
                 WHERE sourceUserLink.link = l
                   AND sourceUserLink.user.id = :sourceCompanyUserId
+                  AND sourceUserLink.isSource = true
             )
         )
           AND (

@@ -3,6 +3,7 @@ package com.techtaurant.mainserver.user.application
 import com.techtaurant.mainserver.attachment.application.AttachmentService
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.user.dto.UpdateUserRequest
 import com.techtaurant.mainserver.user.dto.UserResponse
@@ -31,6 +32,7 @@ class UserWriteServiceTest {
     private val attachmentService: AttachmentService = mockk()
     private val userResponseAssembler: UserResponseAssembler = mockk()
     private val userTokenRepository: UserTokenRepository = mockk()
+    private val userLinkRepository: UserLinkRepository = mockk()
 
     private val userWriteService =
         UserWriteService(
@@ -38,6 +40,7 @@ class UserWriteServiceTest {
             attachmentService = attachmentService,
             userResponseAssembler = userResponseAssembler,
             userTokenRepository = userTokenRepository,
+            userLinkRepository = userLinkRepository,
         )
 
     private lateinit var user: User
@@ -63,6 +66,7 @@ class UserWriteServiceTest {
         }
         every { userRepository.flush() } just runs
         every { userTokenRepository.deleteAllByUserId(any()) } returns 0
+        every { userLinkRepository.deleteAllSourcesByUserId(any()) } returns 0
         every { attachmentService.confirmAttachmentsByIds(any(), any(), any()) } just runs
         every { attachmentService.deleteOrphanedAttachmentsByIds(any(), any(), any()) } just runs
     }
@@ -175,6 +179,19 @@ class UserWriteServiceTest {
 
         assertThat(user.role).isEqualTo(UserRole.ADMIN)
         verify { userTokenRepository.deleteAllByUserId(user.id!!) }
+        verify(exactly = 0) { userLinkRepository.deleteAllSourcesByUserId(any()) }
+    }
+
+    @Test
+    @DisplayName("회사 역할이 해제되면 링크 source 관계를 삭제한다")
+    fun updateUserRole_companyDemotion_deletesSourceLinks() {
+        user.role = UserRole.COMPANY
+
+        userWriteService.updateUserRole(user.id!!, UserRole.USER)
+
+        assertThat(user.role).isEqualTo(UserRole.USER)
+        verify { userTokenRepository.deleteAllByUserId(user.id!!) }
+        verify { userLinkRepository.deleteAllSourcesByUserId(user.id!!) }
     }
 
     @Test
