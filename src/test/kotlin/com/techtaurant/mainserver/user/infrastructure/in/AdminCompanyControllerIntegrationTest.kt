@@ -53,7 +53,6 @@ import java.util.Base64
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -492,65 +491,6 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
         assertEquals(0, commentRepository.findById(comment.id!!).orElseThrow().likeCount)
         assertNull(postLikeLogRepository.findByPostIdAndUserId(post.id!!, company.id!!))
         assertNull(commentLikeLogRepository.findByCommentIdAndUserId(comment.id!!, company.id!!))
-    }
-
-    @Test
-    @DisplayName("ADMIN 권한은 회사를 삭제할 때 남의 게시물에 작성한 댓글 스레드를 보존한다")
-    fun adminCanDeleteCompanyAndPreserveSurvivingCommentThreads() {
-        val company = saveCompanyUser("토스")
-        val post =
-            postRepository.saveAndFlush(
-                Post(
-                    title = "일반 사용자 게시물",
-                    content = "게시물 본문",
-                    author = normalUser,
-                    status = PostStatusEnum.PUBLISHED,
-                    commentCount = 2,
-                ),
-            )
-        val companyComment =
-            commentRepository.saveAndFlush(
-                Comment(
-                    content = "회사 댓글",
-                    post = post,
-                    author = company,
-                    replyCount = 1,
-                ),
-            )
-        val normalReply =
-            commentRepository.saveAndFlush(
-                Comment(
-                    content = "일반 사용자 답글",
-                    post = post,
-                    author = normalUser,
-                    parent = companyComment,
-                    depth = 1,
-                ),
-            )
-        val statDate = DateUtils.toUtcDate(companyComment.createdAt)
-        postDailyStatsRepository.saveAndFlush(
-            PostDailyStats(
-                post = post,
-                statDate = statDate,
-                commentCount = 2,
-            ),
-        )
-
-        given()
-            .header("Authorization", "Bearer $adminAccessToken")
-            .`when`()
-            .delete("/admin/companies/${company.id}")
-            .then()
-            .statusCode(HttpStatus.NO_CONTENT.value())
-
-        val deletedCompanyComment = commentRepository.findById(companyComment.id!!).orElseThrow()
-        val survivingReply = commentRepository.findById(normalReply.id!!).orElseThrow()
-
-        assertNotNull(deletedCompanyComment.deletedAt)
-        assertNull(deletedCompanyComment.author)
-        assertEquals(companyComment.id, survivingReply.parent?.id)
-        assertEquals(1, postRepository.findById(post.id!!).orElseThrow().commentCount)
-        assertEquals(1, postDailyStatsRepository.findAll().single().commentCount)
     }
 
     @Test

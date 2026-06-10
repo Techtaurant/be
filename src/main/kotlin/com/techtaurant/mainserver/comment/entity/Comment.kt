@@ -30,8 +30,8 @@ class Comment(
     @JoinColumn(name = "post_id", nullable = false)
     var post: Post,
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "author_id")
-    var author: User?,
+    @JoinColumn(name = "author_id", nullable = false)
+    var author: User,
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id")
     var parent: Comment? = null,

@@ -25,14 +25,12 @@ data class CommentContentListResponse(
     val updatedAt: Instant,
 ) {
     companion object {
-        private val DELETED_AUTHOR_ID: UUID = UUID(0, 0)
-
         fun from(comment: Comment): CommentContentListResponse =
             CommentContentListResponse(
                 id = comment.id!!,
                 content = comment.content,
                 postId = comment.post.id!!,
-                authorId = comment.author?.id ?: DELETED_AUTHOR_ID,
+                authorId = comment.author.id!!,
                 parentId = comment.parent?.id,
                 depth = comment.depth,
                 createdAt = comment.createdAt,

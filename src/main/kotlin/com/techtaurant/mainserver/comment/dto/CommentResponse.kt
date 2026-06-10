@@ -32,17 +32,13 @@ data class CommentResponse(
     val updatedAt: Instant,
 ) {
     companion object {
-        private val DELETED_AUTHOR_ID: UUID = UUID(0, 0)
-        private const val DELETED_AUTHOR_NAME = "삭제된 사용자"
-
         fun from(comment: Comment): CommentResponse {
-            val author = comment.author
             return CommentResponse(
                 id = comment.id!!,
                 content = comment.content,
                 postId = comment.post.id!!,
-                authorId = author?.id ?: DELETED_AUTHOR_ID,
-                authorName = author?.name ?: DELETED_AUTHOR_NAME,
+                authorId = comment.author.id!!,
+                authorName = comment.author.name,
                 parentId = comment.parent?.id,
                 depth = comment.depth,
                 isDeleted = comment.deletedAt != null,

@@ -2,7 +2,6 @@ package com.techtaurant.mainserver.user.application
 
 import com.techtaurant.mainserver.attachment.application.AttachmentService
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
-import com.techtaurant.mainserver.comment.application.CommentDeleteService
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentLikeLogRepository
 import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
 import com.techtaurant.mainserver.common.exception.ApiException
@@ -48,7 +47,6 @@ class CompanyAdminService(
     private val linkDailyStatsService: LinkDailyStatsService,
     private val commentRepository: CommentRepository,
     private val commentLikeLogRepository: CommentLikeLogRepository,
-    private val commentDeleteService: CommentDeleteService,
     private val postLikeLogRepository: PostLikeLogRepository,
     private val postDailyStatsService: PostDailyStatsService,
 ) {
@@ -120,7 +118,6 @@ class CompanyAdminService(
         adjustLinkLikeStats(companyId)
         adjustPostLikeStats(companyId)
         adjustCommentLikeStats(companyId)
-        softDeleteAuthoredCommentsOnSurvivingPosts(companyId)
         postRepository.findIdsByAuthorId(companyId).forEach { postId ->
             attachmentService.deleteAttachmentsByReference(postId, AttachmentReferenceType.POST)
         }
@@ -204,11 +201,6 @@ class CompanyAdminService(
                 commentRepository.incrementLikeCount(commentId)
             }
         }
-    }
-
-    private fun softDeleteAuthoredCommentsOnSurvivingPosts(companyId: UUID) {
-        commentRepository.findActiveIdsByAuthorIdAndPostAuthorIdNot(companyId)
-            .forEach { commentId -> commentDeleteService.deleteComment(commentId, companyId) }
     }
 
     private fun isUserNameUniqueConstraintViolation(exception: DataIntegrityViolationException): Boolean {

@@ -38,7 +38,7 @@ class CommentResponseAssembler(
         val authorProfileImageUrlByUserId =
             resolveAuthorProfileImageUrlByUserId(
                 comments
-                    .mapNotNull { it.author }
+                    .map { it.author }
                     .filterNot { bannedUserIds.contains(it.id) }
                     .distinctBy { it.id },
             )
@@ -46,24 +46,19 @@ class CommentResponseAssembler(
         return comments.map { comment ->
             val likeStatus = likeStatusMap[comment.id!!] ?: LikeStatus.NONE
             val author = comment.author
-            if (author == null) {
+            val authorId = author.id!!
+            if (!bannedUserIds.contains(authorId)) {
                 CommentListResponse.from(
                     comment = comment,
                     likeStatus = likeStatus,
-                    authorProfileImageUrl = null,
-                )
-            } else if (!bannedUserIds.contains(author.id)) {
-                CommentListResponse.from(
-                    comment = comment,
-                    likeStatus = likeStatus,
-                    authorProfileImageUrl = authorProfileImageUrlByUserId[author.id] ?: author.getFallbackProfileImageUrl(),
+                    authorProfileImageUrl = authorProfileImageUrlByUserId[authorId] ?: author.getFallbackProfileImageUrl(),
                 )
             } else {
                 CommentListResponse.fromMasked(
                     comment = comment,
                     likeStatus = likeStatus,
-                    maskedAuthorId = bannedUserMaskingService.maskAuthorId(author.id!!),
-                    maskedAuthorName = bannedUserMaskingService.maskAuthorName(author.id!!),
+                    maskedAuthorId = bannedUserMaskingService.maskAuthorId(authorId),
+                    maskedAuthorName = bannedUserMaskingService.maskAuthorName(authorId),
                     maskedContent = bannedUserMaskingService.maskCommentContent(comment.id!!),
                 )
             }

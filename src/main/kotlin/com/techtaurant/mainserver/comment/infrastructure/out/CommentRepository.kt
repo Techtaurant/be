@@ -17,20 +17,6 @@ interface CommentRepository : JpaRepository<Comment, UUID> {
      */
     fun findByPostIdAndDeletedAtIsNullOrderByCreatedAtAsc(postId: UUID): List<Comment>
 
-    @Query(
-        """
-        SELECT comment.id
-        FROM Comment comment
-        WHERE comment.author.id = :authorId
-          AND comment.deletedAt IS NULL
-          AND comment.post.author.id <> :authorId
-        ORDER BY comment.depth ASC, comment.createdAt ASC, comment.id ASC
-        """,
-    )
-    fun findActiveIdsByAuthorIdAndPostAuthorIdNot(
-        @Param("authorId") authorId: UUID,
-    ): List<UUID>
-
     /**
      * 댓글의 좋아요수를 원자적으로 1 증가시킵니다.
      *
