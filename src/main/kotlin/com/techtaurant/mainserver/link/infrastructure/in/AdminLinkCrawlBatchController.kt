@@ -6,6 +6,7 @@ import com.techtaurant.mainserver.link.application.LinkBatchRunService
 import com.techtaurant.mainserver.link.application.LinkCrawlBatchAdminService
 import com.techtaurant.mainserver.link.dto.CreateLinkCrawlBatchRequest
 import com.techtaurant.mainserver.link.dto.LinkBatchRunResponse
+import com.techtaurant.mainserver.link.dto.LinkCrawlBatchListItemResponse
 import com.techtaurant.mainserver.link.dto.LinkCrawlBatchResponse
 import com.techtaurant.mainserver.link.dto.UpdateLinkCrawlBatchRequest
 import com.techtaurant.mainserver.security.SecurityConstants
@@ -39,7 +40,7 @@ class AdminLinkCrawlBatchController(
     @GetMapping("${SecurityConstants.ADMIN_API_PREFIX}/companies/{companyUserId}/link-crawl-batches")
     override fun getBatches(
         @PathVariable companyUserId: UUID,
-    ): ApiResponse<List<LinkCrawlBatchResponse>> {
+    ): ApiResponse<List<LinkCrawlBatchListItemResponse>> {
         return ApiResponse.ok(linkCrawlBatchAdminService.getBatches(companyUserId))
     }
 
