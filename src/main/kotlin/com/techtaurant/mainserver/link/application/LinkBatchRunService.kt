@@ -94,7 +94,7 @@ class LinkBatchRunService(
         var pageResult = emptyPageCrawlResult()
 
         document.select(batch.itemSelector).forEach { item ->
-            pageResult = pageResult.recordCollectionResult(collectLinkItem(item, batch, tagResolver, pageUrl))
+            pageResult = pageResult.recordCollectionResult(collectLinkFromCrawledItem(item, batch, tagResolver, pageUrl))
         }
 
         return pageResult
@@ -147,7 +147,7 @@ class LinkBatchRunService(
             skippedCount = skippedCount + pageResult.skippedCount,
         )
 
-    private fun collectLinkItem(
+    private fun collectLinkFromCrawledItem(
         item: Element,
         batch: LinkCrawlBatch,
         tagResolver: LinkTagResolver,
