@@ -2,6 +2,7 @@ package com.techtaurant.mainserver.link.application
 
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.link.dto.CreateLinkCrawlBatchRequest
+import com.techtaurant.mainserver.link.dto.LinkCrawlBatchListItemResponse
 import com.techtaurant.mainserver.link.dto.LinkCrawlBatchResponse
 import com.techtaurant.mainserver.link.dto.UpdateLinkCrawlBatchRequest
 import com.techtaurant.mainserver.link.entity.LinkCrawlBatch
@@ -20,6 +21,7 @@ import java.util.UUID
 class LinkCrawlBatchAdminService(
     private val linkCrawlBatchRepository: LinkCrawlBatchRepository,
     private val userRepository: UserRepository,
+    private val linkBatchRunService: LinkBatchRunService,
 ) {
     @Transactional
     fun createBatch(
@@ -30,33 +32,33 @@ class LinkCrawlBatchAdminService(
         validateCronExpression(request.cronExpression)
 
         val batch =
-            linkCrawlBatchRepository.save(
-                LinkCrawlBatch(
-                    companyUser = companyUser,
-                    name = request.name.trim(),
-                    baseUrl = request.baseUrl.trim(),
-                    pageUriTemplate = request.pageUriTemplate.trim(),
-                    itemSelector = request.itemSelector.trim(),
-                    articleLinkSelector = request.articleLinkSelector.trim(),
-                    titleSelector = request.titleSelector.trim(),
-                    summarySelector = request.summarySelector?.trim()?.takeIf { it.isNotEmpty() },
-                    publishedAtSelectors = normalizeLines(request.publishedAtSelectors),
-                    tagNames = normalizeLines(request.tagNames),
-                    cronExpression = request.cronExpression.trim(),
-                    startPage = request.startPage,
-                    active = request.active,
-                ),
+            LinkCrawlBatch(
+                companyUser = companyUser,
+                name = request.name.trim(),
+                baseUrl = request.baseUrl.trim(),
+                pageUriTemplate = request.pageUriTemplate.trim(),
+                itemSelector = request.itemSelector.trim(),
+                articleLinkSelector = request.articleLinkSelector.trim(),
+                titleSelector = request.titleSelector.trim(),
+                summarySelector = request.summarySelector?.trim()?.takeIf { it.isNotEmpty() },
+                publishedAtSelectors = normalizeLines(request.publishedAtSelectors),
+                tagNames = normalizeLines(request.tagNames),
+                cronExpression = request.cronExpression.trim(),
+                startPage = request.startPage,
+                active = request.active,
             )
+        linkBatchRunService.validateCrawlable(batch)
+        val savedBatch = linkCrawlBatchRepository.save(batch)
 
-        return LinkCrawlBatchResponse.from(batch)
+        return LinkCrawlBatchResponse.from(savedBatch)
     }
 
     @Transactional(readOnly = true)
-    fun getBatches(companyUserId: UUID): List<LinkCrawlBatchResponse> {
+    fun getBatches(companyUserId: UUID): List<LinkCrawlBatchListItemResponse> {
         getCompanyUser(companyUserId)
         return linkCrawlBatchRepository.findAllByCompanyUserId(companyUserId)
             .sortedBy { it.name }
-            .map(LinkCrawlBatchResponse::from)
+            .map(LinkCrawlBatchListItemResponse::from)
     }
 
     @Transactional
@@ -85,6 +87,8 @@ class LinkCrawlBatchAdminService(
 
         request.startPage?.let { batch.startPage = it }
         request.active?.let { batch.active = it }
+
+        linkBatchRunService.validateCrawlable(batch)
 
         return LinkCrawlBatchResponse.from(batch)
     }

@@ -16,7 +16,9 @@ import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.restassured.RestAssured.given
 import org.hamcrest.Matchers.equalTo
+import org.hamcrest.Matchers.hasKey
 import org.hamcrest.Matchers.hasSize
+import org.hamcrest.Matchers.not
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -188,9 +190,13 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                 .then()
                 .statusCode(HttpStatus.CREATED.value())
                 .body("data.name", equalTo("토스 엔지니어링 링크 수집"))
+                .body("data", not(hasKey("canCrawl")))
                 .body("data.tagNames", hasSize<Any>(2))
                 .extract()
                 .path<String>("data.id")
+        assertEquals(1, pageRequestCount(1))
+        assertEquals(0, pageRequestCount(2))
+        assertTrue(linkRepository.findAll().isEmpty())
 
         given()
             .header("Authorization", "Bearer $adminAccessToken")
@@ -229,10 +235,77 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
             .body("data.newLinkCount", equalTo(0))
             .body("data.existingLinkCount", equalTo(2))
 
-        assertEquals(2, pageRequestCount(1))
+        assertEquals(3, pageRequestCount(1))
         assertEquals(1, pageRequestCount(2))
         assertTrue(linkRepository.findAllWithTags().all { link -> link.tags.none { it.name == "new-tag" } })
         assertEquals(null, tagRepository.findByName("new-tag"))
+    }
+
+    @Test
+    @DisplayName("배치 등록 시 발행일을 수집할 수 없으면 등록이 실패한다")
+    fun createBatchFailsWhenPublishedAtCannotBeCollected() {
+        given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $adminAccessToken")
+            .body(
+                """
+                {
+                  "name": "날짜 selector 오류 배치",
+                  "baseUrl": "$crawlerBaseUrl",
+                  "pageUriTemplate": "/category/engineering?page={page}",
+                  "itemSelector": ".article-card",
+                  "articleLinkSelector": "a.article-link",
+                  "titleSelector": ".title",
+                  "summarySelector": ".summary",
+                  "publishedAtSelectors": [".missing-date"],
+                  "tagNames": ["engineering"],
+                  "cronExpression": "0 0 * * * *",
+                  "startPage": 1,
+                  "active": true
+                }
+                """.trimIndent(),
+            ).`when`()
+            .post("/admin/companies/${companyUser.id}/link-crawl-batches")
+            .then()
+            .statusCode(HttpStatus.BAD_REQUEST.value())
+            .body("status", equalTo(6006))
+
+        assertEquals(1, pageRequestCount(1))
+        assertTrue(linkCrawlBatchRepository.findAll().isEmpty())
+    }
+
+    @Test
+    @DisplayName("배치 실행 중 발행일을 수집할 수 없으면 배치가 실패한다")
+    fun runBatchFailsWhenPublishedAtCannotBeCollected() {
+        val batch =
+            linkCrawlBatchRepository.save(
+                LinkCrawlBatch(
+                    companyUser = companyUser,
+                    name = "날짜 selector 오류 배치",
+                    baseUrl = crawlerBaseUrl,
+                    pageUriTemplate = "/category/engineering?page={page}",
+                    itemSelector = ".article-card",
+                    articleLinkSelector = "a.article-link",
+                    titleSelector = ".title",
+                    summarySelector = ".summary",
+                    publishedAtSelectors = ".missing-date",
+                    cronExpression = "0 0 * * * *",
+                    startPage = 1,
+                    active = true,
+                    tagNames = "engineering",
+                ),
+            )
+
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .post("/admin/link-crawl-batches/${batch.id}/run")
+            .then()
+            .statusCode(HttpStatus.BAD_REQUEST.value())
+            .body("status", equalTo(6006))
+
+        assertEquals(1, pageRequestCount(1))
+        assertTrue(linkRepository.findAll().isEmpty())
     }
 
     @Test
@@ -307,7 +380,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                     articleLinkSelector = "a.article-link",
                     titleSelector = ".title",
                     summarySelector = ".summary",
-                    publishedAtSelectors = "time",
+                    publishedAtSelectors = "div.o6bzluc",
                     cronExpression = "0 0 * * * *",
                     startPage = 1,
                     active = true,
@@ -323,6 +396,11 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
             .statusCode(HttpStatus.OK.value())
             .body("data", hasSize<Any>(1))
             .body("data[0].name", equalTo("초기 배치"))
+            .body("data[0].baseUrl", equalTo(crawlerBaseUrl))
+            .body("data[0]", not(hasKey("pageUriTemplate")))
+            .body("data[0]", not(hasKey("itemSelector")))
+            .body("data[0]", not(hasKey("tagNames")))
+            .body("data[0]", not(hasKey("canCrawl")))
 
         given()
             .contentType("application/json")
@@ -341,8 +419,13 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
             .statusCode(HttpStatus.OK.value())
             .body("data.name", equalTo("수정된 배치"))
             .body("data.active", equalTo(false))
+            .body("data", not(hasKey("canCrawl")))
             .body("data.tagNames", hasSize<Any>(1))
             .body("data.tagNames[0]", equalTo("infra"))
+
+        assertEquals(1, pageRequestCount(1))
+        assertEquals(0, pageRequestCount(2))
+        assertTrue(linkRepository.findAll().isEmpty())
     }
 
     private fun resolvePage(query: String?): Int {

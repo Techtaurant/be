@@ -52,6 +52,18 @@ class LinkBatchRunService(
         return result
     }
 
+    fun validateCrawlable(batch: LinkCrawlBatch) {
+        val pageUrl = buildPageUrl(batch.baseUrl, batch.pageUriTemplate, batch.startPage)
+        val document = fetchPageOrNull(pageUrl) ?: throw ApiException(LinkStatus.LINK_CRAWL_BATCH_NOT_CRAWLABLE)
+        val hasCrawlableItem =
+            document.select(batch.itemSelector)
+                .any { item -> extractSnapshot(item, batch, pageUrl) != null }
+
+        if (!hasCrawlableItem) {
+            throw ApiException(LinkStatus.LINK_CRAWL_BATCH_NOT_CRAWLABLE)
+        }
+    }
+
     private fun crawl(
         batch: LinkCrawlBatch,
         tagResolver: LinkTagResolver,
@@ -82,7 +94,7 @@ class LinkBatchRunService(
         var pageResult = emptyPageCrawlResult()
 
         document.select(batch.itemSelector).forEach { item ->
-            pageResult = pageResult.recordCollectionResult(collectLinkItem(item, batch, tagResolver, pageUrl))
+            pageResult = pageResult.recordCollectionResult(collectLinkFromCrawledItem(item, batch, tagResolver, pageUrl))
         }
 
         return pageResult
@@ -135,7 +147,7 @@ class LinkBatchRunService(
             skippedCount = skippedCount + pageResult.skippedCount,
         )
 
-    private fun collectLinkItem(
+    private fun collectLinkFromCrawledItem(
         item: Element,
         batch: LinkCrawlBatch,
         tagResolver: LinkTagResolver,
@@ -188,9 +200,7 @@ class LinkBatchRunService(
         if (snapshot.summary.isNotBlank()) {
             existingLink.summary = snapshot.summary
         }
-        if (snapshot.publishedAt != null) {
-            existingLink.publishedAt = snapshot.publishedAt
-        }
+        existingLink.publishedAt = snapshot.publishedAt
     }
 
     private fun connectUserToLink(
@@ -241,7 +251,9 @@ class LinkBatchRunService(
                 ?: return null
 
         val summary = batch.summarySelector?.let { resolveText(item, it) }.orEmpty()
-        val publishedAt = parsePublishedAt(firstResolvedValue(item, batch.publishedAtSelectors))
+        val publishedAt =
+            parsePublishedAt(firstResolvedValue(item, batch.publishedAtSelectors))
+                ?: throw ApiException(LinkStatus.LINK_CRAWL_BATCH_PUBLISHED_AT_REQUIRED)
 
         return LinkSnapshot(
             title = title,
@@ -344,7 +356,7 @@ class LinkBatchRunService(
         val title: String,
         val url: String,
         val summary: String,
-        val publishedAt: Instant?,
+        val publishedAt: Instant,
     )
 
     private data class LinkPageCrawlResult(
