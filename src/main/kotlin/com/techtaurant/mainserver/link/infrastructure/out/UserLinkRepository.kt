@@ -1,5 +1,6 @@
 package com.techtaurant.mainserver.link.infrastructure.out
 
+import com.techtaurant.mainserver.link.entity.Link
 import com.techtaurant.mainserver.link.entity.UserLink
 import jakarta.persistence.LockModeType
 import org.springframework.data.domain.Pageable
@@ -30,6 +31,10 @@ interface UserLinkRepository : JpaRepository<UserLink, UUID> {
         userId: UUID,
         linkId: UUID,
     ): UserLink?
+
+    fun findAllByUserId(userId: UUID): List<UserLink>
+
+    fun deleteAllByLink(link: Link): Long
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT ul FROM UserLink ul WHERE ul.user.id = :userId AND ul.link.id = :linkId")

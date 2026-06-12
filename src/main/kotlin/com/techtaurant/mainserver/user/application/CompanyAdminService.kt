@@ -4,6 +4,10 @@ import com.techtaurant.mainserver.attachment.application.AttachmentService
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.status.DefaultStatus
+import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
+import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
+import com.techtaurant.mainserver.post.entity.Post
+import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.dto.CompanyResponse
@@ -28,6 +32,9 @@ class CompanyAdminService(
     private val jwtTokenProvider: JwtTokenProvider,
     private val attachmentService: AttachmentService,
     private val userResponseAssembler: UserResponseAssembler,
+    private val postRepository: PostRepository,
+    private val userLinkRepository: UserLinkRepository,
+    private val linkRepository: LinkRepository,
 ) {
     companion object {
         private const val USER_NAME_UNIQUE_CONSTRAINT = "uk_users_name"
@@ -116,6 +123,22 @@ class CompanyAdminService(
         return UserTokenResponse.from(userToken, token)
     }
 
+    /**
+     * Admin company 삭제 전용 정리 로직.
+     * 일반 사용자 삭제와 달리 회사가 연결한 Link 자체와 해당 Link의 모든 UserLink 관계를 함께 삭제한다.
+     */
+    @Transactional
+    fun deleteCompany(companyUserId: UUID) {
+        val companyUser = getCompanyUser(companyUserId)
+        val posts = postRepository.findAllByAuthorId(companyUserId)
+
+        deleteCompanyAttachments(companyUserId, posts)
+        postRepository.deleteAll(posts)
+        deleteCompanyLinks(companyUserId)
+
+        userRepository.delete(companyUser)
+    }
+
     private fun isUserNameUniqueConstraintViolation(exception: DataIntegrityViolationException): Boolean {
         return generateSequence<Throwable>(exception) { current -> current.cause }
             .mapNotNull { throwable -> throwable.message }
@@ -133,5 +156,27 @@ class CompanyAdminService(
         }
 
         return user
+    }
+
+    private fun deleteCompanyAttachments(
+        companyUserId: UUID,
+        posts: List<Post>,
+    ) {
+        attachmentService.deleteAttachmentsByReference(companyUserId, AttachmentReferenceType.USER)
+
+        posts.forEach { post ->
+            post.thumbnailImage = null
+            val postId = post.id ?: return@forEach
+            attachmentService.deleteAttachmentsByReference(postId, AttachmentReferenceType.POST)
+        }
+    }
+
+    private fun deleteCompanyLinks(companyUserId: UUID) {
+        val links = userLinkRepository.findAllByUserId(companyUserId).map { it.link }.distinctBy { it.id }
+
+        links.forEach { link ->
+            userLinkRepository.deleteAllByLink(link)
+            linkRepository.delete(link)
+        }
     }
 }
