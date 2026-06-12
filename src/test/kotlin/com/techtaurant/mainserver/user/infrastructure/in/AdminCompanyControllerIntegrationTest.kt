@@ -1,6 +1,19 @@
 package com.techtaurant.mainserver.user.infrastructure.`in`
 
+import com.techtaurant.mainserver.attachment.application.S3StorageService
+import com.techtaurant.mainserver.attachment.entity.Attachment
+import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
+import com.techtaurant.mainserver.attachment.enums.AttachmentStatus
+import com.techtaurant.mainserver.attachment.infrastructure.out.AttachmentRepository
 import com.techtaurant.mainserver.base.IntegrationTest
+import com.techtaurant.mainserver.comment.entity.Comment
+import com.techtaurant.mainserver.comment.infrastructure.out.CommentRepository
+import com.techtaurant.mainserver.link.entity.Link
+import com.techtaurant.mainserver.link.entity.UserLink
+import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
+import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
+import com.techtaurant.mainserver.post.entity.Post
+import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.security.jwt.JwtTokenProvider
 import com.techtaurant.mainserver.user.entity.User
@@ -17,6 +30,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
+import org.springframework.test.context.bean.override.mockito.MockitoBean
+import java.time.Instant
 import java.util.Base64
 import java.util.UUID
 import kotlin.test.assertEquals
@@ -32,7 +47,25 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
     private lateinit var userTokenRepository: UserTokenRepository
 
     @Autowired
+    private lateinit var attachmentRepository: AttachmentRepository
+
+    @Autowired
+    private lateinit var postRepository: PostRepository
+
+    @Autowired
+    private lateinit var commentRepository: CommentRepository
+
+    @Autowired
+    private lateinit var linkRepository: LinkRepository
+
+    @Autowired
+    private lateinit var userLinkRepository: UserLinkRepository
+
+    @Autowired
     private lateinit var jwtTokenProvider: JwtTokenProvider
+
+    @MockitoBean
+    private lateinit var s3StorageService: S3StorageService
 
     private lateinit var adminUser: User
     private lateinit var normalUser: User
@@ -247,6 +280,100 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
     }
 
     @Test
+    @DisplayName("ADMIN 권한은 회사 사용자를 삭제하며 관련 attachment, post, comment, link와 해당 link의 모든 user_links 관계를 삭제한다")
+    fun adminCanDeleteCompanyUserWithOwnedContentAndLinks() {
+        // Given
+        val companyUser = saveCompanyUser(name = "토스", identifier = "company-toss")
+        val otherCompanyUser = saveCompanyUser(name = "당근", identifier = "company-daangn")
+
+        val companyProfileAttachment =
+            saveAttachment(
+                referenceId = companyUser.id!!,
+                referenceType = AttachmentReferenceType.USER,
+                objectKey = "users/${companyUser.id}/profile.png",
+            )
+        companyUser.serviceProfileImageAttachmentId = companyProfileAttachment.id
+        userRepository.saveAndFlush(companyUser)
+
+        val companyPost =
+            postRepository.save(
+                Post(
+                    title = "회사 게시물",
+                    content = "본문",
+                    author = companyUser,
+                ),
+            )
+        val companyPostAttachment =
+            saveAttachment(
+                referenceId = companyPost.id!!,
+                referenceType = AttachmentReferenceType.POST,
+                objectKey = "posts/${companyPost.id}/body.png",
+            )
+        companyPost.thumbnailImage = companyPostAttachment.id
+        postRepository.saveAndFlush(companyPost)
+
+        val otherUserPost =
+            postRepository.save(
+                Post(
+                    title = "일반 사용자 게시물",
+                    content = "본문",
+                    author = normalUser,
+                ),
+            )
+
+        val commentOnCompanyPost =
+            commentRepository.save(
+                Comment(
+                    content = "회사 게시물의 댓글",
+                    post = companyPost,
+                    author = normalUser,
+                ),
+            )
+        val companyCommentOnOtherPost =
+            commentRepository.save(
+                Comment(
+                    content = "회사가 남긴 댓글",
+                    post = otherUserPost,
+                    author = companyUser,
+                ),
+            )
+
+        val companyLink = saveLink("https://tech.example.com/${UUID.randomUUID()}")
+        val companyUserLink = userLinkRepository.save(UserLink(companyUser, companyLink))
+        val sharedUserLink = userLinkRepository.save(UserLink(otherCompanyUser, companyLink))
+
+        val otherCompanyLink = saveLink("https://daangn.example.com/${UUID.randomUUID()}")
+        val remainingUserLink = userLinkRepository.save(UserLink(otherCompanyUser, otherCompanyLink))
+
+        // When
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .delete("/admin/companies/${companyUser.id}")
+            .then()
+            .statusCode(HttpStatus.NO_CONTENT.value())
+
+        // Then
+        assertFalse(userRepository.existsById(companyUser.id!!))
+        assertTrue(userRepository.existsById(normalUser.id!!))
+        assertTrue(userRepository.existsById(otherCompanyUser.id!!))
+
+        assertFalse(postRepository.existsById(companyPost.id!!))
+        assertTrue(postRepository.existsById(otherUserPost.id!!))
+        assertFalse(commentRepository.existsById(commentOnCompanyPost.id!!))
+        assertFalse(commentRepository.existsById(companyCommentOnOtherPost.id!!))
+
+        assertFalse(attachmentRepository.existsById(companyProfileAttachment.id!!))
+        assertFalse(attachmentRepository.existsById(companyPostAttachment.id!!))
+
+        assertFalse(linkRepository.existsById(companyLink.id!!))
+        assertFalse(userLinkRepository.existsById(companyUserLink.id!!))
+        assertFalse(userLinkRepository.existsById(sharedUserLink.id!!))
+        assertTrue(linkRepository.existsById(otherCompanyLink.id!!))
+        assertTrue(userLinkRepository.existsById(remainingUserLink.id!!))
+    }
+
+    @Test
     @DisplayName("회사 역할이 변경되면 저장된 영구 토큰이 삭제되어 재승격 후에도 인증에 실패한다")
     fun companyPermanentTokenCannotAuthenticateAfterRoleChanged() {
         // Given
@@ -319,6 +446,35 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
                 identifier = identifier,
                 role = UserRole.COMPANY,
                 profileImageUrl = "https://example.com/$identifier.png",
+            ),
+        )
+    }
+
+    private fun saveAttachment(
+        referenceId: UUID,
+        referenceType: AttachmentReferenceType,
+        objectKey: String,
+    ): Attachment {
+        return attachmentRepository.save(
+            Attachment(
+                referenceId = referenceId,
+                referenceType = referenceType,
+                objectKey = objectKey,
+                status = AttachmentStatus.CONFIRMED,
+                originalFileName = objectKey.substringAfterLast("/"),
+                contentType = "image/png",
+                fileSize = 1024,
+            ),
+        )
+    }
+
+    private fun saveLink(url: String): Link {
+        return linkRepository.save(
+            Link(
+                title = "기술 블로그",
+                url = url,
+                summary = "요약",
+                publishedAt = Instant.now(),
             ),
         )
     }

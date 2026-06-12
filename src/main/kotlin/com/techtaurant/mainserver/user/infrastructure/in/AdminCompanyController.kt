@@ -10,6 +10,7 @@ import com.techtaurant.mainserver.user.dto.CreateUserTokenRequest
 import com.techtaurant.mainserver.user.dto.UserTokenResponse
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -47,5 +48,14 @@ class AdminCompanyController(
         @Valid @RequestBody request: CreateUserTokenRequest,
     ): ApiResponse<UserTokenResponse> {
         return ApiResponse.created(companyAdminService.createCompanyToken(companyUserId, request))
+    }
+
+    @ApiErrorResponses(includeAuthenticationErrors = true)
+    @DeleteMapping("/{companyUserId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    override fun deleteCompany(
+        @PathVariable companyUserId: UUID,
+    ) {
+        companyAdminService.deleteCompany(companyUserId)
     }
 }

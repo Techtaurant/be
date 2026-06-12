@@ -58,4 +58,21 @@ interface AdminCompanyControllerDocs {
         @Parameter(description = "회사 사용자 ID") companyUserId: UUID,
         @Valid request: CreateUserTokenRequest,
     ): ApiResponse<UserTokenResponse>
+
+    @Operation(
+        summary = "회사 삭제",
+        description =
+            "관리자가 COMPANY 사용자를 삭제합니다. 이 admin company 삭제 동작에서만 회사가 연결한 Link 자체와 해당 Link의 모든 user_links 관계를 함께 삭제합니다.",
+    )
+    @SwaggerApiResponse(responseCode = "204", description = "회사 삭제 성공")
+    @ApiErrorCodeResponses(
+        [
+            ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED", "ACCESS_DENIED"]),
+            ApiErrorCodeResponse(UserStatus::class, ["COMPANY_NOT_FOUND"]),
+            ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
+        ],
+    )
+    fun deleteCompany(
+        @Parameter(description = "회사 사용자 ID") companyUserId: UUID,
+    )
 }

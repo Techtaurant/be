@@ -9,6 +9,8 @@ import java.time.Instant
 import java.util.UUID
 
 interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
+    fun findAllByAuthorId(authorId: UUID): List<Post>
+
     /**
      * 게시물 상세 조회
      * author, tags, pictures, category를 JOIN FETCH하여 N+1 문제 방지
