@@ -138,20 +138,30 @@ class LinkReadService(
         val normalizedTag = tag?.takeIf { it.isNotBlank() }
         val pageable = PageRequest.of(0, size + 1)
         val linkIds =
-            if (linkCursor == null) {
-                linkRepository.findFirstPageIds(
-                    sourceCompanyUserId = sourceCompanyUserId,
-                    tag = normalizedTag,
-                    pageable = pageable,
-                )
-            } else {
-                linkRepository.findNextPageIds(
-                    sourceCompanyUserId = sourceCompanyUserId,
-                    tag = normalizedTag,
-                    cursorCreatedAt = linkCursor.createdAt,
-                    cursorId = linkCursor.id,
-                    pageable = pageable,
-                )
+            when {
+                linkCursor == null ->
+                    linkRepository.findFirstPageIds(
+                        sourceCompanyUserId = sourceCompanyUserId,
+                        tag = normalizedTag,
+                        pageable = pageable,
+                    )
+
+                linkCursor.publishedAt == null ->
+                    linkRepository.findNextPageIdsAfterMissingPublishedAt(
+                        sourceCompanyUserId = sourceCompanyUserId,
+                        tag = normalizedTag,
+                        cursorId = linkCursor.id,
+                        pageable = pageable,
+                    )
+
+                else ->
+                    linkRepository.findNextPageIds(
+                        sourceCompanyUserId = sourceCompanyUserId,
+                        tag = normalizedTag,
+                        cursorPublishedAt = linkCursor.publishedAt,
+                        cursorId = linkCursor.id,
+                        pageable = pageable,
+                    )
             }
         val hasNext = linkIds.size > size
         val contentLinkIds = linkIds.take(size)

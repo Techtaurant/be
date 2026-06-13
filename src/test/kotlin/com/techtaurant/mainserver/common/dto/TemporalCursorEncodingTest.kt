@@ -58,17 +58,28 @@ class TemporalCursorEncodingTest {
     }
 
     @Test
-    @DisplayName("링크 커서는 ISO-8601 UTC Instant를 보존하고 legacy epoch millis 커서도 읽는다")
+    @DisplayName("링크 커서는 발행일 ISO-8601 UTC Instant를 보존하고 legacy epoch millis 커서도 읽는다")
     fun linkCursor_preservesUtcInstantAndSupportsLegacyEpochMillis() {
         val id = UUID.randomUUID()
-        val createdAt = Instant.parse("2026-06-04T07:08:09.123Z")
-        val cursor = LinkCursor(createdAt = createdAt, id = id)
+        val publishedAt = Instant.parse("2026-06-04T07:08:09.123Z")
+        val cursor = LinkCursor(publishedAt = publishedAt, id = id)
 
         val decoded = LinkCursor.decode(cursor.encode())
-        val legacyDecoded = LinkCursor.decode("${createdAt.toEpochMilli()}_$id")
+        val legacyDecoded = LinkCursor.decode("${publishedAt.toEpochMilli()}_$id")
 
         assertThat(decoded).isEqualTo(cursor)
-        assertThat(legacyDecoded).isEqualTo(cursor.copy(createdAt = Instant.ofEpochMilli(createdAt.toEpochMilli())))
+        assertThat(legacyDecoded).isEqualTo(cursor.copy(publishedAt = Instant.ofEpochMilli(publishedAt.toEpochMilli())))
+    }
+
+    @Test
+    @DisplayName("링크 커서는 발행일이 없는 링크도 커서로 표현한다")
+    fun linkCursor_supportsMissingPublishedAt() {
+        val id = UUID.randomUUID()
+        val cursor = LinkCursor(publishedAt = null, id = id)
+
+        val decoded = LinkCursor.decode(cursor.encode())
+
+        assertThat(decoded).isEqualTo(cursor)
     }
 
     private fun base64Url(raw: String): String = Base64.getUrlEncoder().withoutPadding().encodeToString(raw.toByteArray())
