@@ -35,7 +35,7 @@ class LinkBatchRunService(
     private val linkDocumentFetcher: LinkDocumentFetcher,
 ) {
     companion object {
-        private val KOREAN_DATE_REGEX = Regex("""^\s*(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일\s*$""")
+        private val ABSOLUTE_DATE_REGEX = Regex("""^\s*(\d{4})\s*(?:[./-]|년)\s*(\d{1,2})\s*(?:[./-]|월)\s*(\d{1,2})\s*(?:일)?\s*\.?\s*$""")
     }
 
     @Transactional
@@ -330,11 +330,11 @@ class LinkBatchRunService(
             ?: runCatching { ZonedDateTime.parse(rawValue).toInstant() }.getOrNull()
             ?: runCatching { LocalDateTime.parse(rawValue).toInstant(ZoneOffset.UTC) }.getOrNull()
             ?: runCatching { LocalDate.parse(rawValue).atStartOfDay().toInstant(ZoneOffset.UTC) }.getOrNull()
-            ?: parseKoreanDate(rawValue)
+            ?: parseAbsoluteDate(rawValue)
     }
 
-    private fun parseKoreanDate(rawValue: String): Instant? {
-        val match = KOREAN_DATE_REGEX.matchEntire(rawValue) ?: return null
+    private fun parseAbsoluteDate(rawValue: String): Instant? {
+        val match = ABSOLUTE_DATE_REGEX.matchEntire(rawValue) ?: return null
         val (year, month, day) = match.destructured
 
         return runCatching {

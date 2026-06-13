@@ -52,7 +52,7 @@ interface AdminLinkCrawlBatchControllerDocs {
         - `body > div...`처럼 페이지 전체 경로 selector는 피합니다.
         - selector는 짧고 재사용 가능해야 합니다.
         - CSR이 아니라 SSR만 대상으로 합니다.
-        - 발행일은 ISO 날짜/시간 또는 `2023년 6월 20일` 형식의 텍스트를 지원합니다.
+        - 발행일은 ISO 날짜/시간, `2023년 6월 20일`, `2023. 6. 20`, `2023/6/20` 형식의 텍스트를 지원합니다.
         """,
     )
     @SwaggerApiResponse(responseCode = "201", description = "배치 등록 성공")
