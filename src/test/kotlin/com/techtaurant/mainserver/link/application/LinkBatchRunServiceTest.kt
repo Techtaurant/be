@@ -50,6 +50,17 @@ class LinkBatchRunServiceTest {
     }
 
     @Test
+    @DisplayName("점 구분 발행일이면 크롤링 가능 검증을 통과한다")
+    fun validateCrawlablePassesWhenPublishedAtUsesDottedDate() {
+        val batch = createBatch(publishedAtSelectors = ".published-date")
+        linkDocumentFetcher.html = crawlableHtml(publishedAtText = "2026. 6. 12")
+
+        linkBatchRunService.validateCrawlable(batch)
+
+        verify(exactly = 0) { linkRepository.save(any()) }
+    }
+
+    @Test
     @DisplayName("첫 페이지에 수집 가능한 항목이 없으면 검증이 실패한다")
     fun validateCrawlableFailsWhenNoItemCanBeCrawled() {
         val batch = createBatch(publishedAtSelectors = ".published-date")
@@ -120,7 +131,7 @@ class LinkBatchRunServiceTest {
         )
     }
 
-    private fun crawlableHtml(): String {
+    private fun crawlableHtml(publishedAtText: String = "2026년 4월 20일"): String {
         return """
             <html>
               <body>
@@ -128,7 +139,7 @@ class LinkBatchRunServiceTest {
                   <a class="article-link" href="/article/metric-review">
                     <div class="title">Metric Review, 실행을 이끌다</div>
                     <div class="summary">지표 리뷰로 실행 리듬을 만든 이야기입니다.</div>
-                    <div class="published-date">2026년 4월 20일</div>
+                    <div class="published-date">$publishedAtText</div>
                   </a>
                 </div>
               </body>
