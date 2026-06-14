@@ -23,7 +23,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -58,21 +57,13 @@ class PostListReadServiceTest {
     private val postListReadService =
         createPostListReadService()
 
-    private fun createPostListReadService(postListQueryStrategies: List<PostListQueryStrategy> = createPostListQueryStrategies()) =
+    private fun createPostListReadService() =
         PostListReadService(
             postRepository = postRepository,
             attachmentService = attachmentService,
             postMetadataReadService = postMetadataReadService,
             postViewerStateReadService = postViewerStateReadService,
             userProfileImageResolver = userProfileImageResolver,
-            postListQueryStrategies = postListQueryStrategies,
-        )
-
-    private fun createPostListQueryStrategies(): List<PostListQueryStrategy> =
-        listOf(
-            AllVisiblePostsQueryStrategy(postRepository),
-            OwnVisiblePostsQueryStrategy(postRepository),
-            AuthorPublicPostsQueryStrategy(postRepository),
         )
 
     private lateinit var testUser: User
@@ -165,40 +156,6 @@ class PostListReadServiceTest {
             depth = depth,
             parent = parent,
         ).apply { id = UUID.randomUUID() }
-
-    @Test
-    @DisplayName("게시물 목록 조회 전략이 누락되면 서비스 생성에 실패한다")
-    fun constructor_missingStrategy_throwsException() {
-        assertThatThrownBy {
-            createPostListReadService(
-                postListQueryStrategies =
-                    listOf(
-                        AllVisiblePostsQueryStrategy(postRepository),
-                        OwnVisiblePostsQueryStrategy(postRepository),
-                    ),
-            )
-        }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("누락")
-    }
-
-    @Test
-    @DisplayName("게시물 목록 조회 전략이 중복되면 서비스 생성에 실패한다")
-    fun constructor_duplicateStrategy_throwsException() {
-        assertThatThrownBy {
-            createPostListReadService(
-                postListQueryStrategies =
-                    listOf(
-                        AllVisiblePostsQueryStrategy(postRepository),
-                        AllVisiblePostsQueryStrategy(postRepository),
-                        OwnVisiblePostsQueryStrategy(postRepository),
-                        AuthorPublicPostsQueryStrategy(postRepository),
-                    ),
-            )
-        }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("중복")
-    }
 
     @Nested
     @DisplayName("getPosts")
