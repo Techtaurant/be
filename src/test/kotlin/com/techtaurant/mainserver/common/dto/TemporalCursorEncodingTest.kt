@@ -3,6 +3,8 @@ package com.techtaurant.mainserver.common.dto
 import com.techtaurant.mainserver.comment.dto.CommentCursor
 import com.techtaurant.mainserver.comment.enums.CommentSortType
 import com.techtaurant.mainserver.link.dto.LinkCursor
+import com.techtaurant.mainserver.link.dto.LinkCursorV1
+import com.techtaurant.mainserver.link.enums.LinkSortType
 import com.techtaurant.mainserver.notification.dto.NotificationCursor
 import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.entity.PostSortType
@@ -78,6 +80,41 @@ class TemporalCursorEncodingTest {
         val cursor = LinkCursor(publishedAt = null, id = id)
 
         val decoded = LinkCursor.decode(cursor.encode())
+
+        assertThat(decoded).isEqualTo(cursor)
+    }
+
+    @Test
+    @DisplayName("링크 v1 커서는 정렬 타입과 발행일 UTC Instant를 보존한다")
+    fun linkCursorV1_preservesSortTypeAndPublishedInstant() {
+        val id = UUID.randomUUID()
+        val publishedAt = Instant.parse("2026-06-04T07:08:09.123Z")
+        val cursor = LinkCursorV1(sortType = LinkSortType.PUBLISHED, sortValue = 0, sortInstant = publishedAt, id = id)
+
+        val decoded = LinkCursorV1.decode(cursor.encode())
+
+        assertThat(decoded).isEqualTo(cursor)
+    }
+
+    @Test
+    @DisplayName("링크 v1 커서는 발행일이 없는 PUBLISHED 커서도 표현한다")
+    fun linkCursorV1_supportsNullPublishedInstant() {
+        val id = UUID.randomUUID()
+        val cursor = LinkCursorV1(sortType = LinkSortType.PUBLISHED, sortValue = 0, sortInstant = null, id = id)
+
+        val decoded = LinkCursorV1.decode(cursor.encode())
+
+        assertThat(decoded).isEqualTo(cursor)
+    }
+
+    @Test
+    @DisplayName("링크 v1 좋아요/저장 커서는 집계 합과 createdAt을 보존한다")
+    fun linkCursorV1_preservesAggregatedSortValueAndCreatedAt() {
+        val id = UUID.randomUUID()
+        val createdAt = Instant.parse("2026-05-03T04:05:06.789Z")
+        val cursor = LinkCursorV1(sortType = LinkSortType.LIKE, sortValue = 42, sortInstant = createdAt, id = id)
+
+        val decoded = LinkCursorV1.decode(cursor.encode())
 
         assertThat(decoded).isEqualTo(cursor)
     }

@@ -9,7 +9,7 @@ import org.springframework.data.repository.query.Param
 import java.time.Instant
 import java.util.UUID
 
-interface LinkRepository : JpaRepository<Link, UUID> {
+interface LinkRepository : JpaRepository<Link, UUID>, LinkRepositoryCustom {
     fun findByUrl(url: String): Link?
 
     @Query(
