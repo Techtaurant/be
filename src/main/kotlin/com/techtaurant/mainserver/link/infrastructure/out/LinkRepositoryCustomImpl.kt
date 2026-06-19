@@ -10,7 +10,6 @@ import com.techtaurant.mainserver.link.entity.UserLink
 import com.techtaurant.mainserver.link.entity.UserLink_
 import com.techtaurant.mainserver.link.enums.LinkPeriod
 import com.techtaurant.mainserver.link.enums.LinkSortType
-import com.techtaurant.mainserver.post.entity.Tag
 import com.techtaurant.mainserver.post.entity.Tag_
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
