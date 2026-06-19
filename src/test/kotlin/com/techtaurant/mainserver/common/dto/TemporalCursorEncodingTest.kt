@@ -60,8 +60,8 @@ class TemporalCursorEncodingTest {
     }
 
     @Test
-    @DisplayName("링크 커서는 발행일 ISO-8601 UTC Instant를 보존하고 legacy epoch millis 커서도 읽는다")
-    fun linkCursor_preservesUtcInstantAndSupportsLegacyEpochMillis() {
+    @DisplayName("링크 커서는 발행일 ISO-8601 UTC Instant를 보존하고 unversioned legacy 커서는 거부한다")
+    fun linkCursor_preservesUtcInstantAndRejectsUnversionedLegacyCursor() {
         val id = UUID.randomUUID()
         val publishedAt = Instant.parse("2026-06-04T07:08:09.123Z")
         val cursor = LinkCursor(publishedAt = publishedAt, id = id)
@@ -70,7 +70,7 @@ class TemporalCursorEncodingTest {
         val legacyDecoded = LinkCursor.decode("${publishedAt.toEpochMilli()}_$id")
 
         assertThat(decoded).isEqualTo(cursor)
-        assertThat(legacyDecoded).isEqualTo(cursor.copy(publishedAt = Instant.ofEpochMilli(publishedAt.toEpochMilli())))
+        assertThat(legacyDecoded).isNull()
     }
 
     @Test
