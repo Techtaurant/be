@@ -477,7 +477,7 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
         url: String,
         sourceCompanyUser: User,
         createdAtMillis: Long,
-        createdAt: Instant? = null,
+        createdAt: Instant = Instant.ofEpochMilli(createdAtMillis),
         tags: MutableSet<Tag> = mutableSetOf(),
     ): Link {
         return TransactionTemplate(transactionManager).execute {
@@ -496,12 +496,12 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                         url = url,
                         summary = "$title summary",
                         tags = managedTags,
+                        createdAt = createdAt,
                     ),
                 )
             userLinkRepository.save(UserLink(user = managedSourceCompanyUser, link = link))
-            val linkCreatedAt = createdAt ?: Instant.ofEpochMilli(createdAtMillis)
-            link.createdAt = linkCreatedAt
-            link.updatedAt = linkCreatedAt
+            link.createdAt = createdAt
+            link.updatedAt = createdAt
             linkRepository.saveAndFlush(link)
         } ?: throw IllegalStateException("링크 저장에 실패했습니다")
     }

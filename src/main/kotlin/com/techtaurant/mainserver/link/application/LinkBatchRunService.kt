@@ -187,8 +187,8 @@ class LinkBatchRunService(
                 title = snapshot.title,
                 url = snapshot.url,
                 summary = snapshot.summary,
+                createdAt = snapshot.createdAt,
             ).apply {
-                createdAt = snapshot.createdAt
                 replaceTags(tags)
             },
         ).also { savedLink ->

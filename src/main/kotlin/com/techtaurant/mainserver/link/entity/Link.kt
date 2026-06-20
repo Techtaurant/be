@@ -12,6 +12,7 @@ import jakarta.persistence.JoinTable
 import jakarta.persistence.ManyToMany
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
+import java.time.Instant
 
 @Entity
 @Table(
@@ -36,7 +37,8 @@ class Link(
     var viewCount: Long = 0,
     @Column(name = "like_count", nullable = false)
     var likeCount: Long = 0,
-) : EntityBase(), TaggedContent {
+    createdAt: Instant = Instant.now(),
+) : EntityBase(createdAt = createdAt), TaggedContent {
     init {
         validateTagCount()
     }

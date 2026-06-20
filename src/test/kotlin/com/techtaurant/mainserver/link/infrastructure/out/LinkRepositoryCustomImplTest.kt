@@ -234,8 +234,8 @@ class LinkRepositoryCustomImplTest : IntegrationTest() {
     }
 
     private fun createLink(
-        createdAt: Instant? = null,
-        createdAtDaysAgo: Long? = null,
+        createdAtDaysAgo: Long = 0,
+        createdAt: Instant = Instant.now().minus(createdAtDaysAgo, ChronoUnit.DAYS),
         sourceCompany: User? = null,
         tags: MutableSet<Tag> = mutableSetOf(),
     ): Link {
@@ -246,17 +246,12 @@ class LinkRepositoryCustomImplTest : IntegrationTest() {
                     url = "https://example.com/${UUID.randomUUID()}",
                     summary = "요약",
                     tags = tags,
+                    createdAt = createdAt,
                 ),
             )
         sourceCompany?.let { userLinkRepository.save(UserLink(user = it, link = link)) }
-        createdAt?.let {
-            link.createdAt = it
-            link.updatedAt = it
-        } ?: createdAtDaysAgo?.let {
-            val instant = Instant.now().minus(it, ChronoUnit.DAYS)
-            link.createdAt = instant
-            link.updatedAt = instant
-        }
+        link.createdAt = createdAt
+        link.updatedAt = createdAt
         return linkRepository.saveAndFlush(link)
     }
 
