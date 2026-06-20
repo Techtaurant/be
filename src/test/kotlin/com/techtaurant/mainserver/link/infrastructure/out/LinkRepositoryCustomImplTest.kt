@@ -67,12 +67,11 @@ class LinkRepositoryCustomImplTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("PUBLISHED 정렬은 발행일 내림차순으로 정렬하고 발행일 없는 링크를 뒤로 보낸다")
-    fun findPublicLinkIds_published_ordersByPublishedAtDescNullsLast() {
-        val newest = createLink(publishedAt = Instant.parse("2026-04-03T00:00:00Z"))
-        val middle = createLink(publishedAt = Instant.parse("2026-04-02T00:00:00Z"))
-        val oldest = createLink(publishedAt = Instant.parse("2026-04-01T00:00:00Z"))
-        val undated = createLink(publishedAt = null)
+    @DisplayName("PUBLISHED 정렬은 생성일 내림차순으로 정렬한다")
+    fun findPublicLinkIds_published_ordersByCreatedAtDesc() {
+        val newest = createLink(createdAt = Instant.parse("2026-04-03T00:00:00Z"))
+        val middle = createLink(createdAt = Instant.parse("2026-04-02T00:00:00Z"))
+        val oldest = createLink(createdAt = Instant.parse("2026-04-01T00:00:00Z"))
 
         val result =
             linkRepository.findPublicLinkIds(
@@ -85,22 +84,21 @@ class LinkRepositoryCustomImplTest : IntegrationTest() {
             )
 
         assertThat(result.map { it.linkId })
-            .containsExactly(newest.id, middle.id, oldest.id, undated.id)
+            .containsExactly(newest.id, middle.id, oldest.id)
     }
 
     @Test
-    @DisplayName("PUBLISHED 정렬 커서는 발행일 기준으로 다음 페이지를 이어 조회한다")
+    @DisplayName("PUBLISHED 정렬 커서는 생성일 기준으로 다음 페이지를 이어 조회한다")
     fun findPublicLinkIds_published_paginatesByCursor() {
-        val newest = createLink(publishedAt = Instant.parse("2026-04-03T00:00:00Z"))
-        val middle = createLink(publishedAt = Instant.parse("2026-04-02T00:00:00Z"))
-        val oldest = createLink(publishedAt = Instant.parse("2026-04-01T00:00:00Z"))
-        val undated = createLink(publishedAt = null)
+        val newest = createLink(createdAt = Instant.parse("2026-04-03T00:00:00Z"))
+        val middle = createLink(createdAt = Instant.parse("2026-04-02T00:00:00Z"))
+        val oldest = createLink(createdAt = Instant.parse("2026-04-01T00:00:00Z"))
 
         val cursor =
             LinkCursorV1(
                 sortType = LinkSortType.PUBLISHED,
                 sortValue = 0,
-                sortInstant = middle.publishedAt,
+                sortInstant = middle.createdAt,
                 id = middle.id!!,
             )
 
@@ -114,44 +112,12 @@ class LinkRepositoryCustomImplTest : IntegrationTest() {
                 tag = null,
             )
 
-        assertThat(result.map { it.linkId }).containsExactly(oldest.id, undated.id)
+        assertThat(result.map { it.linkId }).containsExactly(oldest.id)
         assertThat(result.map { it.linkId }).doesNotContain(newest.id, middle.id)
     }
 
     @Test
-    @DisplayName("PUBLISHED 정렬 커서의 발행일이 null이면 발행일 없는 구간을 id 기준으로 이어 조회한다")
-    fun findPublicLinkIds_published_paginatesWithinUndatedSection() {
-        createLink(publishedAt = Instant.parse("2026-04-01T00:00:00Z"))
-        val firstUndated = createLink(publishedAt = null)
-        val secondUndated = createLink(publishedAt = null)
-
-        // 발행일 없는 두 링크 중 id가 큰 쪽이 먼저 정렬되므로, 그 다음 커서로 나머지를 조회한다.
-        val (earlierInOrder, laterInOrder) =
-            if (firstUndated.id!! > secondUndated.id!!) firstUndated to secondUndated else secondUndated to firstUndated
-
-        val cursor =
-            LinkCursorV1(
-                sortType = LinkSortType.PUBLISHED,
-                sortValue = 0,
-                sortInstant = null,
-                id = earlierInOrder.id!!,
-            )
-
-        val result =
-            linkRepository.findPublicLinkIds(
-                cursor = cursor,
-                limit = 10,
-                sortType = LinkSortType.PUBLISHED,
-                period = LinkPeriod.ALL,
-                sourceCompanyUserId = null,
-                tag = null,
-            )
-
-        assertThat(result.map { it.linkId }).containsExactly(laterInOrder.id)
-    }
-
-    @Test
-    @DisplayName("LIKE 정렬은 발행일이 아니라 기간 내 일별 좋아요 집계 합으로 정렬하고 필터링한다")
+    @DisplayName("LIKE 정렬은 생성일이 아니라 기간 내 일별 좋아요 집계 합으로 정렬하고 필터링한다")
     fun findPublicLinkIds_like_usesPeriodDailyStats() {
         val recentTopLikes = createLink(createdAtDaysAgo = 500)
         createDailyStats(recentTopLikes, daysAgo = 0, likeCount = 5)
@@ -240,9 +206,9 @@ class LinkRepositoryCustomImplTest : IntegrationTest() {
     fun findPublicLinkIds_filtersBySourceCompanyUserIdAndTag() {
         val springTag = tagRepository.save(Tag(name = "Spring"))
         val companySpringLink =
-            createLink(publishedAt = Instant.parse("2026-04-03T00:00:00Z"), sourceCompany = company, tags = mutableSetOf(springTag))
-        createLink(publishedAt = Instant.parse("2026-04-02T00:00:00Z"), sourceCompany = company)
-        createLink(publishedAt = Instant.parse("2026-04-01T00:00:00Z"))
+            createLink(createdAt = Instant.parse("2026-04-03T00:00:00Z"), sourceCompany = company, tags = mutableSetOf(springTag))
+        createLink(createdAt = Instant.parse("2026-04-02T00:00:00Z"), sourceCompany = company)
+        createLink(createdAt = Instant.parse("2026-04-01T00:00:00Z"))
 
         val bySource =
             linkRepository.findPublicLinkIds(
@@ -268,7 +234,7 @@ class LinkRepositoryCustomImplTest : IntegrationTest() {
     }
 
     private fun createLink(
-        publishedAt: Instant? = null,
+        createdAt: Instant? = null,
         createdAtDaysAgo: Long? = null,
         sourceCompany: User? = null,
         tags: MutableSet<Tag> = mutableSetOf(),
@@ -279,15 +245,17 @@ class LinkRepositoryCustomImplTest : IntegrationTest() {
                     title = "링크",
                     url = "https://example.com/${UUID.randomUUID()}",
                     summary = "요약",
-                    publishedAt = publishedAt,
                     tags = tags,
                 ),
             )
         sourceCompany?.let { userLinkRepository.save(UserLink(user = it, link = link)) }
-        createdAtDaysAgo?.let {
-            val createdAt = Instant.now().minus(it, ChronoUnit.DAYS)
-            link.createdAt = createdAt
-            link.updatedAt = createdAt
+        createdAt?.let {
+            link.createdAt = it
+            link.updatedAt = it
+        } ?: createdAtDaysAgo?.let {
+            val instant = Instant.now().minus(it, ChronoUnit.DAYS)
+            link.createdAt = instant
+            link.updatedAt = instant
         }
         return linkRepository.saveAndFlush(link)
     }

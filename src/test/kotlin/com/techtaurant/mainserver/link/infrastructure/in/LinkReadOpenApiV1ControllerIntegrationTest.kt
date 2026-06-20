@@ -66,7 +66,8 @@ class LinkReadOpenApiV1ControllerIntegrationTest : IntegrationTest() {
     @Test
     @DisplayName("v1 공개 링크 목록은 기본 정렬(PUBLISHED)로 정적 필드만 반환한다")
     fun getLinkContents_returnsStaticFieldsOnly() {
-        val link = saveLink("Public Link", company, createdAtMillis = 1_000, publishedAt = Instant.parse("2026-04-25T10:15:30Z"))
+        val createdAt = Instant.parse("2026-04-25T10:15:30Z")
+        val link = saveLink("Public Link", company, createdAtMillis = 1_000, createdAt = createdAt)
 
         given()
             .queryParam("size", 1)
@@ -79,17 +80,17 @@ class LinkReadOpenApiV1ControllerIntegrationTest : IntegrationTest() {
             .body("data.content", hasSize<Any>(1))
             .body("data.content[0].id", equalTo(link.id.toString()))
             .body("data.content[0].sourceCompanyUserId", equalTo(company.id.toString()))
-            .body("data.content[0].publishedAt", equalTo("2026-04-25T10:15:30Z"))
+            .body("data.content[0].createdAt", equalTo("2026-04-25T10:15:30Z"))
             .body("data.hasNext", equalTo(false))
             .body("data.size", equalTo(1))
     }
 
     @Test
-    @DisplayName("v1 PUBLISHED 정렬은 발행일 최신순으로 커서 페이지네이션한다")
+    @DisplayName("v1 PUBLISHED 정렬은 생성일 최신순으로 커서 페이지네이션한다")
     fun getLinkContents_published_paginatesByCursor() {
-        val newest = saveLink("Newest", company, 2_000, Instant.parse("2026-04-03T00:00:00Z"))
-        val middle = saveLink("Middle", company, 1_000, Instant.parse("2026-04-02T00:00:00Z"))
-        val oldest = saveLink("Oldest", company, 3_000, Instant.parse("2026-04-01T00:00:00Z"))
+        val newest = saveLink("Newest", company, createdAtMillis = 2_000, createdAt = Instant.parse("2026-04-03T00:00:00Z"))
+        val middle = saveLink("Middle", company, createdAtMillis = 1_000, createdAt = Instant.parse("2026-04-02T00:00:00Z"))
+        val oldest = saveLink("Oldest", company, createdAtMillis = 3_000, createdAt = Instant.parse("2026-04-01T00:00:00Z"))
 
         val nextCursor =
             given()
@@ -165,10 +166,10 @@ class LinkReadOpenApiV1ControllerIntegrationTest : IntegrationTest() {
     @Test
     @DisplayName("v1 커서는 발급된 정렬과 다른 정렬로 요청하면 INVALID_LINK_CURSOR를 반환한다")
     fun getLinkContents_rejectsCursorFromDifferentSort() {
-        saveLink("First", company, 1_000, Instant.parse("2026-04-02T00:00:00Z"))
-        saveLink("Second", company, 2_000, Instant.parse("2026-04-01T00:00:00Z"))
+        saveLink("First", company, createdAtMillis = 1_000, createdAt = Instant.parse("2026-04-02T00:00:00Z"))
+        saveLink("Second", company, createdAtMillis = 2_000, createdAt = Instant.parse("2026-04-01T00:00:00Z"))
 
-        val publishedCursor =
+        val createdAtCursor =
             given()
                 .queryParam("size", 1)
                 .`when`()
@@ -181,7 +182,7 @@ class LinkReadOpenApiV1ControllerIntegrationTest : IntegrationTest() {
 
         given()
             .queryParam("sort", "LIKE")
-            .queryParam("cursor", publishedCursor)
+            .queryParam("cursor", createdAtCursor)
             .`when`()
             .get("/open-api/v1/links")
             .then()
@@ -214,7 +215,7 @@ class LinkReadOpenApiV1ControllerIntegrationTest : IntegrationTest() {
         title: String,
         sourceCompanyUser: User,
         createdAtMillis: Long,
-        publishedAt: Instant? = null,
+        createdAt: Instant? = null,
     ): Link {
         return TransactionTemplate(transactionManager).execute {
             val managedSourceCompanyUser =
@@ -227,12 +228,12 @@ class LinkReadOpenApiV1ControllerIntegrationTest : IntegrationTest() {
                         title = title,
                         url = "https://example.com/${UUID.randomUUID()}",
                         summary = "$title summary",
-                        publishedAt = publishedAt,
                     ),
                 )
             userLinkRepository.save(UserLink(user = managedSourceCompanyUser, link = link))
-            link.createdAt = Instant.ofEpochMilli(createdAtMillis)
-            link.updatedAt = Instant.ofEpochMilli(createdAtMillis)
+            val linkCreatedAt = createdAt ?: Instant.ofEpochMilli(createdAtMillis)
+            link.createdAt = linkCreatedAt
+            link.updatedAt = linkCreatedAt
             linkRepository.saveAndFlush(link)
         } ?: throw IllegalStateException("링크 저장에 실패했습니다")
     }

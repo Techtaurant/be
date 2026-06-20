@@ -21,9 +21,9 @@ interface LinkReadOpenApiControllerDocs {
     @Operation(
         summary = "링크 정적 콘텐츠 목록 조회",
         description =
-            "[Deprecated] 이 API는 발행일 단일 정렬만 지원하며 커서에 정렬 기준이 암묵적으로 인코딩되어 있습니다. " +
+            "[Deprecated] 이 API는 링크 생성일 단일 정렬만 지원하며 커서에 정렬 기준이 암묵적으로 인코딩되어 있습니다. " +
                 "명시적 정렬(PUBLISHED/LIKE/SAVE)과 기간 필터를 지원하는 GET /open-api/v1/links API로 대체되었습니다. " +
-                "기존 호환을 위해 발행일순 커서 페이지네이션 동작은 그대로 유지됩니다.",
+                "기존 호환을 위해 생성일순 커서 페이지네이션 동작은 그대로 유지됩니다.",
         deprecated = true,
     )
     @SwaggerApiResponse(responseCode = "200", description = "조회 성공")

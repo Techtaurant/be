@@ -32,7 +32,7 @@ import java.util.UUID
  * 공개 링크 동적 정렬/페이지네이션 구현체 (v1)
  *
  * JPA Criteria API와 Metamodel을 사용해 정렬 타입별 키셋 커서 페이지네이션을 지원합니다.
- * - PUBLISHED: 발행일 기준 정렬 (발행일 없는 링크는 뒤로)
+ * - PUBLISHED: 링크 생성일 기준 정렬
  * - LIKE/SAVE: LinkDailyStats를 기간 윈도우로 집계한 합 기준 정렬
  */
 @Repository
@@ -49,12 +49,12 @@ class LinkRepositoryCustomImpl : LinkRepositoryCustom {
         tag: String?,
     ): List<RankedLinkId> =
         when (sortType) {
-            LinkSortType.PUBLISHED -> findPublishedRankedIds(cursor, limit, sourceCompanyUserId, tag)
+            LinkSortType.PUBLISHED -> findCreatedAtRankedIds(cursor, limit, sourceCompanyUserId, tag)
             LinkSortType.LIKE, LinkSortType.SAVE ->
                 findStatsRankedIds(cursor, limit, sortType, period, sourceCompanyUserId, tag)
         }
 
-    private fun findPublishedRankedIds(
+    private fun findCreatedAtRankedIds(
         cursor: LinkCursorV1?,
         limit: Int,
         sourceCompanyUserId: UUID?,
@@ -66,13 +66,13 @@ class LinkRepositoryCustomImpl : LinkRepositoryCustom {
         val predicates = mutableListOf<Predicate>()
 
         addBaseConditions(cb, cq, root, sourceCompanyUserId, tag, predicates)
-        cursor?.let { predicates.add(buildPublishedCursorCondition(cb, root, it)) }
+        cursor?.let { predicates.add(buildCreatedAtCursorCondition(cb, root, it)) }
 
         cq.select(root.get(EntityBase_.id))
         if (predicates.isNotEmpty()) {
             cq.where(*predicates.toTypedArray())
         }
-        cq.orderBy(publishedSortOrders(cb, root))
+        cq.orderBy(createdAtSortOrders(cb, root))
 
         return entityManager.createQuery(cq)
             .setMaxResults(limit)
@@ -181,53 +181,35 @@ class LinkRepositoryCustomImpl : LinkRepositoryCustom {
     }
 
     /**
-     * 발행일 정렬 순서: 발행일 있는 링크(발행일 DESC) → 발행일 없는 링크, 동일 시 id DESC
+     * 링크 생성일 정렬 순서: createdAt DESC, 동일 시 id DESC
      */
-    private fun publishedSortOrders(
+    private fun createdAtSortOrders(
         cb: CriteriaBuilder,
         root: Root<Link>,
-    ): List<Order> {
-        val nullPublishedLast =
-            cb.selectCase<Int>()
-                .`when`(cb.isNull(root.get(Link_.publishedAt)), 1)
-                .otherwise(0)
-        return listOf(
-            cb.asc(nullPublishedLast),
-            cb.desc(root.get(Link_.publishedAt)),
+    ): List<Order> =
+        listOf(
+            cb.desc(root.get(EntityBase_.createdAt)),
             cb.desc(root.get(EntityBase_.id)),
         )
-    }
 
     /**
-     * 발행일 정렬 커서 조건
-     *
-     * 커서의 발행일이 있으면: (발행일 < cursor) OR (발행일 = cursor AND id < cursorId) OR 발행일 없음
-     * 커서의 발행일이 없으면(발행일 없는 구간 진행 중): 발행일 없음 AND id < cursorId
+     * 링크 생성일 정렬 커서 조건: (createdAt < cursor) OR (createdAt = cursor AND id < cursorId)
      */
-    private fun buildPublishedCursorCondition(
+    private fun buildCreatedAtCursorCondition(
         cb: CriteriaBuilder,
         root: Root<Link>,
         cursor: LinkCursorV1,
     ): Predicate {
-        val publishedAtPath = root.get(Link_.publishedAt)
+        val createdAtPath = root.get<Instant>(EntityBase_.createdAt)
         val idPath = root.get(EntityBase_.id)
-        val cursorPublishedAt = cursor.sortInstant
 
-        if (cursorPublishedAt == null) {
-            return cb.and(cb.isNull(publishedAtPath), cb.lessThan(idPath, cursor.id))
-        }
-
-        val publishedLess =
+        val createdAtLess = cb.lessThan(createdAtPath, cursor.sortInstant)
+        val createdAtEqualIdLess =
             cb.and(
-                cb.isNotNull(publishedAtPath),
-                cb.lessThan(publishedAtPath, cursorPublishedAt),
-            )
-        val publishedEqualIdLess =
-            cb.and(
-                cb.equal(publishedAtPath, cursorPublishedAt),
+                cb.equal(createdAtPath, cursor.sortInstant),
                 cb.lessThan(idPath, cursor.id),
             )
-        return cb.or(publishedLess, publishedEqualIdLess, cb.isNull(publishedAtPath))
+        return cb.or(createdAtLess, createdAtEqualIdLess)
     }
 
     /**
@@ -244,19 +226,16 @@ class LinkRepositoryCustomImpl : LinkRepositoryCustom {
     ): Predicate {
         val createdAtPath = root.get<Instant>(EntityBase_.createdAt)
         val idPath = root.get<UUID>(EntityBase_.id)
-        val cursorCreatedAt =
-            requireNotNull(cursor.sortInstant) { "집계 정렬 커서에는 createdAt이 필요합니다" }
-
         val countLess = cb.lessThan(sortExpression, cursor.sortValue)
         val countEqualCreatedAtLess =
             cb.and(
                 cb.equal(sortExpression, cursor.sortValue),
-                cb.lessThan(createdAtPath, cursorCreatedAt),
+                cb.lessThan(createdAtPath, cursor.sortInstant),
             )
         val countEqualCreatedAtEqualIdLess =
             cb.and(
                 cb.equal(sortExpression, cursor.sortValue),
-                cb.equal(createdAtPath, cursorCreatedAt),
+                cb.equal(createdAtPath, cursor.sortInstant),
                 cb.lessThan(idPath, cursor.id),
             )
         return cb.or(countLess, countEqualCreatedAtLess, countEqualCreatedAtEqualIdLess)

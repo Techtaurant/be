@@ -88,10 +88,9 @@ interface LinkRepository : JpaRepository<Link, UUID>, LinkRepositoryCustom {
                 WHERE taggedLink = l
                   AND matchedTag.name = :tag
             )
-          )
+        )
         ORDER BY
-            CASE WHEN l.publishedAt IS NULL THEN 1 ELSE 0 END ASC,
-            l.publishedAt DESC,
+            l.createdAt DESC,
             l.id DESC
         """,
     )
@@ -123,59 +122,18 @@ interface LinkRepository : JpaRepository<Link, UUID>, LinkRepositoryCustom {
             )
           )
           AND (
-            (
-                l.publishedAt IS NOT NULL AND (
-                    l.publishedAt < :cursorPublishedAt OR
-                    (l.publishedAt = :cursorPublishedAt AND l.id < :cursorId)
-                )
-            ) OR l.publishedAt IS NULL
+            l.createdAt < :cursorCreatedAt OR
+            (l.createdAt = :cursorCreatedAt AND l.id < :cursorId)
           )
         ORDER BY
-            CASE WHEN l.publishedAt IS NULL THEN 1 ELSE 0 END ASC,
-            l.publishedAt DESC,
+            l.createdAt DESC,
             l.id DESC
         """,
     )
     fun findNextPageIds(
         @Param("sourceCompanyUserId") sourceCompanyUserId: UUID?,
         @Param("tag") tag: String?,
-        @Param("cursorPublishedAt") cursorPublishedAt: Instant,
-        @Param("cursorId") cursorId: UUID,
-        pageable: Pageable,
-    ): List<UUID>
-
-    @Query(
-        """
-        SELECT l.id
-        FROM Link l
-        WHERE (
-            :sourceCompanyUserId IS NULL OR EXISTS (
-                SELECT sourceUserLink.id
-                FROM UserLink sourceUserLink
-                WHERE sourceUserLink.link = l
-                  AND sourceUserLink.user.id = :sourceCompanyUserId
-            )
-        )
-          AND (
-            :tag IS NULL OR EXISTS (
-                SELECT taggedLink.id
-                FROM Link taggedLink
-                JOIN taggedLink.tags matchedTag
-                WHERE taggedLink = l
-                  AND matchedTag.name = :tag
-            )
-          )
-          AND l.publishedAt IS NULL
-          AND l.id < :cursorId
-        ORDER BY
-            CASE WHEN l.publishedAt IS NULL THEN 1 ELSE 0 END ASC,
-            l.publishedAt DESC,
-            l.id DESC
-        """,
-    )
-    fun findNextPageIdsAfterMissingPublishedAt(
-        @Param("sourceCompanyUserId") sourceCompanyUserId: UUID?,
-        @Param("tag") tag: String?,
+        @Param("cursorCreatedAt") cursorCreatedAt: Instant,
         @Param("cursorId") cursorId: UUID,
         pageable: Pageable,
     ): List<UUID>

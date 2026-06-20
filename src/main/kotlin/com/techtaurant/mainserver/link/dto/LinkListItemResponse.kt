@@ -18,8 +18,8 @@ data class LinkListItemResponse(
     val summary: String,
     @field:Schema(description = "최초 출처 사용자 ID", nullable = true)
     val sourceCompanyUserId: UUID?,
-    @field:Schema(description = "발행일", nullable = true)
-    val publishedAt: Instant?,
+    @field:Schema(description = "링크 생성일")
+    val createdAt: Instant,
     @field:Schema(description = "저장 여부")
     val isSaved: Boolean,
     @field:Schema(description = "읽음 여부")
@@ -44,7 +44,7 @@ data class LinkListItemResponse(
                 url = link.url,
                 summary = link.summary,
                 sourceCompanyUserId = sourceCompanyUserId,
-                publishedAt = link.publishedAt,
+                createdAt = link.createdAt,
                 isSaved = isSaved,
                 isRead = isRead,
                 viewCount = link.viewCount,

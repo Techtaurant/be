@@ -62,7 +62,7 @@ class LinkReadService(
     /**
      * 공개 링크 정적 콘텐츠 목록을 명시적 정렬/기간과 함께 커서 기반으로 조회합니다 (v1).
      *
-     * - PUBLISHED: 발행일 최신순 (발행일 없는 링크는 뒤로)
+     * - PUBLISHED: 링크 생성일 최신순
      * - LIKE/SAVE: 기간(period) 윈도우 내 일별 좋아요/저장 집계 합 기준 (period=ALL이면 전체 누적)
      *
      * 커서는 정렬 타입을 포함하며, 요청 sort와 커서의 정렬 타입이 다르면 INVALID_LINK_CURSOR를 반환합니다.
@@ -190,19 +190,11 @@ class LinkReadService(
                         pageable = pageable,
                     )
 
-                linkCursor.publishedAt == null ->
-                    linkRepository.findNextPageIdsAfterMissingPublishedAt(
-                        sourceCompanyUserId = sourceCompanyUserId,
-                        tag = normalizedTag,
-                        cursorId = linkCursor.id,
-                        pageable = pageable,
-                    )
-
                 else ->
                     linkRepository.findNextPageIds(
                         sourceCompanyUserId = sourceCompanyUserId,
                         tag = normalizedTag,
-                        cursorPublishedAt = linkCursor.publishedAt,
+                        cursorCreatedAt = linkCursor.createdAt,
                         cursorId = linkCursor.id,
                         pageable = pageable,
                     )
@@ -289,13 +281,7 @@ class LinkReadService(
     private fun isValidCursor(
         linkCursor: LinkCursorV1?,
         sortType: LinkSortType,
-    ): Boolean {
-        if (linkCursor == null || linkCursor.sortType != sortType) {
-            return false
-        }
-        // 좋아요/저장 정렬 커서는 보조 정렬 키(createdAt)가 반드시 존재해야 합니다.
-        return sortType == LinkSortType.PUBLISHED || linkCursor.sortInstant != null
-    }
+    ): Boolean = linkCursor != null && linkCursor.sortType == sortType
 
     private fun validateCompany(companyUserId: UUID) {
         val company =

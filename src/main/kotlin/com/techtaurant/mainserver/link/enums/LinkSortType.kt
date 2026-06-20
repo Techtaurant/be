@@ -3,7 +3,7 @@ package com.techtaurant.mainserver.link.enums
 /**
  * 공개 링크 목록 정렬 타입
  *
- * - PUBLISHED: 발행일(publishedAt) 최신순. 발행일이 없는 링크는 뒤로 정렬됩니다.
+ * - PUBLISHED: 링크 생성일(createdAt) 최신순.
  * - LIKE: 기간 내 일별 좋아요 집계(LinkDailyStats.likeCount) 합산 기준
  * - SAVE: 기간 내 일별 저장 집계(LinkDailyStats.saveCount) 합산 기준
  *

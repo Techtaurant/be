@@ -41,7 +41,7 @@ class LinkCrawlBatchAdminService(
                 articleLinkSelector = request.articleLinkSelector.trim(),
                 titleSelector = request.titleSelector.trim(),
                 summarySelector = request.summarySelector?.trim()?.takeIf { it.isNotEmpty() },
-                publishedAtSelectors = normalizeLines(request.publishedAtSelectors),
+                createdAtSelectors = normalizeLines(request.createdAtSelectors),
                 tagNames = normalizeLines(request.tagNames),
                 cronExpression = request.cronExpression.trim(),
                 startPage = request.startPage,
@@ -78,7 +78,7 @@ class LinkCrawlBatchAdminService(
         request.articleLinkSelector?.let { batch.articleLinkSelector = it.trim() }
         request.titleSelector?.let { batch.titleSelector = it.trim() }
         request.summarySelector?.let { batch.summarySelector = it.trim().takeIf(String::isNotEmpty) }
-        request.publishedAtSelectors?.let { batch.publishedAtSelectors = normalizeLines(it) }
+        request.createdAtSelectors?.let { batch.createdAtSelectors = normalizeLines(it) }
         request.tagNames?.let { batch.tagNames = normalizeLines(it) }
         request.cronExpression?.let {
             validateCronExpression(it)

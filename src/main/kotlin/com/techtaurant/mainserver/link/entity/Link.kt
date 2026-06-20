@@ -12,7 +12,6 @@ import jakarta.persistence.JoinTable
 import jakarta.persistence.ManyToMany
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
-import java.time.Instant
 
 @Entity
 @Table(
@@ -26,8 +25,6 @@ class Link(
     var url: String,
     @Column(nullable = false, columnDefinition = "TEXT")
     var summary: String,
-    @Column(name = "published_at_utc")
-    var publishedAt: Instant? = null,
     @ManyToMany(fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
     @JoinTable(
         name = "link_tags",

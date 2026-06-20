@@ -25,7 +25,7 @@ interface LinkReadOpenApiV1ControllerDocs {
             "SSG/ISR 캐싱에 적합한 링크 정적 콘텐츠 목록을 명시적 정렬/기간 기준으로 조회합니다. " +
                 "로그인 사용자의 저장/읽음 상태는 포함하지 않습니다.\n\n" +
                 "정렬(sort)\n" +
-                "- PUBLISHED: 발행일 최신순 (발행일이 없는 링크는 뒤로 정렬)\n" +
+                "- PUBLISHED: 링크 생성일 최신순\n" +
                 "- LIKE: 기간 내 일별 좋아요 집계 합 기준\n" +
                 "- SAVE: 기간 내 일별 저장 집계 합 기준\n\n" +
                 "기간(period)은 LIKE/SAVE 정렬의 일별 집계 윈도우를 결정하며 PUBLISHED 정렬에는 적용되지 않습니다. " +
@@ -42,7 +42,7 @@ interface LinkReadOpenApiV1ControllerDocs {
     fun getLinkContents(
         @Parameter(description = "이전 응답의 nextCursor (첫 페이지는 생략)") cursor: String?,
         @Parameter(description = "페이지 크기 (1-100, 기본값 20)") @Min(1) @Max(100) size: Int,
-        @Parameter(description = "정렬 기준 (PUBLISHED: 발행일순, LIKE: 좋아요순, SAVE: 저장순)") sort: LinkSortType,
+        @Parameter(description = "정렬 기준 (PUBLISHED: 생성일순, LIKE: 좋아요순, SAVE: 저장순)") sort: LinkSortType,
         @Parameter(description = "기간 필터 (WEEK: 7일, MONTH: 30일, YEAR: 365일, ALL: 전체). LIKE/SAVE 정렬에만 적용") period: LinkPeriod,
         @Parameter(description = "출처 회사 사용자 ID 필터 (생략 시 전체 조회)") sourceCompanyUserId: UUID?,
         @Parameter(description = "링크 태그명 필터 (생략 시 전체 조회)") tag: String?,
