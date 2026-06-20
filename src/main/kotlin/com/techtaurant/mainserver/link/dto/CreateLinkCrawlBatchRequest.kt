@@ -36,11 +36,11 @@ data class CreateLinkCrawlBatchRequest(
     @field:ArraySchema(
         schema =
             Schema(
-                description = "발행일 selector. ISO 날짜/시간, '2023년 6월 20일', '2023. 6. 20', '2023/6/20' 형식의 텍스트를 읽습니다.",
+                description = "링크 생성일 selector. ISO 날짜/시간, '2023년 6월 20일', '2023. 6. 20', '2023/6/20' 형식의 텍스트를 읽습니다.",
                 example = "div.o6bzluc",
             ),
     )
-    val publishedAtSelectors: List<String> = emptyList(),
+    val createdAtSelectors: List<String> = emptyList(),
     @field:Size(max = TaggedContent.MAX_TAG_COUNT, message = "태그는 최대 10개까지 설정할 수 있습니다")
     @field:ArraySchema(maxItems = TaggedContent.MAX_TAG_COUNT, schema = Schema(description = "수집된 링크에 부여할 태그명", example = "toss-tech"))
     val tagNames: List<String> = emptyList(),

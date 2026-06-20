@@ -178,7 +178,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                       "articleLinkSelector": "a.article-link",
                       "titleSelector": ".title",
                       "summarySelector": ".summary",
-                      "publishedAtSelectors": ["div.o6bzluc"],
+                      "createdAtSelectors": ["div.o6bzluc"],
                       "tagNames": ["engineering", "backend"],
                       "cronExpression": "0 0 * * * *",
                       "startPage": 1,
@@ -218,7 +218,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
         assertTrue(savedLinks.all { it.tags.map { tag -> tag.name }.containsAll(listOf("engineering", "backend")) })
         assertEquals(
             "2026-04-20T00:00:00Z",
-            savedLinks.first { it.url.endsWith("/article/metric-review") }.publishedAt.toString(),
+            savedLinks.first { it.url.endsWith("/article/metric-review") }.createdAt.toString(),
         )
 
         val savedBatch = linkCrawlBatchRepository.findById(UUID.fromString(batchId)).orElseThrow()
@@ -242,8 +242,8 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("배치 등록 시 발행일을 수집할 수 없으면 등록이 실패한다")
-    fun createBatchFailsWhenPublishedAtCannotBeCollected() {
+    @DisplayName("배치 등록 시 생성일을 수집할 수 없으면 등록이 실패한다")
+    fun createBatchFailsWhenCreatedAtCannotBeCollected() {
         given()
             .contentType("application/json")
             .header("Authorization", "Bearer $adminAccessToken")
@@ -257,7 +257,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                   "articleLinkSelector": "a.article-link",
                   "titleSelector": ".title",
                   "summarySelector": ".summary",
-                  "publishedAtSelectors": [".missing-date"],
+                  "createdAtSelectors": [".missing-date"],
                   "tagNames": ["engineering"],
                   "cronExpression": "0 0 * * * *",
                   "startPage": 1,
@@ -275,8 +275,8 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("배치 실행 중 발행일을 수집할 수 없으면 배치가 실패한다")
-    fun runBatchFailsWhenPublishedAtCannotBeCollected() {
+    @DisplayName("배치 실행 중 생성일을 수집할 수 없으면 배치가 실패한다")
+    fun runBatchFailsWhenCreatedAtCannotBeCollected() {
         val batch =
             linkCrawlBatchRepository.save(
                 LinkCrawlBatch(
@@ -288,7 +288,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                     articleLinkSelector = "a.article-link",
                     titleSelector = ".title",
                     summarySelector = ".summary",
-                    publishedAtSelectors = ".missing-date",
+                    createdAtSelectors = ".missing-date",
                     cronExpression = "0 0 * * * *",
                     startPage = 1,
                     active = true,
@@ -340,7 +340,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                     articleLinkSelector = "a.article-link",
                     titleSelector = ".title",
                     summarySelector = ".summary",
-                    publishedAtSelectors = "div.o6bzluc",
+                    createdAtSelectors = "div.o6bzluc",
                     cronExpression = "0 0 * * * *",
                     startPage = 1,
                     active = true,
@@ -380,7 +380,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                     articleLinkSelector = "a.article-link",
                     titleSelector = ".title",
                     summarySelector = ".summary",
-                    publishedAtSelectors = "div.o6bzluc",
+                    createdAtSelectors = "div.o6bzluc",
                     cronExpression = "0 0 * * * *",
                     startPage = 1,
                     active = true,
@@ -452,8 +452,9 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
                     title = title,
                     url = "$crawlerBaseUrl$path",
                     summary = "$title summary",
-                    publishedAt = Instant.parse("2026-04-20T00:00:00Z"),
-                ),
+                ).apply {
+                    createdAt = Instant.parse("2026-04-20T00:00:00Z")
+                },
             )
         userLinkRepository.saveAndFlush(UserLink(user = sourceCompanyUser, link = link))
 

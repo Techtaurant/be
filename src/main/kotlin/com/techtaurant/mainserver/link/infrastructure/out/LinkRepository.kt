@@ -9,7 +9,7 @@ import org.springframework.data.repository.query.Param
 import java.time.Instant
 import java.util.UUID
 
-interface LinkRepository : JpaRepository<Link, UUID> {
+interface LinkRepository : JpaRepository<Link, UUID>, LinkRepositoryCustom {
     fun findByUrl(url: String): Link?
 
     @Query(
@@ -88,8 +88,10 @@ interface LinkRepository : JpaRepository<Link, UUID> {
                 WHERE taggedLink = l
                   AND matchedTag.name = :tag
             )
-          )
-        ORDER BY l.createdAt DESC, l.id DESC
+        )
+        ORDER BY
+            l.createdAt DESC,
+            l.id DESC
         """,
     )
     fun findFirstPageIds(
@@ -123,7 +125,9 @@ interface LinkRepository : JpaRepository<Link, UUID> {
             l.createdAt < :cursorCreatedAt OR
             (l.createdAt = :cursorCreatedAt AND l.id < :cursorId)
           )
-        ORDER BY l.createdAt DESC, l.id DESC
+        ORDER BY
+            l.createdAt DESC,
+            l.id DESC
         """,
     )
     fun findNextPageIds(

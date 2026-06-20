@@ -41,7 +41,7 @@ class LinkBatchRunServiceTest {
     @Test
     @DisplayName("크롤링 가능한 첫 페이지이면 검증을 통과한다")
     fun validateCrawlablePassesWhenFirstPageCanBeCrawled() {
-        val batch = createBatch(publishedAtSelectors = ".published-date")
+        val batch = createBatch(createdAtSelectors = ".created-date")
         linkDocumentFetcher.html = crawlableHtml()
 
         linkBatchRunService.validateCrawlable(batch)
@@ -50,10 +50,10 @@ class LinkBatchRunServiceTest {
     }
 
     @Test
-    @DisplayName("점 구분 발행일이면 크롤링 가능 검증을 통과한다")
-    fun validateCrawlablePassesWhenPublishedAtUsesDottedDate() {
-        val batch = createBatch(publishedAtSelectors = ".published-date")
-        linkDocumentFetcher.html = crawlableHtml(publishedAtText = "2026. 6. 12")
+    @DisplayName("점 구분 생성일이면 크롤링 가능 검증을 통과한다")
+    fun validateCrawlablePassesWhenCreatedAtUsesDottedDate() {
+        val batch = createBatch(createdAtSelectors = ".created-date")
+        linkDocumentFetcher.html = crawlableHtml(createdAtText = "2026. 6. 12")
 
         linkBatchRunService.validateCrawlable(batch)
 
@@ -63,7 +63,7 @@ class LinkBatchRunServiceTest {
     @Test
     @DisplayName("첫 페이지에 수집 가능한 항목이 없으면 검증이 실패한다")
     fun validateCrawlableFailsWhenNoItemCanBeCrawled() {
-        val batch = createBatch(publishedAtSelectors = ".published-date")
+        val batch = createBatch(createdAtSelectors = ".created-date")
         linkDocumentFetcher.html = "<html><body></body></html>"
 
         val exception =
@@ -75,9 +75,9 @@ class LinkBatchRunServiceTest {
     }
 
     @Test
-    @DisplayName("검증 중 발행일을 수집할 수 없으면 검증이 실패한다")
-    fun validateCrawlableFailsWhenPublishedAtCannotBeCollected() {
-        val batch = createBatch(publishedAtSelectors = ".missing-date")
+    @DisplayName("검증 중 생성일을 수집할 수 없으면 검증이 실패한다")
+    fun validateCrawlableFailsWhenCreatedAtCannotBeCollected() {
+        val batch = createBatch(createdAtSelectors = ".missing-date")
         linkDocumentFetcher.html = crawlableHtml()
 
         val exception =
@@ -85,14 +85,14 @@ class LinkBatchRunServiceTest {
                 linkBatchRunService.validateCrawlable(batch)
             }
 
-        assertEquals(LinkStatus.LINK_CRAWL_BATCH_PUBLISHED_AT_REQUIRED, exception.status)
+        assertEquals(LinkStatus.LINK_CRAWL_BATCH_CREATED_AT_REQUIRED, exception.status)
     }
 
     @Test
-    @DisplayName("배치 실행 중 발행일을 수집할 수 없으면 배치를 실패시킨다")
-    fun runFailsWhenPublishedAtCannotBeCollected() {
+    @DisplayName("배치 실행 중 생성일을 수집할 수 없으면 배치를 실패시킨다")
+    fun runFailsWhenCreatedAtCannotBeCollected() {
         val batchId = UUID.randomUUID()
-        val batch = createBatch(publishedAtSelectors = ".missing-date").apply { id = batchId }
+        val batch = createBatch(createdAtSelectors = ".missing-date").apply { id = batchId }
         linkDocumentFetcher.html = crawlableHtml()
         every { linkCrawlBatchRepository.findById(batchId) } returns Optional.of(batch)
 
@@ -101,11 +101,11 @@ class LinkBatchRunServiceTest {
                 linkBatchRunService.run(batchId)
             }
 
-        assertEquals(LinkStatus.LINK_CRAWL_BATCH_PUBLISHED_AT_REQUIRED, exception.status)
+        assertEquals(LinkStatus.LINK_CRAWL_BATCH_CREATED_AT_REQUIRED, exception.status)
         verify(exactly = 0) { linkRepository.save(any()) }
     }
 
-    private fun createBatch(publishedAtSelectors: String): LinkCrawlBatch {
+    private fun createBatch(createdAtSelectors: String): LinkCrawlBatch {
         return LinkCrawlBatch(
             companyUser =
                 User(
@@ -123,7 +123,7 @@ class LinkBatchRunServiceTest {
             articleLinkSelector = "a.article-link",
             titleSelector = ".title",
             summarySelector = ".summary",
-            publishedAtSelectors = publishedAtSelectors,
+            createdAtSelectors = createdAtSelectors,
             cronExpression = "0 0 * * * *",
             startPage = 1,
             active = true,
@@ -131,7 +131,7 @@ class LinkBatchRunServiceTest {
         )
     }
 
-    private fun crawlableHtml(publishedAtText: String = "2026년 4월 20일"): String {
+    private fun crawlableHtml(createdAtText: String = "2026년 4월 20일"): String {
         return """
             <html>
               <body>
@@ -139,7 +139,7 @@ class LinkBatchRunServiceTest {
                   <a class="article-link" href="/article/metric-review">
                     <div class="title">Metric Review, 실행을 이끌다</div>
                     <div class="summary">지표 리뷰로 실행 리듬을 만든 이야기입니다.</div>
-                    <div class="published-date">$publishedAtText</div>
+                    <div class="created-date">$createdAtText</div>
                   </a>
                 </div>
               </body>

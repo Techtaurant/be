@@ -27,7 +27,6 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import java.time.Instant
 import java.util.Optional
 import java.util.UUID
 
@@ -81,7 +80,6 @@ class CompanyAdminServiceTest {
                 title = "회사 링크",
                 url = "https://example.com/${UUID.randomUUID()}",
                 summary = "요약",
-                publishedAt = Instant.now(),
             ).apply { id = UUID.randomUUID() }
         val userLink = UserLink(companyUser, link).apply { id = UUID.randomUUID() }
 

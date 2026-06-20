@@ -45,14 +45,14 @@ interface AdminLinkCrawlBatchControllerDocs {
         - articleLinkSelector: `:self`
         - titleSelector: `div._13swo3b7`
         - summarySelector: `div._13swo3b8`
-        - publishedAtSelectors: `div.o6bzluc`
+        - createdAtSelectors: `div.o6bzluc`
 
         추천 원칙:
         - 절대 XPath(`/html/body/...`)는 피합니다.
         - `body > div...`처럼 페이지 전체 경로 selector는 피합니다.
         - selector는 짧고 재사용 가능해야 합니다.
         - CSR이 아니라 SSR만 대상으로 합니다.
-        - 발행일은 ISO 날짜/시간, `2023년 6월 20일`, `2023. 6. 20`, `2023/6/20` 형식의 텍스트를 지원합니다.
+        - 링크 생성일은 ISO 날짜/시간, `2023년 6월 20일`, `2023. 6. 20`, `2023/6/20` 형식의 텍스트를 지원합니다.
         """,
     )
     @SwaggerApiResponse(responseCode = "201", description = "배치 등록 성공")
@@ -62,7 +62,7 @@ interface AdminLinkCrawlBatchControllerDocs {
             ApiErrorCodeResponse(UserStatus::class, ["COMPANY_NOT_FOUND"]),
             ApiErrorCodeResponse(
                 LinkStatus::class,
-                ["INVALID_LINK_CRAWL_BATCH_CRON_EXPRESSION", "LINK_CRAWL_BATCH_PUBLISHED_AT_REQUIRED", "LINK_CRAWL_BATCH_NOT_CRAWLABLE"],
+                ["INVALID_LINK_CRAWL_BATCH_CRON_EXPRESSION", "LINK_CRAWL_BATCH_CREATED_AT_REQUIRED", "LINK_CRAWL_BATCH_NOT_CRAWLABLE"],
             ),
             ApiErrorCodeResponse(DefaultStatus::class, ["BAD_REQUEST", "UNKNOWN_EXCEPTION"]),
         ],
@@ -88,7 +88,7 @@ interface AdminLinkCrawlBatchControllerDocs {
                               "articleLinkSelector": ":self",
                               "titleSelector": "div._13swo3b7",
                               "summarySelector": "div._13swo3b8",
-                              "publishedAtSelectors": [
+                              "createdAtSelectors": [
                                 "div.o6bzluc"
                               ],
                               "tagNames": [
@@ -121,7 +121,7 @@ interface AdminLinkCrawlBatchControllerDocs {
                 [
                     "LINK_CRAWL_BATCH_NOT_FOUND",
                     "INVALID_LINK_CRAWL_BATCH_CRON_EXPRESSION",
-                    "LINK_CRAWL_BATCH_PUBLISHED_AT_REQUIRED",
+                    "LINK_CRAWL_BATCH_CREATED_AT_REQUIRED",
                     "LINK_CRAWL_BATCH_NOT_CRAWLABLE",
                 ],
             ),
@@ -135,12 +135,12 @@ interface AdminLinkCrawlBatchControllerDocs {
 
     @Operation(
         summary = "링크 수집 배치 수동 실행",
-        description = "관리자가 해당 배치를 즉시 실행하여 SSR 목록 페이지에서 링크를 수집합니다. 발행일을 수집할 수 없는 항목이 있으면 배치가 실패합니다.",
+        description = "관리자가 해당 배치를 즉시 실행하여 SSR 목록 페이지에서 링크를 수집합니다. 링크 생성일을 수집할 수 없는 항목이 있으면 배치가 실패합니다.",
     )
     @ApiErrorCodeResponses(
         [
             ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED", "ACCESS_DENIED"]),
-            ApiErrorCodeResponse(LinkStatus::class, ["LINK_CRAWL_BATCH_NOT_FOUND", "LINK_CRAWL_BATCH_PUBLISHED_AT_REQUIRED"]),
+            ApiErrorCodeResponse(LinkStatus::class, ["LINK_CRAWL_BATCH_NOT_FOUND", "LINK_CRAWL_BATCH_CREATED_AT_REQUIRED"]),
             ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
         ],
     )

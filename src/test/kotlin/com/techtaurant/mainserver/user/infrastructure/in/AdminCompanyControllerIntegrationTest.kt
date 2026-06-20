@@ -31,7 +31,6 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.http.HttpStatus
 import org.springframework.test.context.bean.override.mockito.MockitoBean
-import java.time.Instant
 import java.util.Base64
 import java.util.UUID
 import kotlin.test.assertEquals
@@ -474,7 +473,6 @@ class AdminCompanyControllerIntegrationTest : IntegrationTest() {
                 title = "기술 블로그",
                 url = url,
                 summary = "요약",
-                publishedAt = Instant.now(),
             ),
         )
     }

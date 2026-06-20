@@ -26,8 +26,6 @@ class Link(
     var url: String,
     @Column(nullable = false, columnDefinition = "TEXT")
     var summary: String,
-    @Column(name = "published_at_utc")
-    var publishedAt: Instant? = null,
     @ManyToMany(fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
     @JoinTable(
         name = "link_tags",
@@ -39,7 +37,8 @@ class Link(
     var viewCount: Long = 0,
     @Column(name = "like_count", nullable = false)
     var likeCount: Long = 0,
-) : EntityBase(), TaggedContent {
+    createdAt: Instant = Instant.now(),
+) : EntityBase(createdAt = createdAt), TaggedContent {
     init {
         validateTagCount()
     }

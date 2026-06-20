@@ -81,14 +81,14 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
     fun getLinkContents_returnsStaticFieldsOnly() {
         val linkTag = tagRepository.save(Tag(name = "Spring"))
         val anotherLinkTag = tagRepository.save(Tag(name = "Kotlin"))
-        val publishedAt = Instant.parse("2026-04-25T10:15:30Z")
+        val createdAt = Instant.parse("2026-04-25T10:15:30Z")
         val link =
             saveLink(
                 title = "Public Link",
                 url = "https://example.com/public-link",
                 sourceCompanyUser = firstCompany,
                 createdAtMillis = 1_000,
-                publishedAt = publishedAt,
+                createdAt = createdAt,
                 tags = mutableSetOf(linkTag, anotherLinkTag),
             )
         userLinkRepository.saveAndFlush(UserLink(user = secondCompany, link = link))
@@ -111,7 +111,6 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                     "url",
                     "summary",
                     "sourceCompanyUserId",
-                    "publishedAt",
                     "tags",
                     "createdAt",
                     "updatedAt",
@@ -122,9 +121,8 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
             .body("data.content[0].url", equalTo("https://example.com/public-link"))
             .body("data.content[0].summary", equalTo("Public Link summary"))
             .body("data.content[0].sourceCompanyUserId", equalTo(firstCompany.id.toString()))
-            .body("data.content[0].publishedAt", equalTo("2026-04-25T10:15:30Z"))
             .body("data.content[0].tags", containsInAnyOrder("Kotlin", "Spring"))
-            .body("data.content[0].createdAt", notNullValue())
+            .body("data.content[0].createdAt", equalTo("2026-04-25T10:15:30Z"))
             .body("data.content[0].updatedAt", notNullValue())
             .body("data.content[0].isSaved", nullValue())
             .body("data.content[0].isRead", nullValue())
@@ -134,11 +132,40 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("공개 링크 목록은 인증 없이 cursor와 size로 최신순 페이지네이션한다")
+    @DisplayName("공개 링크 목록은 인증 없이 cursor와 size로 생성일 최신순 페이지네이션한다")
     fun getLinkContents_paginatesByCursorWithoutAuthentication() {
-        val oldest = saveLink("Oldest", "https://example.com/oldest", firstCompany, 1_000)
-        val middle = saveLink("Middle", "https://example.com/middle", firstCompany, 2_000)
-        val newest = saveLink("Newest", "https://example.com/newest", firstCompany, 3_000)
+        val oldest =
+            saveLink(
+                "Oldest",
+                "https://example.com/oldest",
+                firstCompany,
+                4_000,
+                createdAt = Instant.parse("2026-04-01T00:00:00Z"),
+            )
+        val older =
+            saveLink(
+                "Older",
+                "https://example.com/older",
+                firstCompany,
+                5_000,
+                createdAt = Instant.parse("2026-03-31T00:00:00Z"),
+            )
+        val middle =
+            saveLink(
+                "Middle",
+                "https://example.com/middle",
+                firstCompany,
+                1_000,
+                createdAt = Instant.parse("2026-04-02T00:00:00Z"),
+            )
+        val newest =
+            saveLink(
+                "Newest",
+                "https://example.com/newest",
+                firstCompany,
+                2_000,
+                createdAt = Instant.parse("2026-04-03T00:00:00Z"),
+            )
 
         val nextCursor =
             given()
@@ -158,16 +185,32 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
 
         given()
             .queryParam("cursor", nextCursor)
-            .queryParam("size", 2)
+            .queryParam("size", 1)
             .`when`()
             .get("/open-api/links")
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("data.content", hasSize<Any>(1))
             .body("data.content[0].id", equalTo(oldest.id.toString()))
-            .body("data.nextCursor", nullValue())
-            .body("data.hasNext", equalTo(false))
+            .body("data.nextCursor", notNullValue())
+            .body("data.hasNext", equalTo(true))
             .body("data.size", equalTo(1))
+            .extract()
+            .path<String>("data.nextCursor")
+            .let { lastCursor ->
+                given()
+                    .queryParam("cursor", lastCursor)
+                    .queryParam("size", 2)
+                    .`when`()
+                    .get("/open-api/links")
+                    .then()
+                    .statusCode(HttpStatus.OK.value())
+                    .body("data.content", hasSize<Any>(1))
+                    .body("data.content[0].id", equalTo(older.id.toString()))
+                    .body("data.nextCursor", nullValue())
+                    .body("data.hasNext", equalTo(false))
+                    .body("data.size", equalTo(1))
+            }
     }
 
     @Test
@@ -248,10 +291,38 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
     @Test
     @DisplayName("공개 회사 링크 목록은 인증 없이 회사별 링크를 커서 기반으로 조회한다")
     fun getCompanyLinkContents_paginatesCompanyLinksWithoutAuthentication() {
-        val oldest = saveLink("Oldest Company Link", "https://example.com/company-oldest", firstCompany, 1_000)
-        val middle = saveLink("Middle Company Link", "https://example.com/company-middle", firstCompany, 2_000)
-        val newest = saveLink("Newest Company Link", "https://example.com/company-newest", firstCompany, 3_000)
-        val otherCompanyLink = saveLink("Other Company Link", "https://example.com/company-other", secondCompany, 4_000)
+        val oldest =
+            saveLink(
+                "Oldest Company Link",
+                "https://example.com/company-oldest",
+                firstCompany,
+                3_000,
+                createdAt = Instant.parse("2026-04-01T00:00:00Z"),
+            )
+        val middle =
+            saveLink(
+                "Middle Company Link",
+                "https://example.com/company-middle",
+                firstCompany,
+                1_000,
+                createdAt = Instant.parse("2026-04-02T00:00:00Z"),
+            )
+        val newest =
+            saveLink(
+                "Newest Company Link",
+                "https://example.com/company-newest",
+                firstCompany,
+                2_000,
+                createdAt = Instant.parse("2026-04-03T00:00:00Z"),
+            )
+        val otherCompanyLink =
+            saveLink(
+                "Other Company Link",
+                "https://example.com/company-other",
+                secondCompany,
+                4_000,
+                createdAt = Instant.parse("2026-04-04T00:00:00Z"),
+            )
 
         val nextCursor =
             given()
@@ -345,14 +416,14 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
     fun getLinkContentDetail_returnsStaticFieldsOnly() {
         val linkTag = tagRepository.save(Tag(name = "Architecture"))
         val anotherLinkTag = tagRepository.save(Tag(name = "Kotlin"))
-        val publishedAt = Instant.parse("2026-04-26T11:20:30Z")
+        val createdAt = Instant.parse("2026-04-26T11:20:30Z")
         val link =
             saveLink(
                 title = "Detail Link",
                 url = "https://example.com/detail-link",
                 sourceCompanyUser = firstCompany,
                 createdAtMillis = 4_000,
-                publishedAt = publishedAt,
+                createdAt = createdAt,
                 tags = mutableSetOf(linkTag, anotherLinkTag),
             )
         userLinkRepository.saveAndFlush(UserLink(user = secondCompany, link = link))
@@ -371,7 +442,6 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                     "url",
                     "summary",
                     "sourceCompanyUserId",
-                    "publishedAt",
                     "tags",
                     "createdAt",
                     "updatedAt",
@@ -382,9 +452,8 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
             .body("data.url", equalTo("https://example.com/detail-link"))
             .body("data.summary", equalTo("Detail Link summary"))
             .body("data.sourceCompanyUserId", equalTo(firstCompany.id.toString()))
-            .body("data.publishedAt", equalTo("2026-04-26T11:20:30Z"))
             .body("data.tags", containsInAnyOrder("Architecture", "Kotlin"))
-            .body("data.createdAt", notNullValue())
+            .body("data.createdAt", equalTo("2026-04-26T11:20:30Z"))
             .body("data.updatedAt", notNullValue())
             .body("data.isSaved", nullValue())
             .body("data.isRead", nullValue())
@@ -408,7 +477,7 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
         url: String,
         sourceCompanyUser: User,
         createdAtMillis: Long,
-        publishedAt: Instant? = null,
+        createdAt: Instant = Instant.ofEpochMilli(createdAtMillis),
         tags: MutableSet<Tag> = mutableSetOf(),
     ): Link {
         return TransactionTemplate(transactionManager).execute {
@@ -426,13 +495,13 @@ class LinkReadOpenApiControllerIntegrationTest : IntegrationTest() {
                         title = title,
                         url = url,
                         summary = "$title summary",
-                        publishedAt = publishedAt,
                         tags = managedTags,
+                        createdAt = createdAt,
                     ),
                 )
             userLinkRepository.save(UserLink(user = managedSourceCompanyUser, link = link))
-            link.createdAt = Instant.ofEpochMilli(createdAtMillis)
-            link.updatedAt = Instant.ofEpochMilli(createdAtMillis)
+            link.createdAt = createdAt
+            link.updatedAt = createdAt
             linkRepository.saveAndFlush(link)
         } ?: throw IllegalStateException("링크 저장에 실패했습니다")
     }

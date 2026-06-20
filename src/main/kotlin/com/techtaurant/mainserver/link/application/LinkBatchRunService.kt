@@ -187,9 +187,13 @@ class LinkBatchRunService(
                 title = snapshot.title,
                 url = snapshot.url,
                 summary = snapshot.summary,
-                publishedAt = snapshot.publishedAt,
-            ).apply { replaceTags(tags) },
-        )
+                createdAt = snapshot.createdAt,
+            ).apply {
+                replaceTags(tags)
+            },
+        ).also { savedLink ->
+            savedLink.createdAt = snapshot.createdAt
+        }
     }
 
     private fun refreshExistingLink(
@@ -200,7 +204,7 @@ class LinkBatchRunService(
         if (snapshot.summary.isNotBlank()) {
             existingLink.summary = snapshot.summary
         }
-        existingLink.publishedAt = snapshot.publishedAt
+        existingLink.createdAt = snapshot.createdAt
     }
 
     private fun connectUserToLink(
@@ -251,15 +255,15 @@ class LinkBatchRunService(
                 ?: return null
 
         val summary = batch.summarySelector?.let { resolveText(item, it) }.orEmpty()
-        val publishedAt =
-            parsePublishedAt(firstResolvedValue(item, batch.publishedAtSelectors))
-                ?: throw ApiException(LinkStatus.LINK_CRAWL_BATCH_PUBLISHED_AT_REQUIRED)
+        val createdAt =
+            parseCreatedAt(firstResolvedValue(item, batch.createdAtSelectors))
+                ?: throw ApiException(LinkStatus.LINK_CRAWL_BATCH_CREATED_AT_REQUIRED)
 
         return LinkSnapshot(
             title = title,
             url = absoluteUrl,
             summary = summary,
-            publishedAt = publishedAt,
+            createdAt = createdAt,
         )
     }
 
@@ -320,7 +324,7 @@ class LinkBatchRunService(
             }.firstOrNull()
     }
 
-    private fun parsePublishedAt(rawValue: String?): Instant? {
+    private fun parseCreatedAt(rawValue: String?): Instant? {
         if (rawValue.isNullOrBlank()) {
             return null
         }
@@ -356,7 +360,7 @@ class LinkBatchRunService(
         val title: String,
         val url: String,
         val summary: String,
-        val publishedAt: Instant,
+        val createdAt: Instant,
     )
 
     private data class LinkPageCrawlResult(

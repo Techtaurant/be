@@ -18,11 +18,9 @@ data class LinkContentListItemResponse(
     val summary: String,
     @field:Schema(description = "최초 출처 사용자 ID", nullable = true)
     val sourceCompanyUserId: UUID?,
-    @field:Schema(description = "발행일", nullable = true)
-    val publishedAt: Instant?,
     @field:ArraySchema(schema = Schema(description = "링크 태그명", example = "engineering"))
     val tags: List<String>,
-    @field:Schema(description = "생성일")
+    @field:Schema(description = "링크 생성일")
     val createdAt: Instant,
     @field:Schema(description = "최종 수정일")
     val updatedAt: Instant,
@@ -38,7 +36,6 @@ data class LinkContentListItemResponse(
                 url = link.url,
                 summary = link.summary,
                 sourceCompanyUserId = sourceCompanyUserId,
-                publishedAt = link.publishedAt,
                 tags =
                     link.tags
                         .map { it.name }

@@ -28,7 +28,7 @@ class FlywayMigrationValidationTest : IntegrationTest() {
 
         assertThat(failedMigrationCount).isZero()
         assertThat(appliedVersions).doesNotHaveDuplicates()
-        assertThat(appliedVersions).contains("32", "33", "35", "36")
+        assertThat(appliedVersions).contains("32", "33", "35", "36", "37")
     }
 
     @Test
@@ -136,6 +136,7 @@ class FlywayMigrationValidationTest : IntegrationTest() {
             "idx_post_view_log_post_created_utc",
             "idx_post_like_log_post_created_utc",
             "idx_notification_recipients_user_id_created_at_utc",
+            "idx_links_created_at_utc_id",
             "idx_links_published_at_utc",
             "idx_link_view_log_link_created_utc",
             "idx_link_like_log_link_created_utc",
