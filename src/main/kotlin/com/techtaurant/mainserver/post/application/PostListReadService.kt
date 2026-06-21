@@ -33,14 +33,11 @@ class PostListReadService(
     private val postMetadataReadService: PostMetadataReadService,
     private val postViewerStateReadService: PostViewerStateReadService,
     private val userProfileImageResolver: UserProfileImageResolver,
-    postListQueryStrategies: List<PostListQueryStrategy>,
 ) {
     companion object {
         private const val STALE_DRAFT_DAYS = 14
         private const val POST_LIST_CONTENT_MAX_LENGTH = 2000
     }
-
-    private val postListQueryStrategyByType = createPostListQueryStrategyByType(postListQueryStrategies)
 
     /**
      * 게시물 목록을 커서 기반 페이지네이션으로 조회
@@ -162,18 +159,20 @@ class PostListReadService(
             return emptyPostPage()
         }
 
-        val postListQueryCriteria =
-            PostListQueryCriteria(
+        val visibilityScope = PostVisibilityScope.from(currentUserId = currentUserId, authorId = authorId)
+        val sortedPosts =
+            postRepository.findPostsWithConditions(
                 cursor = postCursor,
-                size = size,
+                size = size + 1,
                 period = period,
                 sortType = sortType,
-                currentUserId = currentUserId,
-                authorId = authorId,
-                categoryId = categoryId,
+                authorId = visibilityScope.authorId,
+                statuses = visibilityScope.statuses,
+                categoryId = visibilityScope.categoryIdOrNull(categoryId),
+                visibleToUserId = visibilityScope.visibleToUserId,
                 tagIds = normalizedTagIds,
+                viewerId = visibilityScope.viewerId,
             )
-        val sortedPosts = selectPostListQueryStrategy(postListQueryCriteria).findPosts(postListQueryCriteria)
         val hasNext = sortedPosts.size > size
         val contentWithSortValues = sortedPosts.take(size)
         val content = contentWithSortValues.map { it.post }
@@ -217,24 +216,6 @@ class PostListReadService(
 
         return normalizedTagIds?.takeIf { it.isNotEmpty() }
     }
-
-    private fun createPostListQueryStrategyByType(strategies: List<PostListQueryStrategy>): Map<PostListQueryType, PostListQueryStrategy> {
-        val strategiesByType = strategies.groupBy { it.queryType }
-        val duplicatedTypes = strategiesByType.filterValues { it.size > 1 }.keys
-        require(duplicatedTypes.isEmpty()) {
-            "게시물 목록 조회 전략이 중복 등록되었습니다: ${duplicatedTypes.joinToString()}"
-        }
-
-        val missingTypes = PostListQueryType.entries.filterNot { strategiesByType.containsKey(it) }
-        require(missingTypes.isEmpty()) {
-            "게시물 목록 조회 전략이 누락되었습니다: ${missingTypes.joinToString()}"
-        }
-
-        return strategiesByType.mapValues { (_, strategyGroup) -> strategyGroup.single() }
-    }
-
-    private fun selectPostListQueryStrategy(criteria: PostListQueryCriteria): PostListQueryStrategy =
-        postListQueryStrategyByType.getValue(criteria.queryType)
 
     /**
      * 현재 사용자의 DRAFT 게시물 목록을 커서 기반으로 조회합니다.
