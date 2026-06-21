@@ -256,7 +256,7 @@ class LinkBatchRunService(
 
         val summary = batch.summarySelector?.let { resolveText(item, it) }.orEmpty()
         val createdAt =
-            parseCreatedAt(firstResolvedValue(item, batch.createdAtSelectors))
+            resolveCreatedAt(item, absoluteUrl, batch)
                 ?: throw ApiException(LinkStatus.LINK_CRAWL_BATCH_CREATED_AT_REQUIRED)
 
         return LinkSnapshot(
@@ -265,6 +265,47 @@ class LinkBatchRunService(
             summary = summary,
             createdAt = createdAt,
         )
+    }
+
+    /**
+     * 생성일을 목록 카드에서 먼저 찾고, 없으면 아티클 상세 페이지를 조회해 추출한다.
+     * 토스테크처럼 목록에는 날짜가 없고 상세 페이지에만 날짜가 있는 블로그를 지원한다.
+     *
+     * @param item 목록 페이지에서 선택된 카드 엘리먼트
+     * @param articleUrl 카드에서 추출한 아티클 상세 페이지의 절대 URL
+     * @param batch 생성일 셀렉터를 포함한 크롤 배치 설정
+     * @return 파싱된 생성일, 목록과 상세 페이지 어디에서도 찾지 못하면 null
+     */
+    private fun resolveCreatedAt(
+        item: Element,
+        articleUrl: String,
+        batch: LinkCrawlBatch,
+    ): Instant? {
+        val createdAtFromListItem = parseCreatedAt(firstResolvedValue(item, batch.createdAtSelectors))
+        if (createdAtFromListItem != null) {
+            return createdAtFromListItem
+        }
+
+        return parseCreatedAtFromArticlePage(articleUrl, batch.createdAtSelectors)
+    }
+
+    /**
+     * 아티클 상세 페이지를 조회해 생성일을 추출한다.
+     *
+     * @param articleUrl 조회할 아티클 상세 페이지의 절대 URL
+     * @param createdAtSelectors 줄바꿈으로 구분된 생성일 셀렉터 목록
+     * @return 파싱된 생성일, 셀렉터가 비었거나 상세 페이지 조회/파싱에 실패하면 null
+     */
+    private fun parseCreatedAtFromArticlePage(
+        articleUrl: String,
+        createdAtSelectors: String?,
+    ): Instant? {
+        if (createdAtSelectors.isNullOrBlank()) {
+            return null
+        }
+
+        val articleDocument = fetchPageOrNull(articleUrl) ?: return null
+        return parseCreatedAt(firstResolvedValue(articleDocument, createdAtSelectors))
     }
 
     private fun resolveLinkTagNames(rawTagNames: String?): List<String> =

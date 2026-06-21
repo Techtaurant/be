@@ -61,6 +61,36 @@ class LinkBatchRunServiceTest {
     }
 
     @Test
+    @DisplayName("목록에 생성일이 없으면 아티클 상세 페이지에서 생성일을 수집한다")
+    fun validateCrawlablePassesWhenCreatedAtOnlyExistsOnArticlePage() {
+        val batch = createBatch(createdAtSelectors = ".created-date")
+        linkDocumentFetcher.setHtml("https://example.com/articles?page=1", listHtmlWithoutCreatedAt())
+        linkDocumentFetcher.setHtml("https://example.com/article/metric-review", articleDetailHtml())
+
+        linkBatchRunService.validateCrawlable(batch)
+
+        verify(exactly = 0) { linkRepository.save(any()) }
+    }
+
+    @Test
+    @DisplayName("목록과 상세 페이지 모두 생성일이 없으면 검증이 실패한다")
+    fun validateCrawlableFailsWhenCreatedAtMissingOnBothListAndArticlePage() {
+        val batch = createBatch(createdAtSelectors = ".created-date")
+        linkDocumentFetcher.setHtml("https://example.com/articles?page=1", listHtmlWithoutCreatedAt())
+        linkDocumentFetcher.setHtml(
+            "https://example.com/article/metric-review",
+            "<html><body><div class=\"title\">상세</div></body></html>",
+        )
+
+        val exception =
+            assertFailsWith<ApiException> {
+                linkBatchRunService.validateCrawlable(batch)
+            }
+
+        assertEquals(LinkStatus.LINK_CRAWL_BATCH_CREATED_AT_REQUIRED, exception.status)
+    }
+
+    @Test
     @DisplayName("첫 페이지에 수집 가능한 항목이 없으면 검증이 실패한다")
     fun validateCrawlableFailsWhenNoItemCanBeCrawled() {
         val batch = createBatch(createdAtSelectors = ".created-date")
@@ -147,11 +177,45 @@ class LinkBatchRunServiceTest {
             """.trimIndent()
     }
 
+    private fun listHtmlWithoutCreatedAt(): String {
+        return """
+            <html>
+              <body>
+                <div class="article-card">
+                  <a class="article-link" href="/article/metric-review">
+                    <div class="title">Metric Review, 실행을 이끌다</div>
+                    <div class="summary">지표 리뷰로 실행 리듬을 만든 이야기입니다.</div>
+                  </a>
+                </div>
+              </body>
+            </html>
+            """.trimIndent()
+    }
+
+    private fun articleDetailHtml(createdAtText: String = "2026년 4월 20일"): String {
+        return """
+            <html>
+              <body>
+                <h1>Metric Review, 실행을 이끌다</h1>
+                <div class="created-date">$createdAtText</div>
+              </body>
+            </html>
+            """.trimIndent()
+    }
+
     private class StubLinkDocumentFetcher : LinkDocumentFetcher {
         var html: String = ""
+        private val htmlByUrl = mutableMapOf<String, String>()
+
+        fun setHtml(
+            url: String,
+            value: String,
+        ) {
+            htmlByUrl[url] = value
+        }
 
         override fun fetch(url: String): Document {
-            return Jsoup.parse(html, url)
+            return Jsoup.parse(htmlByUrl[url] ?: html, url)
         }
     }
 }
