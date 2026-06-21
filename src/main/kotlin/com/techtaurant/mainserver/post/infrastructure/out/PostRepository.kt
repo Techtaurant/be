@@ -5,10 +5,12 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import org.springframework.data.repository.query.Param
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
+    fun findAllByAuthorId(authorId: UUID): List<Post>
+
     /**
      * 게시물 상세 조회
      * author, tags, pictures, category를 JOIN FETCH하여 N+1 문제 방지
@@ -53,7 +55,7 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
     )
     fun findDraftsByAuthorWithCursor(
         @Param("authorId") authorId: UUID,
-        @Param("cursorUpdatedAt") cursorUpdatedAt: Date,
+        @Param("cursorUpdatedAt") cursorUpdatedAt: Instant,
         @Param("cursorId") cursorId: UUID,
         @Param("limit") limit: Int,
     ): List<Post>
@@ -219,6 +221,6 @@ interface PostRepository : JpaRepository<Post, UUID>, PostRepositoryCustom {
     )
     fun findStaleDraftsByAuthor(
         @Param("authorId") authorId: UUID,
-        @Param("before") before: Date,
+        @Param("before") before: Instant,
     ): List<Post>
 }

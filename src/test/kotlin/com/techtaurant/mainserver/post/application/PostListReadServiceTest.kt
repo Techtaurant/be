@@ -4,6 +4,7 @@ import com.techtaurant.mainserver.attachment.application.AttachmentService
 import com.techtaurant.mainserver.attachment.entity.Attachment
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.attachment.enums.AttachmentStatus
+import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.entity.PostPeriod
@@ -22,12 +23,11 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 class PostListReadServiceTest {
@@ -57,21 +57,13 @@ class PostListReadServiceTest {
     private val postListReadService =
         createPostListReadService()
 
-    private fun createPostListReadService(postListQueryStrategies: List<PostListQueryStrategy> = createPostListQueryStrategies()) =
+    private fun createPostListReadService() =
         PostListReadService(
             postRepository = postRepository,
             attachmentService = attachmentService,
             postMetadataReadService = postMetadataReadService,
             postViewerStateReadService = postViewerStateReadService,
             userProfileImageResolver = userProfileImageResolver,
-            postListQueryStrategies = postListQueryStrategies,
-        )
-
-    private fun createPostListQueryStrategies(): List<PostListQueryStrategy> =
-        listOf(
-            AllVisiblePostsQueryStrategy(postRepository),
-            OwnVisiblePostsQueryStrategy(postRepository),
-            AuthorPublicPostsQueryStrategy(postRepository),
         )
 
     private lateinit var testUser: User
@@ -115,10 +107,13 @@ class PostListReadServiceTest {
             status = status,
         ).apply { id = UUID.randomUUID() }
 
+    private fun List<Post>.withSortValues(sortValueResolver: (Post) -> Long = { it.updatedAt.toEpochMilli() }): List<PostWithSortValue> =
+        map { post -> PostWithSortValue(post = post, sortValue = sortValueResolver(post)) }
+
     private fun createAttachment(
         postId: UUID,
         objectKey: String,
-        createdAt: Date,
+        createdAt: Instant,
     ): Attachment =
         Attachment(
             referenceId = postId,
@@ -162,40 +157,6 @@ class PostListReadServiceTest {
             parent = parent,
         ).apply { id = UUID.randomUUID() }
 
-    @Test
-    @DisplayName("게시물 목록 조회 전략이 누락되면 서비스 생성에 실패한다")
-    fun constructor_missingStrategy_throwsException() {
-        assertThatThrownBy {
-            createPostListReadService(
-                postListQueryStrategies =
-                    listOf(
-                        AllVisiblePostsQueryStrategy(postRepository),
-                        OwnVisiblePostsQueryStrategy(postRepository),
-                    ),
-            )
-        }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("누락")
-    }
-
-    @Test
-    @DisplayName("게시물 목록 조회 전략이 중복되면 서비스 생성에 실패한다")
-    fun constructor_duplicateStrategy_throwsException() {
-        assertThatThrownBy {
-            createPostListReadService(
-                postListQueryStrategies =
-                    listOf(
-                        AllVisiblePostsQueryStrategy(postRepository),
-                        AllVisiblePostsQueryStrategy(postRepository),
-                        OwnVisiblePostsQueryStrategy(postRepository),
-                        AuthorPublicPostsQueryStrategy(postRepository),
-                    ),
-            )
-        }
-            .isInstanceOf(IllegalArgumentException::class.java)
-            .hasMessageContaining("중복")
-    }
-
     @Nested
     @DisplayName("getPosts")
     inner class GetPosts {
@@ -228,7 +189,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -265,7 +226,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns posts
+            } returns posts.withSortValues()
 
             // when
             postListReadService.getPosts(cursor = null, size = 20, currentUserId = null)
@@ -301,7 +262,7 @@ class PostListReadServiceTest {
                     tagIds = listOf(firstTagId, secondTagId),
                     viewerId = null,
                 )
-            } returns posts
+            } returns posts.withSortValues()
 
             // when
             postListReadService.getPosts(
@@ -334,13 +295,13 @@ class PostListReadServiceTest {
                 createAttachment(
                     postId = post.id!!,
                     objectKey = "posts/${post.id}/uuid-1/first.jpg",
-                    createdAt = Date(1_000L),
+                    createdAt = Instant.ofEpochMilli(1_000L),
                 )
             val laterAttachment =
                 createAttachment(
                     postId = post.id!!,
                     objectKey = "posts/${post.id}/uuid-2/later.jpg",
-                    createdAt = Date(2_000L),
+                    createdAt = Instant.ofEpochMilli(2_000L),
                 )
             every {
                 postRepository.findPostsWithConditions(
@@ -352,7 +313,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns listOf(post)
+            } returns listOf(post).withSortValues()
             every {
                 attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(post.id!!), AttachmentReferenceType.POST)
             } returns mapOf(post.id!! to listOf(laterAttachment, firstAttachment))
@@ -381,9 +342,9 @@ class PostListReadServiceTest {
                 createAttachment(
                     post.id!!,
                     "posts/thumbnail-object-key.jpg",
-                    Date(1_000L),
+                    Instant.ofEpochMilli(1_000L),
                 ).apply { id = thumbnailAttachmentId }
-            val otherAttachment = createAttachment(post.id!!, "posts/other-object-key.jpg", Date(2_000L))
+            val otherAttachment = createAttachment(post.id!!, "posts/other-object-key.jpg", Instant.ofEpochMilli(2_000L))
             every {
                 postRepository.findPostsWithConditions(
                     cursor = null,
@@ -394,7 +355,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns listOf(post)
+            } returns listOf(post).withSortValues()
             every {
                 attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(post.id!!), AttachmentReferenceType.POST)
             } returns mapOf(post.id!! to listOf(otherAttachment, thumbnailAttachment))
@@ -433,7 +394,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns listOf(post)
+            } returns listOf(post).withSortValues()
 
             // when
             val result = postListReadService.getPostContents(cursor = null, size = 20)
@@ -486,7 +447,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -532,7 +493,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -578,7 +539,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -624,7 +585,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns posts
+            } returns posts.withSortValues()
 
             // when
             val result =
@@ -688,7 +649,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -709,6 +670,45 @@ class PostListReadServiceTest {
         }
 
         @Test
+        @DisplayName("기간 랭킹 nextCursor는 전체 누적값이 아니라 기간 내 일별 집계 합계를 담는다")
+        fun getPosts_periodRankingNextCursor_usesDailyStatsSortValue() {
+            // given
+            val posts = (1..3).map { createPost(testUser) }
+            val lastContentPost = posts[1].apply { commentCount = 100 }
+            every {
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 3,
+                    period = PostPeriod.MONTH,
+                    sortType = PostSortType.COMMENT,
+                    authorId = testUser.id!!,
+                    statuses = listOf(PostStatusEnum.PUBLISHED, PostStatusEnum.PRIVATE),
+                    categoryId = null,
+                    tagIds = null,
+                    viewerId = testUser.id!!,
+                )
+            } returns posts.withSortValues { post -> if (post.id == lastContentPost.id) 5 else 10 }
+            every {
+                postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
+            } returns emptyList()
+
+            // when
+            val result =
+                postListReadService.getPosts(
+                    cursor = null,
+                    size = 2,
+                    period = PostPeriod.MONTH,
+                    sortType = PostSortType.COMMENT,
+                    currentUserId = testUser.id!!,
+                    authorId = testUser.id!!,
+                )
+
+            // then
+            val decodedCursor = PostCursor.decode(result.nextCursor!!)
+            assertThat(decodedCursor?.sortValue).isEqualTo(5)
+        }
+
+        @Test
         @DisplayName("다음 페이지가 없으면 hasNext가 false이고 nextCursor가 null이다")
         fun getPosts_noMorePosts_returnsHasNextFalse() {
             // given
@@ -725,7 +725,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns emptyList()
@@ -766,7 +766,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = testUser.id!!,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 postReadLogRepository.findByUserIdAndPostIdIn(testUser.id!!, any())
             } returns listOf(readLog)
@@ -804,7 +804,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns posts
+            } returns posts.withSortValues()
 
             // when
             val result =
@@ -844,7 +844,7 @@ class PostListReadServiceTest {
                     tagIds = null,
                     viewerId = null,
                 )
-            } returns posts
+            } returns posts.withSortValues()
             every {
                 attachmentService.getConfirmedAttachmentsByReferenceIds(listOf(otherUser.id!!), AttachmentReferenceType.USER)
             } returns mapOf(otherUser.id!! to listOf(profileAttachment))

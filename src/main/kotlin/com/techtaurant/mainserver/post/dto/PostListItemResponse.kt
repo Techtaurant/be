@@ -3,7 +3,7 @@ package com.techtaurant.mainserver.post.dto
 import com.techtaurant.mainserver.post.entity.Post
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
 import io.swagger.v3.oas.annotations.media.Schema
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 @Schema(description = "게시물 목록 아이템")
@@ -37,9 +37,9 @@ data class PostListItemResponse(
     @field:Schema(description = "게시물 상태 (DRAFT: 임시저장, PUBLISHED: 발행, PRIVATE: 비공개)")
     val status: PostStatusEnum,
     @field:Schema(description = "작성일")
-    val createdAt: Date,
+    val createdAt: Instant,
     @field:Schema(description = "최종 수정일")
-    val updatedAt: Date,
+    val updatedAt: Instant,
 ) {
     companion object {
         /**

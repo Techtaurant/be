@@ -1,7 +1,6 @@
 package com.techtaurant.mainserver.link.dto
 
 import com.techtaurant.mainserver.link.entity.Link
-import com.techtaurant.mainserver.post.enums.TagTargetType
 import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
 import java.time.Instant
@@ -17,18 +16,25 @@ data class LinkListItemResponse(
     val url: String,
     @field:Schema(description = "짧은 설명")
     val summary: String,
-    @field:Schema(description = "발행일", nullable = true)
-    val publishedAt: Instant?,
+    @field:Schema(description = "최초 출처 사용자 ID", nullable = true)
+    val sourceCompanyUserId: UUID?,
+    @field:Schema(description = "링크 생성일")
+    val createdAt: Instant,
     @field:Schema(description = "저장 여부")
     val isSaved: Boolean,
     @field:Schema(description = "읽음 여부")
     val isRead: Boolean,
+    @field:Schema(description = "조회수")
+    val viewCount: Long,
+    @field:Schema(description = "좋아요수")
+    val likeCount: Long,
     @field:ArraySchema(schema = Schema(description = "링크 태그명", example = "engineering"))
     val tags: List<String>,
 ) {
     companion object {
         fun from(
             link: Link,
+            sourceCompanyUserId: UUID?,
             isSaved: Boolean,
             isRead: Boolean,
         ): LinkListItemResponse {
@@ -37,12 +43,14 @@ data class LinkListItemResponse(
                 title = link.title,
                 url = link.url,
                 summary = link.summary,
-                publishedAt = link.publishedAt,
+                sourceCompanyUserId = sourceCompanyUserId,
+                createdAt = link.createdAt,
                 isSaved = isSaved,
                 isRead = isRead,
+                viewCount = link.viewCount,
+                likeCount = link.likeCount,
                 tags =
                     link.tags
-                        .filter { it.targetType == TagTargetType.LINK }
                         .map { it.name }
                         .sorted(),
             )

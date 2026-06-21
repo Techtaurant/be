@@ -2,7 +2,7 @@ package com.techtaurant.mainserver.comment.dto
 
 import com.techtaurant.mainserver.comment.entity.Comment
 import io.swagger.v3.oas.annotations.media.Schema
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 @Schema(description = "댓글 공개 콘텐츠 목록 응답")
@@ -20,9 +20,9 @@ data class CommentContentListResponse(
     @field:Schema(description = "댓글 깊이 (0: 댓글, 1: 대댓글)")
     val depth: Int,
     @field:Schema(description = "생성 시각")
-    val createdAt: Date,
+    val createdAt: Instant,
     @field:Schema(description = "수정 시각")
-    val updatedAt: Date,
+    val updatedAt: Instant,
 ) {
     companion object {
         fun from(comment: Comment): CommentContentListResponse =

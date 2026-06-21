@@ -11,6 +11,7 @@ import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDate
 import java.util.UUID
 
 /**
@@ -106,7 +107,7 @@ class PostLikeLogService(
     private fun updateLikeCount(
         postId: UUID,
         increment: Boolean,
-        statDate: java.sql.Date,
+        statDate: LocalDate,
     ) {
         if (increment) {
             postRepository.incrementLikeCount(postId)
@@ -117,5 +118,5 @@ class PostLikeLogService(
         }
     }
 
-    private fun toStatDate(log: PostLikeLog): java.sql.Date = DateUtils.toUtcDate(log.createdAt)
+    private fun toStatDate(log: PostLikeLog): LocalDate = DateUtils.toUtcDate(log.createdAt)
 }

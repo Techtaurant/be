@@ -35,6 +35,8 @@ spring:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
+    postgresql:
+      transactional-lock: false
 
   security:
     oauth2:
@@ -80,6 +82,16 @@ cookie:
   http-only: true
   same-site: Lax
   path: /
+
+otel:
+  sdk:
+    disabled: true
+  traces:
+    exporter: none
+  metrics:
+    exporter: none
+  logs:
+    exporter: none
 
 springdoc:
   swagger-ui:

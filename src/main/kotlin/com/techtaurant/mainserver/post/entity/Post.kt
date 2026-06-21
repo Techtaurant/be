@@ -48,7 +48,7 @@ class Post(
         joinColumns = [JoinColumn(name = "post_id")],
         inverseJoinColumns = [JoinColumn(name = "tag_id")],
     )
-    var tags: MutableSet<Tag> = mutableSetOf(),
+    override var tags: MutableSet<Tag> = mutableSetOf(),
     @Column(name = "view_count", nullable = false)
     var viewCount: Long = 0,
     @Column(name = "like_count", nullable = false)
@@ -60,4 +60,8 @@ class Post(
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     var status: PostStatusEnum = PostStatusEnum.PUBLISHED,
-) : EntityBase()
+) : EntityBase(), TaggedContent {
+    init {
+        validateTagCount()
+    }
+}

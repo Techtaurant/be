@@ -1,8 +1,10 @@
 package com.techtaurant.mainserver.post.infrastructure.out
 
 import com.techtaurant.mainserver.base.IntegrationTest
+import com.techtaurant.mainserver.post.dto.PostCursor
 import com.techtaurant.mainserver.post.entity.Category
 import com.techtaurant.mainserver.post.entity.Post
+import com.techtaurant.mainserver.post.entity.PostDailyStats
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.enums.PostStatusEnum
@@ -20,6 +22,10 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 @Transactional
@@ -27,6 +33,9 @@ import java.util.UUID
 class PostRepositoryCustomImplTest : IntegrationTest() {
     @Autowired
     private lateinit var postRepository: PostRepository
+
+    @Autowired
+    private lateinit var postDailyStatsRepository: PostDailyStatsRepository
 
     @Autowired
     private lateinit var userRepository: UserRepository
@@ -43,6 +52,7 @@ class PostRepositoryCustomImplTest : IntegrationTest() {
 
     @BeforeEach
     fun setUpTestData() {
+        postDailyStatsRepository.deleteAllInBatch()
         postRepository.deleteAll()
         userBanRepository.deleteAllInBatch()
 
@@ -93,6 +103,35 @@ class PostRepositoryCustomImplTest : IntegrationTest() {
                 category = postCategory,
             ),
         )
+
+    private fun movePostCreatedAt(
+        post: Post,
+        daysAgo: Long,
+    ): Post {
+        val createdAt = Instant.now().minus(daysAgo, ChronoUnit.DAYS)
+        post.createdAt = createdAt
+        post.updatedAt = createdAt
+        return postRepository.saveAndFlush(post)
+    }
+
+    private fun createDailyStats(
+        post: Post,
+        daysAgo: Long,
+        viewCount: Long = 0,
+        likeCount: Long = 0,
+        commentCount: Long = 0,
+    ): PostDailyStats =
+        postDailyStatsRepository.save(
+            PostDailyStats(
+                post = post,
+                statDate = statDateDaysAgo(daysAgo),
+                viewCount = viewCount,
+                likeCount = likeCount,
+                commentCount = commentCount,
+            ),
+        )
+
+    private fun statDateDaysAgo(daysAgo: Long): LocalDate = LocalDate.now(ZoneOffset.UTC).minusDays(daysAgo)
 
     @Nested
     @DisplayName("authorId 필터링")
@@ -286,6 +325,192 @@ class PostRepositoryCustomImplTest : IntegrationTest() {
             // then
             assertThat(result).hasSize(1)
             assertThat(result[0].id).isEqualTo(target.id)
+        }
+    }
+
+    @Nested
+    @DisplayName("기간 통계 랭킹")
+    inner class PeriodStatsRanking {
+        @Test
+        @DisplayName("댓글순 기간 랭킹은 게시물 작성일이 아니라 기간 내 일별 댓글 집계 합계로 정렬하고 필터링한다")
+        fun findPostsWithConditions_commentPeriodRanking_usesRecentDailyStatsInsteadOfPostCreatedAt() {
+            // given
+            val oldPostWithTodayComments = movePostCreatedAt(createPost(userA), daysAgo = 500)
+            createDailyStats(oldPostWithTodayComments, daysAgo = 0, commentCount = 5)
+
+            val oldPostWithRecentComments = movePostCreatedAt(createPost(userA), daysAgo = 400)
+            createDailyStats(oldPostWithRecentComments, daysAgo = 3, commentCount = 2)
+
+            val recentPostWithoutStats = createPost(userA)
+            val oldPostWithStaleComments = movePostCreatedAt(createPost(userA), daysAgo = 300)
+            createDailyStats(oldPostWithStaleComments, daysAgo = 31, commentCount = 99)
+
+            // when
+            val result =
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 10,
+                    period = PostPeriod.MONTH,
+                    sortType = PostSortType.COMMENT,
+                )
+
+            // then
+            assertThat(result).extracting("id").containsExactly(
+                oldPostWithTodayComments.id,
+                oldPostWithRecentComments.id,
+            )
+            assertThat(result).extracting("id").doesNotContain(
+                recentPostWithoutStats.id,
+                oldPostWithStaleComments.id,
+            )
+        }
+
+        @Test
+        @DisplayName("조회순 전체 랭킹도 post 누적값이 아니라 일별 집계 전체 합계로 정렬한다")
+        fun findPostsWithConditions_viewAllStatsRanking_usesDailyStatsTotalSum() {
+            // given
+            val postWithMoreDailyStats = movePostCreatedAt(createPost(userA), daysAgo = 500)
+            postWithMoreDailyStats.viewCount = 1
+            createDailyStats(postWithMoreDailyStats, daysAgo = 100, viewCount = 7)
+
+            val postWithFewerDailyStats = movePostCreatedAt(createPost(userA), daysAgo = 400)
+            postWithFewerDailyStats.viewCount = 100
+            createDailyStats(postWithFewerDailyStats, daysAgo = 1, viewCount = 3)
+            postRepository.saveAllAndFlush(listOf(postWithMoreDailyStats, postWithFewerDailyStats))
+
+            // when
+            val result =
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 10,
+                    period = PostPeriod.ALL,
+                    sortType = PostSortType.VIEW,
+                )
+
+            // then
+            assertThat(result).extracting("id").containsExactly(
+                postWithMoreDailyStats.id,
+                postWithFewerDailyStats.id,
+            )
+        }
+
+        @Test
+        @DisplayName("조회순 기간 랭킹은 기간 내 일별 조회 집계 합계로 정렬한다")
+        fun findPostsWithConditions_viewPeriodRanking_usesRecentDailyStatsSum() {
+            // given
+            val oldPostWithMoreViews = movePostCreatedAt(createPost(userA), daysAgo = 500)
+            oldPostWithMoreViews.viewCount = 1
+            createDailyStats(oldPostWithMoreViews, daysAgo = 0, viewCount = 7)
+
+            val oldPostWithFewerViews = movePostCreatedAt(createPost(userA), daysAgo = 400)
+            oldPostWithFewerViews.viewCount = 100
+            createDailyStats(oldPostWithFewerViews, daysAgo = 1, viewCount = 3)
+
+            // when
+            val result =
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 10,
+                    period = PostPeriod.WEEK,
+                    sortType = PostSortType.VIEW,
+                )
+
+            // then
+            assertThat(result).extracting("id").containsExactly(
+                oldPostWithMoreViews.id,
+                oldPostWithFewerViews.id,
+            )
+        }
+
+        @Test
+        @DisplayName("추천순 기간 랭킹은 기간 내 일별 추천 집계 합계로 정렬한다")
+        fun findPostsWithConditions_likePeriodRanking_usesRecentDailyStatsSum() {
+            // given
+            val oldPostWithMoreLikes = movePostCreatedAt(createPost(userA), daysAgo = 500)
+            oldPostWithMoreLikes.likeCount = 1
+            createDailyStats(oldPostWithMoreLikes, daysAgo = 0, likeCount = 4)
+
+            val oldPostWithFewerLikes = movePostCreatedAt(createPost(userA), daysAgo = 400)
+            oldPostWithFewerLikes.likeCount = 100
+            createDailyStats(oldPostWithFewerLikes, daysAgo = 1, likeCount = 2)
+
+            // when
+            val result =
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 10,
+                    period = PostPeriod.WEEK,
+                    sortType = PostSortType.LIKE,
+                )
+
+            // then
+            assertThat(result).extracting("id").containsExactly(
+                oldPostWithMoreLikes.id,
+                oldPostWithFewerLikes.id,
+            )
+        }
+
+        @Test
+        @DisplayName("기간 랭킹 커서는 전체 누적값이 아니라 기간 내 일별 집계 합계로 다음 페이지를 조회한다")
+        fun findPostsWithConditions_periodRankingCursor_usesRecentDailyStatsSortValue() {
+            // given
+            val firstPageLastPost = movePostCreatedAt(createPost(userA), daysAgo = 500)
+            firstPageLastPost.commentCount = 1_000
+            createDailyStats(firstPageLastPost, daysAgo = 0, commentCount = 10)
+
+            val secondPageFirstPost = movePostCreatedAt(createPost(userA), daysAgo = 400)
+            secondPageFirstPost.commentCount = 999
+            createDailyStats(secondPageFirstPost, daysAgo = 0, commentCount = 5)
+
+            val secondPageSecondPost = movePostCreatedAt(createPost(userA), daysAgo = 300)
+            secondPageSecondPost.commentCount = 998
+            createDailyStats(secondPageSecondPost, daysAgo = 0, commentCount = 1)
+            postRepository.saveAllAndFlush(listOf(firstPageLastPost, secondPageFirstPost, secondPageSecondPost))
+
+            val cursor =
+                PostCursor(
+                    sortValue = 10,
+                    createdAt = firstPageLastPost.createdAt,
+                    id = firstPageLastPost.id!!,
+                    sortType = PostSortType.COMMENT,
+                )
+
+            // when
+            val result =
+                postRepository.findPostsWithConditions(
+                    cursor = cursor,
+                    size = 10,
+                    period = PostPeriod.MONTH,
+                    sortType = PostSortType.COMMENT,
+                )
+
+            // then
+            assertThat(result).extracting("id").containsExactly(
+                secondPageFirstPost.id,
+                secondPageSecondPost.id,
+            )
+        }
+
+        @Test
+        @DisplayName("최신순 기간 필터는 기존처럼 게시물 작성일 기준으로 동작한다")
+        fun findPostsWithConditions_latestPeriod_keepsPostCreatedAtFilter() {
+            // given
+            val recentPost = createPost(userA)
+            val oldPost = movePostCreatedAt(createPost(userA), daysAgo = 500)
+            createDailyStats(oldPost, daysAgo = 0, commentCount = 5)
+
+            // when
+            val result =
+                postRepository.findPostsWithConditions(
+                    cursor = null,
+                    size = 10,
+                    period = PostPeriod.MONTH,
+                    sortType = PostSortType.LATEST,
+                )
+
+            // then
+            assertThat(result).extracting("id").contains(recentPost.id)
+            assertThat(result).extracting("id").doesNotContain(oldPost.id)
         }
     }
 

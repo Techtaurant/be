@@ -25,7 +25,7 @@ data class LinkCrawlBatchResponse(
     val titleSelector: String,
     @field:Schema(description = "요약 selector", nullable = true)
     val summarySelector: String?,
-    val publishedAtSelectors: List<String>,
+    val createdAtSelectors: List<String>,
     val tagNames: List<String>,
     val cronExpression: String,
     val startPage: Int,
@@ -44,7 +44,7 @@ data class LinkCrawlBatchResponse(
                 articleLinkSelector = batch.articleLinkSelector,
                 titleSelector = batch.titleSelector,
                 summarySelector = batch.summarySelector,
-                publishedAtSelectors = batch.publishedAtSelectors.toLineList(),
+                createdAtSelectors = batch.createdAtSelectors.toLineList(),
                 tagNames = batch.tagNames.toLineList(),
                 cronExpression = batch.cronExpression,
                 startPage = batch.startPage,

@@ -38,7 +38,7 @@ class LinkCrawlBatch(
     @Column(name = "summary_selector", length = 500)
     var summarySelector: String? = null,
     @Column(name = "published_at_selectors", columnDefinition = "TEXT")
-    var publishedAtSelectors: String? = null,
+    var createdAtSelectors: String? = null,
     @Column(name = "tag_names", columnDefinition = "TEXT")
     var tagNames: String? = null,
     @Column(name = "cron_expression", nullable = false, length = 120)
@@ -47,6 +47,6 @@ class LinkCrawlBatch(
     var startPage: Int = 1,
     @Column(nullable = false)
     var active: Boolean = true,
-    @Column(name = "last_triggered_at")
+    @Column(name = "last_triggered_at_utc")
     var lastTriggeredAt: Instant? = null,
 ) : EntityBase()

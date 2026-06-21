@@ -2,8 +2,8 @@ package com.techtaurant.mainserver.comment.dto
 
 import com.techtaurant.mainserver.comment.entity.Comment
 import com.techtaurant.mainserver.comment.enums.CommentSortType
+import java.time.Instant
 import java.util.Base64
-import java.util.Date
 import java.util.UUID
 
 /**
@@ -20,7 +20,7 @@ import java.util.UUID
  */
 data class CommentCursor(
     val sortValue: Long,
-    val createdAt: Date,
+    val createdAt: Instant,
     val id: UUID,
     val sortType: CommentSortType,
 ) {
@@ -28,7 +28,7 @@ data class CommentCursor(
      * 커서를 Base64 인코딩된 문자열로 변환
      */
     fun encode(): String {
-        val raw = "${sortType.name}:$sortValue:${createdAt.time}:$id"
+        val raw = "${sortType.name}|$sortValue|$createdAt|$id"
         return Base64.getUrlEncoder().withoutPadding().encodeToString(raw.toByteArray())
     }
 
@@ -42,18 +42,34 @@ data class CommentCursor(
         fun decode(cursor: String): CommentCursor? {
             return try {
                 val decoded = String(Base64.getUrlDecoder().decode(cursor))
-                val parts = decoded.split(":")
-                if (parts.size != 4) return null
-
-                val sortType = CommentSortType.fromString(parts[0])
-                val sortValue = parts[1].toLongOrNull() ?: return null
-                val timestamp = parts[2].toLongOrNull() ?: return null
-                val uuid = UUID.fromString(parts[3])
-
-                CommentCursor(sortValue, Date(timestamp), uuid, sortType)
+                decodePipeDelimited(decoded) ?: decodeLegacyColonDelimited(decoded)
             } catch (e: Exception) {
                 null
             }
+        }
+
+        private fun decodePipeDelimited(decoded: String): CommentCursor? {
+            val parts = decoded.split("|")
+            if (parts.size != 4) return null
+
+            val sortType = CommentSortType.fromString(parts[0])
+            val sortValue = parts[1].toLongOrNull() ?: return null
+            val timestamp = Instant.parse(parts[2])
+            val uuid = UUID.fromString(parts[3])
+
+            return CommentCursor(sortValue, timestamp, uuid, sortType)
+        }
+
+        private fun decodeLegacyColonDelimited(decoded: String): CommentCursor? {
+            val parts = decoded.split(":")
+            if (parts.size != 4) return null
+
+            val sortType = CommentSortType.fromString(parts[0])
+            val sortValue = parts[1].toLongOrNull() ?: return null
+            val timestamp = parts[2].toLongOrNull() ?: return null
+            val uuid = UUID.fromString(parts[3])
+
+            return CommentCursor(sortValue, Instant.ofEpochMilli(timestamp), uuid, sortType)
         }
 
         /**

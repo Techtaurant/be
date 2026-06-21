@@ -27,8 +27,8 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
+import java.time.Instant
 import java.util.Calendar
-import java.util.Date
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -389,7 +389,7 @@ class CommentReadControllerTest : IntegrationTest() {
         val deletedComment =
             parentComments[0].apply {
                 content = sha256(content)
-                deletedAt = Date()
+                deletedAt = Instant.now()
             }
         commentRepository.save(deletedComment)
 
@@ -477,7 +477,7 @@ class CommentReadControllerTest : IntegrationTest() {
         val deletedComment =
             parentComments[0].apply {
                 content = sha256(content)
-                deletedAt = Date()
+                deletedAt = Instant.now()
             }
         commentRepository.save(deletedComment)
         val activeComment = parentComments[2]
@@ -615,7 +615,7 @@ class CommentReadControllerTest : IntegrationTest() {
             val deletedComment =
                 parentComments[0].apply {
                     content = sha256(content)
-                    deletedAt = Date()
+                    deletedAt = Instant.now()
                 }
             commentRepository.save(deletedComment)
 
@@ -649,7 +649,7 @@ class CommentReadControllerTest : IntegrationTest() {
             val deletedReply =
                 replies[0].apply {
                     content = sha256(content)
-                    deletedAt = Date()
+                    deletedAt = Instant.now()
                 }
             commentRepository.save(deletedReply)
 
@@ -688,7 +688,7 @@ class CommentReadControllerTest : IntegrationTest() {
         val comment1CreatedAt =
             Calendar.getInstance().apply {
                 add(Calendar.DAY_OF_YEAR, -10)
-            }.time
+            }.toInstant()
         val comment1 =
             Comment(
                 content = "Comment 1 - 10 days ago",
@@ -705,7 +705,7 @@ class CommentReadControllerTest : IntegrationTest() {
         val comment2CreatedAt =
             Calendar.getInstance().apply {
                 add(Calendar.DAY_OF_YEAR, -5)
-            }.time
+            }.toInstant()
         val comment2 =
             Comment(
                 content = "Comment 2 - 5 days ago",
@@ -722,7 +722,7 @@ class CommentReadControllerTest : IntegrationTest() {
         val comment3CreatedAt =
             Calendar.getInstance().apply {
                 add(Calendar.DAY_OF_YEAR, -1)
-            }.time
+            }.toInstant()
         val comment3 =
             Comment(
                 content = "Comment 3 - 1 day ago",
@@ -751,7 +751,7 @@ class CommentReadControllerTest : IntegrationTest() {
         val reply1CreatedAt =
             Calendar.getInstance().apply {
                 add(Calendar.DAY_OF_YEAR, -9)
-            }.time
+            }.toInstant()
         val reply1 =
             Comment(
                 content = "Reply 1 - 9 days ago",
@@ -769,7 +769,7 @@ class CommentReadControllerTest : IntegrationTest() {
         val reply2CreatedAt =
             Calendar.getInstance().apply {
                 add(Calendar.DAY_OF_YEAR, -4)
-            }.time
+            }.toInstant()
         val reply2 =
             Comment(
                 content = "Reply 2 - 4 days ago",
@@ -787,7 +787,7 @@ class CommentReadControllerTest : IntegrationTest() {
         val reply3CreatedAt =
             Calendar.getInstance().apply {
                 add(Calendar.HOUR_OF_DAY, -12)
-            }.time
+            }.toInstant()
         val reply3 =
             Comment(
                 content = "Reply 3 - 12 hours ago",

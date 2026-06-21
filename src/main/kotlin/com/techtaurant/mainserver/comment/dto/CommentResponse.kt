@@ -2,7 +2,7 @@ package com.techtaurant.mainserver.comment.dto
 
 import com.techtaurant.mainserver.comment.entity.Comment
 import io.swagger.v3.oas.annotations.media.Schema
-import java.util.Date
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -27,9 +27,9 @@ data class CommentResponse(
     @field:Schema(description = "삭제 여부")
     val isDeleted: Boolean,
     @field:Schema(description = "생성 시각")
-    val createdAt: Date,
+    val createdAt: Instant,
     @field:Schema(description = "수정 시각")
-    val updatedAt: Date,
+    val updatedAt: Instant,
 ) {
     companion object {
         fun from(comment: Comment): CommentResponse {

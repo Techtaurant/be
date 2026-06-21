@@ -2,7 +2,7 @@ package com.techtaurant.mainserver.link.entity
 
 import com.techtaurant.mainserver.common.base.EntityBase
 import com.techtaurant.mainserver.post.entity.Tag
-import com.techtaurant.mainserver.user.entity.User
+import com.techtaurant.mainserver.post.entity.TaggedContent
 import jakarta.persistence.CascadeType
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -10,7 +10,6 @@ import jakarta.persistence.FetchType
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.JoinTable
 import jakarta.persistence.ManyToMany
-import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
 import java.time.Instant
@@ -27,16 +26,20 @@ class Link(
     var url: String,
     @Column(nullable = false, columnDefinition = "TEXT")
     var summary: String,
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "source_company_user_id", nullable = false)
-    var sourceCompanyUser: User,
-    @Column(name = "published_at")
-    var publishedAt: Instant? = null,
     @ManyToMany(fetch = FetchType.LAZY, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
     @JoinTable(
         name = "link_tags",
         joinColumns = [JoinColumn(name = "link_id")],
         inverseJoinColumns = [JoinColumn(name = "tag_id")],
     )
-    var tags: MutableSet<Tag> = mutableSetOf(),
-) : EntityBase()
+    override var tags: MutableSet<Tag> = mutableSetOf(),
+    @Column(name = "view_count", nullable = false)
+    var viewCount: Long = 0,
+    @Column(name = "like_count", nullable = false)
+    var likeCount: Long = 0,
+    createdAt: Instant = Instant.now(),
+) : EntityBase(createdAt = createdAt), TaggedContent {
+    init {
+        validateTagCount()
+    }
+}

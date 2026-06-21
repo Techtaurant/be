@@ -24,7 +24,6 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
-import java.util.Date
 import java.util.UUID
 
 @Transactional
@@ -111,7 +110,7 @@ class PostWriteServiceTest : IntegrationTest() {
     @DisplayName("생성 요청에 createdAt이 있으면 게시물 생성일시로 저장된다")
     fun createPost_withCreatedAt_savesRequestedCreatedAt() {
         val requestedCreatedAt = Instant.parse("2026-04-25T10:15:30Z")
-        val expectedCreatedAt = Date.from(requestedCreatedAt)
+        val expectedCreatedAt = requestedCreatedAt
 
         val response =
             postWriteService.createPost(
@@ -129,13 +128,13 @@ class PostWriteServiceTest : IntegrationTest() {
         val savedPost = postRepository.findById(response.id).orElseThrow()
 
         assertThat(response.createdAt).isEqualTo(expectedCreatedAt)
-        assertThat(savedPost.createdAt.time).isEqualTo(expectedCreatedAt.time)
+        assertThat(savedPost.createdAt.toEpochMilli()).isEqualTo(expectedCreatedAt.toEpochMilli())
     }
 
     @Test
     @DisplayName("생성 요청에 createdAt이 없으면 현재 시점으로 게시물이 작성된다")
     fun createPost_withoutCreatedAt_savesCurrentCreatedAt() {
-        val beforeCreate = Date()
+        val beforeCreate = Instant.now()
 
         val response =
             postWriteService.createPost(
@@ -147,13 +146,13 @@ class PostWriteServiceTest : IntegrationTest() {
                 ),
             )
 
-        val afterCreate = Date()
+        val afterCreate = Instant.now()
         entityManager.flush()
         entityManager.clear()
         val savedPost = postRepository.findById(response.id).orElseThrow()
 
-        assertThat(response.createdAt.time).isBetween(beforeCreate.time, afterCreate.time)
-        assertThat(savedPost.createdAt.time).isBetween(beforeCreate.time, afterCreate.time)
+        assertThat(response.createdAt.toEpochMilli()).isBetween(beforeCreate.toEpochMilli(), afterCreate.toEpochMilli())
+        assertThat(savedPost.createdAt.toEpochMilli()).isBetween(beforeCreate.toEpochMilli(), afterCreate.toEpochMilli())
     }
 
     @Nested

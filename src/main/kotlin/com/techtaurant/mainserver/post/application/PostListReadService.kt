@@ -18,8 +18,8 @@ import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.user.application.UserProfileImageResolver
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.util.Calendar
-import java.util.Date
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 /**
@@ -33,14 +33,11 @@ class PostListReadService(
     private val postMetadataReadService: PostMetadataReadService,
     private val postViewerStateReadService: PostViewerStateReadService,
     private val userProfileImageResolver: UserProfileImageResolver,
-    postListQueryStrategies: List<PostListQueryStrategy>,
 ) {
     companion object {
         private const val STALE_DRAFT_DAYS = 14
         private const val POST_LIST_CONTENT_MAX_LENGTH = 2000
     }
-
-    private val postListQueryStrategyByType = createPostListQueryStrategyByType(postListQueryStrategies)
 
     /**
      * 게시물 목록을 커서 기반 페이지네이션으로 조회
@@ -162,24 +159,27 @@ class PostListReadService(
             return emptyPostPage()
         }
 
-        val postListQueryCriteria =
-            PostListQueryCriteria(
+        val visibilityScope = PostVisibilityScope.from(currentUserId = currentUserId, authorId = authorId)
+        val sortedPosts =
+            postRepository.findPostsWithConditions(
                 cursor = postCursor,
-                size = size,
+                size = size + 1,
                 period = period,
                 sortType = sortType,
-                currentUserId = currentUserId,
-                authorId = authorId,
-                categoryId = categoryId,
+                authorId = visibilityScope.authorId,
+                statuses = visibilityScope.statuses,
+                categoryId = visibilityScope.categoryIdOrNull(categoryId),
+                visibleToUserId = visibilityScope.visibleToUserId,
                 tagIds = normalizedTagIds,
+                viewerId = visibilityScope.viewerId,
             )
-        val posts = selectPostListQueryStrategy(postListQueryCriteria).findPosts(postListQueryCriteria)
-        val hasNext = posts.size > size
-        val content = posts.take(size)
+        val hasNext = sortedPosts.size > size
+        val contentWithSortValues = sortedPosts.take(size)
+        val content = contentWithSortValues.map { it.post }
 
         val nextCursor =
-            if (hasNext && content.isNotEmpty()) {
-                PostCursor.from(content.last(), sortType).encode()
+            if (hasNext && contentWithSortValues.isNotEmpty()) {
+                createPostCursor(contentWithSortValues.last(), sortType).encode()
             } else {
                 null
             }
@@ -189,6 +189,17 @@ class PostListReadService(
             nextCursor = nextCursor,
             hasNext = hasNext,
             size = content.size,
+        )
+    }
+
+    private fun createPostCursor(
+        sortedPost: PostWithSortValue,
+        sortType: PostSortType,
+    ): PostCursor {
+        return PostCursor.from(
+            post = sortedPost.post,
+            sortType = sortType,
+            sortValue = sortedPost.sortValue,
         )
     }
 
@@ -205,24 +216,6 @@ class PostListReadService(
 
         return normalizedTagIds?.takeIf { it.isNotEmpty() }
     }
-
-    private fun createPostListQueryStrategyByType(strategies: List<PostListQueryStrategy>): Map<PostListQueryType, PostListQueryStrategy> {
-        val strategiesByType = strategies.groupBy { it.queryType }
-        val duplicatedTypes = strategiesByType.filterValues { it.size > 1 }.keys
-        require(duplicatedTypes.isEmpty()) {
-            "게시물 목록 조회 전략이 중복 등록되었습니다: ${duplicatedTypes.joinToString()}"
-        }
-
-        val missingTypes = PostListQueryType.entries.filterNot { strategiesByType.containsKey(it) }
-        require(missingTypes.isEmpty()) {
-            "게시물 목록 조회 전략이 누락되었습니다: ${missingTypes.joinToString()}"
-        }
-
-        return strategiesByType.mapValues { (_, strategyGroup) -> strategyGroup.single() }
-    }
-
-    private fun selectPostListQueryStrategy(criteria: PostListQueryCriteria): PostListQueryStrategy =
-        postListQueryStrategyByType.getValue(criteria.queryType)
 
     /**
      * 현재 사용자의 DRAFT 게시물 목록을 커서 기반으로 조회합니다.
@@ -267,18 +260,19 @@ class PostListReadService(
         )
     }
 
-    private fun parseDraftCursor(cursor: String): Pair<java.util.Date, UUID> {
+    private fun parseDraftCursor(cursor: String): Pair<Instant, UUID> {
         val parts = cursor.split("_")
-        val updatedAtMillis = parts[0].toLong()
         val id = UUID.fromString(parts[1])
-        return Pair(java.util.Date(updatedAtMillis), id)
+        return Pair(parseCursorInstant(parts[0]), id)
     }
 
+    private fun parseCursorInstant(value: String): Instant = value.toLongOrNull()?.let(Instant::ofEpochMilli) ?: Instant.parse(value)
+
     private fun encodeDraftCursor(
-        updatedAt: java.util.Date,
+        updatedAt: Instant,
         id: UUID,
     ): String {
-        return "${updatedAt.time}_$id"
+        return "${updatedAt}_$id"
     }
 
     /**
@@ -288,11 +282,7 @@ class PostListReadService(
      * @param userId 사용자 ID
      */
     private fun deleteExpiredDrafts(userId: UUID) {
-        val calendar =
-            Calendar.getInstance().apply {
-                add(Calendar.DAY_OF_MONTH, -STALE_DRAFT_DAYS)
-            }
-        val expirationDate = calendar.time
+        val expirationDate = Instant.now().minus(STALE_DRAFT_DAYS.toLong(), ChronoUnit.DAYS)
 
         val staleDrafts = postRepository.findStaleDraftsByAuthor(userId, expirationDate)
         staleDrafts.forEach { post ->

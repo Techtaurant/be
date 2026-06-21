@@ -10,7 +10,7 @@ import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import jakarta.persistence.Table
 import jakarta.persistence.UniqueConstraint
-import java.util.Date
+import java.time.Instant
 
 @Entity
 @Table(
@@ -23,8 +23,8 @@ import java.util.Date
     ],
     indexes = [
         Index(name = "idx_notification_recipients_notification_id", columnList = "notification_id"),
-        Index(name = "idx_notification_recipients_user_id_created_at", columnList = "user_id, created_at"),
-        Index(name = "idx_notification_recipients_user_id_read_at", columnList = "user_id, read_at"),
+        Index(name = "idx_notification_recipients_user_id_created_at_utc", columnList = "user_id, created_at_utc"),
+        Index(name = "idx_notification_recipients_user_id_read_at_utc", columnList = "user_id, read_at_utc"),
     ],
 )
 class NotificationRecipient(
@@ -34,10 +34,10 @@ class NotificationRecipient(
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     var recipientUser: User,
-    @Column(name = "read_at")
-    var readAt: Date? = null,
+    @Column(name = "read_at_utc")
+    var readAt: Instant? = null,
 ) : EntityBase() {
-    fun markAsRead(readAt: Date) {
+    fun markAsRead(readAt: Instant) {
         if (this.readAt == null) {
             this.readAt = readAt
         }

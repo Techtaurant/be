@@ -33,9 +33,8 @@ class LinkViewerStateReadServiceTest {
     fun getLinkViewerStates_returnsSavedAndReadStatesInRequestOrder() {
         // given
         val viewer = createUser("조회자", UserRole.USER)
-        val companyUser = createUser("회사", UserRole.COMPANY)
-        val readLink = createLink(companyUser)
-        val savedLink = createLink(companyUser)
+        val readLink = createLink()
+        val savedLink = createLink()
         val missingLinkId = UUID.randomUUID()
 
         every { linkRepository.findAllById(listOf(readLink.id!!, savedLink.id!!, missingLinkId)) } returns listOf(savedLink, readLink)
@@ -100,11 +99,10 @@ class LinkViewerStateReadServiceTest {
             profileImageUrl = "https://example.com/profile.jpg",
         ).apply { id = UUID.randomUUID() }
 
-    private fun createLink(sourceCompanyUser: User): Link =
+    private fun createLink(): Link =
         Link(
             title = "링크",
             url = "https://example.com/${UUID.randomUUID()}",
             summary = "요약",
-            sourceCompanyUser = sourceCompanyUser,
         ).apply { id = UUID.randomUUID() }
 }
