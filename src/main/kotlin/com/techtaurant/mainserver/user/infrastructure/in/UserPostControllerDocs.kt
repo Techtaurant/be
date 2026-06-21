@@ -5,8 +5,8 @@ import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.common.status.DefaultStatus
 import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponse
 import com.techtaurant.mainserver.common.swagger.ApiErrorCodeResponses
-import com.techtaurant.mainserver.post.dto.PostContentDetailResponse
-import com.techtaurant.mainserver.post.dto.PostContentListItemResponse
+import com.techtaurant.mainserver.post.dto.PostDetailResponse
+import com.techtaurant.mainserver.post.dto.PostListItemResponse
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.enums.PostStatus
@@ -44,12 +44,12 @@ interface UserPostControllerDocs {
         @Parameter(description = "기간 필터 (WEEK: 7일, MONTH: 30일, YEAR: 365일, ALL: 전체)") period: PostPeriod,
         @Parameter(description = "정렬 기준 (LATEST: 최신순, VIEW: 조회순, LIKE: 추천순, COMMENT: 댓글순)") sort: PostSortType,
         @Parameter(description = "카테고리 ID 필터 (생략 시 전체)") categoryId: UUID?,
-    ): ApiResponse<CursorPageResponse<PostContentListItemResponse>>
+    ): ApiResponse<CursorPageResponse<PostListItemResponse>>
 
     @Operation(
         summary = "내 게시물 상세 조회",
         description =
-            "현재 로그인 사용자가 작성한 게시물 정적 콘텐츠 상세 정보를 조회합니다. " +
+            "현재 로그인 사용자가 작성한 게시물 상세 정보를 조회합니다. " +
                 "작성자 본인만 PUBLISHED/PRIVATE/DRAFT 게시물을 조회할 수 있으며, 조회 로그는 기록하지 않습니다.",
     )
     @SwaggerApiResponse(
@@ -66,5 +66,5 @@ interface UserPostControllerDocs {
     fun getMyPostDetail(
         @Parameter(hidden = true) userId: UUID,
         @Parameter(description = "게시물 ID") postId: UUID,
-    ): ApiResponse<PostContentDetailResponse>
+    ): ApiResponse<PostDetailResponse>
 }

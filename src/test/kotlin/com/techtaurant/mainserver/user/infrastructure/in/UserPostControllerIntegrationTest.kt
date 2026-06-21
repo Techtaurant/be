@@ -14,8 +14,8 @@ import org.assertj.core.api.Assertions.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasItem
 import org.hamcrest.Matchers.hasItems
+import org.hamcrest.Matchers.hasSize
 import org.hamcrest.Matchers.not
-import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -75,9 +75,10 @@ class UserPostControllerIntegrationTest : IntegrationTest() {
             .body("data.content.id", hasItems(publishedPost.id.toString(), privatePost.id.toString()))
             .body("data.content.id", not(hasItem(draftPost.id.toString())))
             .body("data.content.id", not(hasItem(otherPost.id.toString())))
-            .body("data.content[0].viewCount", nullValue())
-            .body("data.content[0].authorName", nullValue())
-            .body("data.content[0].thumbnailUrl", nullValue())
+            .body("data.content.find { it.id == '${publishedPost.id}' }.status", equalTo("PUBLISHED"))
+            .body("data.content.find { it.id == '${privatePost.id}' }.status", equalTo("PRIVATE"))
+            .body("data.content.find { it.id == '${privatePost.id}' }.authorName", equalTo(author.name))
+            .body("data.content.find { it.id == '${privatePost.id}' }.viewCount", equalTo(0))
     }
 
     @Test
@@ -104,9 +105,11 @@ class UserPostControllerIntegrationTest : IntegrationTest() {
             .statusCode(HttpStatus.OK.value())
             .body("data.id", equalTo(privatePost.id.toString()))
             .body("data.content", equalTo("비공개 본문"))
+            .body("data.status", equalTo("PRIVATE"))
             .body("data.author.id", equalTo(author.id.toString()))
-            .body("data.viewCount", nullValue())
-            .body("data.attachmentPresignedUrls", nullValue())
+            .body("data.author.name", equalTo(author.name))
+            .body("data.viewCount", equalTo(7))
+            .body("data.attachmentPresignedUrls", hasSize<Any>(0))
 
         val updatedPost = postRepository.findById(privatePost.id!!).orElseThrow()
         assertThat(updatedPost.viewCount).isEqualTo(7)

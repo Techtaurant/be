@@ -51,7 +51,7 @@ class PostDetailReadService(
         ipAddress: String?,
         userAgent: String?,
     ): PostDetailResponse {
-        val post = getVisiblePostDetailById(postId, userId)
+        val post = getAccessiblePostDetailById(postId, userId)
 
         postViewLogService.recordView(
             postId = postId,
@@ -64,43 +64,43 @@ class PostDetailReadService(
     }
 
     /**
-     * 현재 로그인 사용자가 작성한 게시물 정적 콘텐츠 상세 정보를 조회합니다.
-     *
-     * 공개 캐시 경로와 분리된 인증 전용 조회이며, 작성자 미리보기 성격이므로 조회 로그를 기록하지 않습니다.
-     */
-    @Transactional(readOnly = true)
-    fun getMyPostContentDetail(
-        postId: UUID,
-        userId: UUID,
-    ): PostContentDetailResponse {
-        val post = getVisiblePostDetailById(postId, userId)
-
-        if (post.author.id != userId) {
-            throw ApiException(PostStatus.POST_NOT_FOUND)
-        }
-
-        return PostContentDetailResponse.from(post)
-    }
-
-    /**
      * 게시물 정적 콘텐츠 상세 정보를 조회합니다.
      *
      * 조회수 기록, 사용자 상태 계산, presigned URL 생성 없이 PUBLISHED 게시물 콘텐츠만 반환합니다.
      */
     @Transactional(readOnly = true)
     fun getPublishedPostContentDetail(postId: UUID): PostContentDetailResponse {
-        val post = getVisiblePostDetailById(postId, null)
+        val post = getAccessiblePostDetailById(postId, null)
 
         return PostContentDetailResponse.from(post)
     }
 
+    /**
+     * 현재 로그인 사용자가 작성한 게시물 상세 정보를 조회합니다.
+     *
+     * 공개 캐시 경로와 분리된 인증 전용 조회이며, 작성자 미리보기 성격이므로 조회 로그를 기록하지 않습니다.
+     */
     @Transactional(readOnly = true)
-    fun getVisiblePostDetailById(
+    fun getMyPostDetail(
+        postId: UUID,
+        userId: UUID,
+    ): PostDetailResponse {
+        val post = getAccessiblePostDetailById(postId, userId)
+
+        if (post.author.id != userId) {
+            throw ApiException(PostStatus.POST_NOT_FOUND)
+        }
+
+        return toPostDetailResponse(post, userId)
+    }
+
+    @Transactional(readOnly = true)
+    fun getAccessiblePostDetailById(
         postId: UUID,
         userId: UUID?,
     ): Post {
         val post =
-            postRepository.findVisiblePostDetailById(postId, userId)
+            postRepository.findPostDetailByIdForViewer(postId, userId)
                 ?: throw ApiException(PostStatus.POST_NOT_FOUND)
 
         if (post.status != PostStatusEnum.PUBLISHED) {

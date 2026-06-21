@@ -5,8 +5,8 @@ import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.common.swagger.ApiErrorResponses
 import com.techtaurant.mainserver.post.application.PostDetailReadService
 import com.techtaurant.mainserver.post.application.PostListReadService
-import com.techtaurant.mainserver.post.dto.PostContentDetailResponse
-import com.techtaurant.mainserver.post.dto.PostContentListItemResponse
+import com.techtaurant.mainserver.post.dto.PostDetailResponse
+import com.techtaurant.mainserver.post.dto.PostListItemResponse
 import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.enums.PostStatus
@@ -38,9 +38,9 @@ class UserPostController(
         @RequestParam(defaultValue = "ALL") period: PostPeriod,
         @RequestParam(defaultValue = "LATEST") sort: PostSortType,
         @RequestParam(required = false) categoryId: UUID?,
-    ): ApiResponse<CursorPageResponse<PostContentListItemResponse>> {
+    ): ApiResponse<CursorPageResponse<PostListItemResponse>> {
         return ApiResponse.ok(
-            postListReadService.getPostContents(
+            postListReadService.getPosts(
                 cursor = cursor,
                 size = size,
                 period = period,
@@ -57,7 +57,7 @@ class UserPostController(
     override fun getMyPostDetail(
         @AuthenticationPrincipal userId: UUID,
         @PathVariable postId: UUID,
-    ): ApiResponse<PostContentDetailResponse> {
-        return ApiResponse.ok(postDetailReadService.getMyPostContentDetail(postId, userId))
+    ): ApiResponse<PostDetailResponse> {
+        return ApiResponse.ok(postDetailReadService.getMyPostDetail(postId, userId))
     }
 }
