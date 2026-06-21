@@ -8,10 +8,12 @@ import com.techtaurant.mainserver.link.dto.CreateLinkCrawlBatchRequest
 import com.techtaurant.mainserver.link.dto.LinkBatchRunResponse
 import com.techtaurant.mainserver.link.dto.LinkCrawlBatchListItemResponse
 import com.techtaurant.mainserver.link.dto.LinkCrawlBatchResponse
+import com.techtaurant.mainserver.link.dto.LinkCrawlFailedJobResponse
 import com.techtaurant.mainserver.link.dto.UpdateLinkCrawlBatchRequest
 import com.techtaurant.mainserver.security.SecurityConstants
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -59,5 +61,30 @@ class AdminLinkCrawlBatchController(
         @PathVariable batchId: UUID,
     ): ApiResponse<LinkBatchRunResponse> {
         return ApiResponse.ok(linkBatchRunService.run(batchId))
+    }
+
+    @ApiErrorResponses(includeAuthenticationErrors = true)
+    @GetMapping("${SecurityConstants.ADMIN_API_PREFIX}/link-crawl-batches/{batchId}/failed-jobs")
+    override fun getFailedJobs(
+        @PathVariable batchId: UUID,
+    ): ApiResponse<List<LinkCrawlFailedJobResponse>> {
+        return ApiResponse.ok(linkBatchRunService.getFailedJobs(batchId))
+    }
+
+    @ApiErrorResponses(includeAuthenticationErrors = true)
+    @PostMapping("${SecurityConstants.ADMIN_API_PREFIX}/link-crawl-failed-jobs/{failedJobId}/run")
+    override fun runFailedJob(
+        @PathVariable failedJobId: UUID,
+    ): ApiResponse<LinkBatchRunResponse> {
+        return ApiResponse.ok(linkBatchRunService.runFailedJob(failedJobId))
+    }
+
+    @ApiErrorResponses(includeAuthenticationErrors = true)
+    @DeleteMapping("${SecurityConstants.ADMIN_API_PREFIX}/link-crawl-failed-jobs/{failedJobId}")
+    override fun deleteFailedJob(
+        @PathVariable failedJobId: UUID,
+    ): ApiResponse<Unit> {
+        linkBatchRunService.deleteFailedJob(failedJobId)
+        return ApiResponse.ok()
     }
 }
