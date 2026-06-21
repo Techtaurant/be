@@ -7,9 +7,13 @@ import com.techtaurant.mainserver.link.application.LinkLikeLogService
 import com.techtaurant.mainserver.link.application.LinkReadLogService
 import com.techtaurant.mainserver.link.application.LinkReadService
 import com.techtaurant.mainserver.link.application.LinkSaveService
+import com.techtaurant.mainserver.link.application.LinkWriteService
+import com.techtaurant.mainserver.link.dto.CreateLinkRequest
+import com.techtaurant.mainserver.link.dto.LinkContentDetailResponse
 import com.techtaurant.mainserver.link.dto.LinkListItemResponse
 import com.techtaurant.mainserver.link.dto.RecordLinkLikeRequest
 import com.techtaurant.mainserver.link.dto.RecordLinkReadRequest
+import com.techtaurant.mainserver.link.dto.UpdateLinkRequest
 import jakarta.validation.Valid
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
@@ -18,6 +22,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.validation.annotation.Validated
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -35,6 +40,7 @@ class LinkController(
     private val linkSaveService: LinkSaveService,
     private val linkReadLogService: LinkReadLogService,
     private val linkLikeLogService: LinkLikeLogService,
+    private val linkWriteService: LinkWriteService,
 ) : LinkControllerDocs {
     @ApiErrorResponses(includeAuthenticationErrors = true)
     @GetMapping("/companies/{companyUserId}/links")
@@ -46,6 +52,26 @@ class LinkController(
         @RequestParam(required = false) tag: String?,
     ): ApiResponse<CursorPageResponse<LinkListItemResponse>> {
         return ApiResponse.ok(linkReadService.getCompanyLinks(companyUserId, userId, cursor, size, tag))
+    }
+
+    @ApiErrorResponses(includeAuthenticationErrors = true, includeValidationError = true)
+    @PostMapping("/links")
+    @ResponseStatus(HttpStatus.CREATED)
+    override fun createLink(
+        @AuthenticationPrincipal userId: UUID,
+        @Valid @RequestBody request: CreateLinkRequest,
+    ): ApiResponse<LinkContentDetailResponse> {
+        return ApiResponse.created(linkWriteService.createLink(userId, request))
+    }
+
+    @ApiErrorResponses(includeAuthenticationErrors = true, includeValidationError = true)
+    @PatchMapping("/links/{linkId}")
+    override fun updateLink(
+        @AuthenticationPrincipal userId: UUID,
+        @PathVariable linkId: UUID,
+        @Valid @RequestBody request: UpdateLinkRequest,
+    ): ApiResponse<LinkContentDetailResponse> {
+        return ApiResponse.ok(linkWriteService.updateLink(linkId, userId, request))
     }
 
     @ApiErrorResponses(includeAuthenticationErrors = true)
