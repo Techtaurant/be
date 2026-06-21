@@ -60,35 +60,26 @@ class PostDetailReadService(
             userAgent = userAgent,
         )
 
-        val likeStatus =
-            userId?.let {
-                val log = postLikeLogRepository.findByPostIdAndUserId(postId, it)
-                when {
-                    log == null -> LikeStatus.NONE
-                    log.isLiked -> LikeStatus.LIKE
-                    else -> LikeStatus.DISLIKE
-                }
-            } ?: LikeStatus.NONE
+        return toPostDetailResponse(post, userId)
+    }
 
-        val isRead =
-            userId?.let {
-                postReadLogRepository.existsByPostIdAndUserId(postId, it)
-            } ?: false
+    /**
+     * 현재 로그인 사용자가 작성한 게시물 정적 콘텐츠 상세 정보를 조회합니다.
+     *
+     * 공개 캐시 경로와 분리된 인증 전용 조회이며, 작성자 미리보기 성격이므로 조회 로그를 기록하지 않습니다.
+     */
+    @Transactional(readOnly = true)
+    fun getMyPostContentDetail(
+        postId: UUID,
+        userId: UUID,
+    ): PostContentDetailResponse {
+        val post = getVisiblePostDetailById(postId, userId)
 
-        val attachmentPresignedUrls =
-            attachmentService.generatePresignedDownloadUrlMapByReference(postId, AttachmentReferenceType.POST)
-                .map { (attachmentId, presignedUrl) ->
-                    PostDetailAttachmentPresignedUrlResponse.from(attachmentId, presignedUrl)
-                }
-        val authorProfileImageUrl = userProfileImageResolver.resolve(post.author)
+        if (post.author.id != userId) {
+            throw ApiException(PostStatus.POST_NOT_FOUND)
+        }
 
-        return PostDetailResponse.from(
-            post = post,
-            likeStatus = likeStatus,
-            isRead = isRead,
-            authorProfileImageUrl = authorProfileImageUrl,
-            attachmentPresignedUrls = attachmentPresignedUrls,
-        )
+        return PostContentDetailResponse.from(post)
     }
 
     /**
@@ -119,5 +110,51 @@ class PostDetailReadService(
         }
 
         return post
+    }
+
+    private fun toPostDetailResponse(
+        post: Post,
+        userId: UUID?,
+    ): PostDetailResponse {
+        val postId = post.id!!
+        val likeStatus = resolveLikeStatus(postId, userId)
+        val isRead = resolveReadStatus(postId, userId)
+        val attachmentPresignedUrls = getAttachmentPresignedUrls(postId)
+        val authorProfileImageUrl = userProfileImageResolver.resolve(post.author)
+
+        return PostDetailResponse.from(
+            post = post,
+            likeStatus = likeStatus,
+            isRead = isRead,
+            authorProfileImageUrl = authorProfileImageUrl,
+            attachmentPresignedUrls = attachmentPresignedUrls,
+        )
+    }
+
+    private fun resolveLikeStatus(
+        postId: UUID,
+        userId: UUID?,
+    ): LikeStatus {
+        val log = userId?.let { postLikeLogRepository.findByPostIdAndUserId(postId, it) }
+
+        return when {
+            log == null -> LikeStatus.NONE
+            log.isLiked -> LikeStatus.LIKE
+            else -> LikeStatus.DISLIKE
+        }
+    }
+
+    private fun resolveReadStatus(
+        postId: UUID,
+        userId: UUID?,
+    ): Boolean {
+        return userId?.let { postReadLogRepository.existsByPostIdAndUserId(postId, it) } ?: false
+    }
+
+    private fun getAttachmentPresignedUrls(postId: UUID): List<PostDetailAttachmentPresignedUrlResponse> {
+        return attachmentService.generatePresignedDownloadUrlMapByReference(postId, AttachmentReferenceType.POST)
+            .map { (attachmentId, presignedUrl) ->
+                PostDetailAttachmentPresignedUrlResponse.from(attachmentId, presignedUrl)
+            }
     }
 }

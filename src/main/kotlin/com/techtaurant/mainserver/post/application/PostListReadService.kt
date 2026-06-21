@@ -111,13 +111,15 @@ class PostListReadService(
     /**
      * 게시물 정적 콘텐츠 목록을 커서 기반 페이지네이션으로 조회합니다.
      *
-     * 동적 집계, 사용자 상태, presigned URL 생성 없이 SSG/ISR에 적합한 콘텐츠 필드만 반환합니다.
+     * 동적 집계, 사용자 상태, presigned URL 생성 없이 콘텐츠 필드만 반환합니다.
+     * 공개 API는 currentUserId 없이 호출하고, 인증된 내 게시물 API는 currentUserId와 authorId를 함께 전달해 PRIVATE까지 포함합니다.
      */
     fun getPostContents(
         cursor: String?,
         size: Int,
         period: PostPeriod = PostPeriod.ALL,
         sortType: PostSortType = PostSortType.LATEST,
+        currentUserId: UUID? = null,
         authorId: UUID? = null,
         categoryId: UUID? = null,
         tagIds: List<UUID>? = null,
@@ -128,7 +130,7 @@ class PostListReadService(
                 size = size,
                 period = period,
                 sortType = sortType,
-                currentUserId = null,
+                currentUserId = currentUserId,
                 authorId = authorId,
                 categoryId = categoryId,
                 tagIds = tagIds,
