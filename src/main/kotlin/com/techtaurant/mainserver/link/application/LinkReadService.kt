@@ -62,7 +62,7 @@ class LinkReadService(
     /**
      * 공개 링크 정적 콘텐츠 목록을 명시적 정렬/기간과 함께 커서 기반으로 조회합니다 (v1).
      *
-     * - PUBLISHED: 링크 생성일 최신순
+     * - PUBLISHED: 기간(period) 내 링크 생성일 최신순
      * - LIKE/SAVE: 기간(period) 윈도우 내 일별 좋아요/저장 집계 합 기준 (period=ALL이면 전체 누적)
      *
      * 커서는 정렬 타입을 포함하며, 요청 sort와 커서의 정렬 타입이 다르면 INVALID_LINK_CURSOR를 반환합니다.

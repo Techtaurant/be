@@ -26,13 +26,14 @@ import org.springframework.stereotype.Repository
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 /**
  * 공개 링크 동적 정렬/페이지네이션 구현체 (v1)
  *
  * JPA Criteria API와 Metamodel을 사용해 정렬 타입별 키셋 커서 페이지네이션을 지원합니다.
- * - PUBLISHED: 링크 생성일 기준 정렬
+ * - PUBLISHED: 링크 생성일 기간 필터 및 생성일 기준 정렬
  * - LIKE/SAVE: LinkDailyStats를 기간 윈도우로 집계한 합 기준 정렬
  */
 @Repository
@@ -49,7 +50,8 @@ class LinkRepositoryCustomImpl : LinkRepositoryCustom {
         tag: String?,
     ): List<RankedLinkId> =
         when (sortType) {
-            LinkSortType.PUBLISHED -> findCreatedAtRankedIds(cursor, limit, sourceCompanyUserId, tag)
+            LinkSortType.PUBLISHED ->
+                findCreatedAtRankedIds(cursor, limit, period, sourceCompanyUserId, tag)
             LinkSortType.LIKE, LinkSortType.SAVE ->
                 findStatsRankedIds(cursor, limit, sortType, period, sourceCompanyUserId, tag)
         }
@@ -57,6 +59,7 @@ class LinkRepositoryCustomImpl : LinkRepositoryCustom {
     private fun findCreatedAtRankedIds(
         cursor: LinkCursorV1?,
         limit: Int,
+        period: LinkPeriod,
         sourceCompanyUserId: UUID?,
         tag: String?,
     ): List<RankedLinkId> {
@@ -66,6 +69,7 @@ class LinkRepositoryCustomImpl : LinkRepositoryCustom {
         val predicates = mutableListOf<Predicate>()
 
         addBaseConditions(cb, cq, root, sourceCompanyUserId, tag, predicates)
+        addCreatedAtPeriodCondition(cb, root, period, predicates)
         cursor?.let { predicates.add(buildCreatedAtCursorCondition(cb, root, it)) }
 
         cq.select(root.get(EntityBase_.id))
@@ -165,6 +169,20 @@ class LinkRepositoryCustomImpl : LinkRepositoryCustom {
             cb.equal(tagJoin.get(Tag_.name), tag),
         )
         predicates.add(cb.exists(subquery))
+    }
+
+    private fun addCreatedAtPeriodCondition(
+        cb: CriteriaBuilder,
+        root: Root<Link>,
+        period: LinkPeriod,
+        predicates: MutableList<Predicate>,
+    ) {
+        period.days?.let { days ->
+            val cutoffInstant = Instant.now().minus(days.toLong(), ChronoUnit.DAYS)
+            predicates.add(
+                cb.greaterThanOrEqualTo(root.get(EntityBase_.createdAt), cutoffInstant),
+            )
+        }
     }
 
     private fun addStatsJoinCondition(

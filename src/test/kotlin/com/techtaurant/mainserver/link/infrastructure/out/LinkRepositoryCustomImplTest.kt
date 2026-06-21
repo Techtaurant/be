@@ -88,6 +88,26 @@ class LinkRepositoryCustomImplTest : IntegrationTest() {
     }
 
     @Test
+    @DisplayName("PUBLISHED 정렬은 period 기준 생성일 필터를 적용한다")
+    fun findPublicLinkIds_published_filtersByCreatedAtPeriod() {
+        val recent = createLink(createdAtDaysAgo = 1)
+        val stale = createLink(createdAtDaysAgo = 8)
+
+        val result =
+            linkRepository.findPublicLinkIds(
+                cursor = null,
+                limit = 10,
+                sortType = LinkSortType.PUBLISHED,
+                period = LinkPeriod.WEEK,
+                sourceCompanyUserId = null,
+                tag = null,
+            )
+
+        assertThat(result.map { it.linkId }).containsExactly(recent.id)
+        assertThat(result.map { it.linkId }).doesNotContain(stale.id)
+    }
+
+    @Test
     @DisplayName("PUBLISHED 정렬 커서는 생성일 기준으로 다음 페이지를 이어 조회한다")
     fun findPublicLinkIds_published_paginatesByCursor() {
         val newest = createLink(createdAt = Instant.parse("2026-04-03T00:00:00Z"))

@@ -3,7 +3,7 @@ package com.techtaurant.mainserver.link.enums
 /**
  * 공개 링크 조회 기간 필터
  *
- * LIKE/SAVE 정렬의 일별 집계 윈도우를 결정합니다. PUBLISHED 정렬에는 적용되지 않습니다.
+ * PUBLISHED 정렬에서는 링크 생성일 필터를, LIKE/SAVE 정렬에서는 일별 집계 윈도우를 결정합니다.
  *
  * @property days 필터링할 일수 (null이면 전체 기간)
  */
