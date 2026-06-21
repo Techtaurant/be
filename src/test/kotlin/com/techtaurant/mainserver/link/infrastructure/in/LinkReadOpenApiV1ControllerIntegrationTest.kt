@@ -27,6 +27,7 @@ import org.springframework.transaction.support.TransactionTemplate
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 @DisplayName("LinkReadOpenApiV1Controller 통합 테스트")
@@ -117,6 +118,35 @@ class LinkReadOpenApiV1ControllerIntegrationTest : IntegrationTest() {
             .body("data.content[0].id", equalTo(oldest.id.toString()))
             .body("data.nextCursor", nullValue())
             .body("data.hasNext", equalTo(false))
+    }
+
+    @Test
+    @DisplayName("v1 PUBLISHED 정렬은 period 기준 생성일 필터를 적용한다")
+    fun getLinkContents_published_filtersByPeriod() {
+        val recent =
+            saveLink(
+                "Recent",
+                company,
+                createdAtMillis = 1_000,
+                createdAt = Instant.now().minus(1, ChronoUnit.DAYS),
+            )
+        saveLink(
+            "Stale",
+            company,
+            createdAtMillis = 2_000,
+            createdAt = Instant.now().minus(8, ChronoUnit.DAYS),
+        )
+
+        given()
+            .queryParam("sort", "PUBLISHED")
+            .queryParam("period", "WEEK")
+            .queryParam("size", 10)
+            .`when`()
+            .get("/open-api/v1/links")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.content", hasSize<Any>(1))
+            .body("data.content[0].id", equalTo(recent.id.toString()))
     }
 
     @Test

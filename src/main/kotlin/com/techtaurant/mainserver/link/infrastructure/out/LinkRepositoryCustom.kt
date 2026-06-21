@@ -18,7 +18,7 @@ interface LinkRepositoryCustom {
      * @param cursor 커서 (null이면 첫 페이지)
      * @param limit 조회 개수 (hasNext 판별을 위해 보통 size + 1을 전달)
      * @param sortType 정렬 타입
-     * @param period 기간 필터 (LIKE/SAVE의 일별 집계 윈도우, PUBLISHED는 미적용)
+     * @param period 기간 필터 (PUBLISHED는 생성일, LIKE/SAVE는 일별 집계 윈도우)
      * @param sourceCompanyUserId 출처 회사 사용자 ID 필터 (null이면 전체)
      * @param tag 태그명 필터 (null이면 전체)
      * @return 정렬 순서를 유지한 ID + 정렬값 목록
