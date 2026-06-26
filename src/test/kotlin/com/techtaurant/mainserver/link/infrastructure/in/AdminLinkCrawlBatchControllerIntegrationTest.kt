@@ -308,10 +308,10 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
             .statusCode(HttpStatus.OK.value())
             .body("data.collectedCount", equalTo(0))
             .body("data.newLinkCount", equalTo(0))
-            .body("data.failedJobCount", equalTo(2))
+            .body("data.failedJobCount", equalTo(3))
 
         val failedJobs = linkCrawlFailedJobRepository.findAllByBatchIdOrderByCreatedAtAsc(batch.id!!)
-        assertEquals(2, failedJobs.size)
+        assertEquals(3, failedJobs.size)
 
         given()
             .header("Authorization", "Bearer $adminAccessToken")
@@ -319,7 +319,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
             .get("/admin/link-crawl-batches/${batch.id}/failed-jobs")
             .then()
             .statusCode(HttpStatus.OK.value())
-            .body("data", hasSize<Any>(2))
+            .body("data", hasSize<Any>(3))
             .body("data[0].batchId", equalTo(batch.id.toString()))
             .body("data[0].failureCount", equalTo(1))
             .body("data[0].errorStatusCode", equalTo(6006))
@@ -347,15 +347,16 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
             .get("/admin/link-crawl-batches/${batch.id}/failed-jobs")
             .then()
             .statusCode(HttpStatus.OK.value())
-            .body("data", hasSize<Any>(1))
+            .body("data", hasSize<Any>(2))
 
-        val remainingFailedJobId = linkCrawlFailedJobRepository.findAllByBatchIdOrderByCreatedAtAsc(batch.id!!).single().id!!
-        given()
-            .header("Authorization", "Bearer $adminAccessToken")
-            .`when`()
-            .delete("/admin/link-crawl-failed-jobs/$remainingFailedJobId")
-            .then()
-            .statusCode(HttpStatus.OK.value())
+        linkCrawlFailedJobRepository.findAllByBatchIdOrderByCreatedAtAsc(batch.id!!).forEach { remaining ->
+            given()
+                .header("Authorization", "Bearer $adminAccessToken")
+                .`when`()
+                .delete("/admin/link-crawl-failed-jobs/${remaining.id}")
+                .then()
+                .statusCode(HttpStatus.OK.value())
+        }
 
         given()
             .header("Authorization", "Bearer $adminAccessToken")

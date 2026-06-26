@@ -210,6 +210,8 @@ class LinkBatchRunService(
 
         return runCatching {
             saveNewLinkOrRefreshExistingLink(snapshot, batch, tagResolver)
+        }.onSuccess {
+            clearFailedJob(batch, snapshot.url)
         }.getOrElse { exception ->
             recordFailedJob(batch, snapshot.toFailedJobDraft(), page, pageUrl, exception)
             LinkCollectionResult.FAILED
@@ -367,6 +369,15 @@ class LinkBatchRunService(
                 )
 
         linkCrawlFailedJobRepository.save(failedJob)
+    }
+
+    private fun clearFailedJob(
+        batch: LinkCrawlBatch,
+        articleUrl: String,
+    ) {
+        val batchId = batch.id ?: return
+        linkCrawlFailedJobRepository.findByBatchIdAndArticleUrl(batchId, articleUrl)
+            ?.let(linkCrawlFailedJobRepository::delete)
     }
 
     private fun Throwable.toErrorStatusCode(): Int {
@@ -611,7 +622,7 @@ class LinkBatchRunService(
         CONNECTED_EXISTING_LINK(true),
         UPDATED_EXISTING_LINK(false),
         SKIPPED(false),
-        FAILED(false),
+        FAILED(true),
     }
 
     private class LinkTagResolver(

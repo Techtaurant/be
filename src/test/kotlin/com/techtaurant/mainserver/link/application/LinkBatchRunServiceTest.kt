@@ -165,6 +165,60 @@ class LinkBatchRunServiceTest {
         }
     }
 
+    @Test
+    @DisplayName("정상 재수집에 성공하면 이전에 쌓인 실패 작업을 제거한다")
+    fun runClearsStaleFailedJobWhenPreviouslyFailedLinkIsCollected() {
+        val batchId = UUID.randomUUID()
+        val batch = createBatch(createdAtSelectors = ".created-date").apply { id = batchId }
+        val pageUrl = "https://example.com/articles?page=1"
+        val articleUrl = "https://example.com/article/metric-review"
+        val staleJob =
+            LinkCrawlFailedJob(
+                batch = batch,
+                sourcePage = 1,
+                sourcePageUrl = pageUrl,
+                articleUrl = articleUrl,
+                errorStatusCode = 500,
+                errorMessage = "이전 실패",
+            )
+        linkDocumentFetcher.setHtml(pageUrl, crawlableHtml())
+        every { linkCrawlBatchRepository.findById(batchId) } returns Optional.of(batch)
+        every { linkCrawlFailedJobRepository.findByBatchIdAndArticleUrl(batchId, articleUrl) } returns staleJob
+        every { linkRepository.findByUrl(articleUrl) } returns null
+        every { linkRepository.save(any<Link>()) } answers {
+            (invocation.args[0] as Link).apply { id = UUID.randomUUID() }
+        }
+
+        val response = linkBatchRunService.run(batchId)
+
+        assertEquals(1, response.newLinkCount)
+        verify(exactly = 1) { linkCrawlFailedJobRepository.delete(staleJob) }
+    }
+
+    @Test
+    @DisplayName("한 페이지의 모든 링크가 실패해도 다음 페이지 수집을 계속한다")
+    fun runContinuesToNextPageWhenEveryLinkOnPageIsRecordedAsFailed() {
+        val batchId = UUID.randomUUID()
+        val batch = createBatch(createdAtSelectors = ".created-date").apply { id = batchId }
+        val firstPageUrl = "https://example.com/articles?page=1"
+        val secondPageUrl = "https://example.com/articles?page=2"
+        linkDocumentFetcher.setHtml(firstPageUrl, failingOnlyHtml())
+        linkDocumentFetcher.setHtml("https://example.com/article/missing-date", articleDetailWithoutCreatedAt())
+        linkDocumentFetcher.setHtml(secondPageUrl, crawlableHtml())
+        every { linkCrawlBatchRepository.findById(batchId) } returns Optional.of(batch)
+        every { linkCrawlFailedJobRepository.save(any()) } answers { invocation.args[0] as LinkCrawlFailedJob }
+        every { linkRepository.findByUrl("https://example.com/article/metric-review") } returns null
+        every { linkRepository.save(any<Link>()) } answers {
+            (invocation.args[0] as Link).apply { id = UUID.randomUUID() }
+        }
+
+        val response = linkBatchRunService.run(batchId)
+
+        assertEquals(1, response.failedJobCount)
+        assertEquals(1, response.newLinkCount)
+        verify(exactly = 1) { linkRepository.save(any()) }
+    }
+
     private fun createBatch(createdAtSelectors: String): LinkCrawlBatch {
         return LinkCrawlBatch(
             companyUser =
@@ -222,6 +276,21 @@ class LinkBatchRunServiceTest {
                     <div class="title">정상 수집 글</div>
                     <div class="summary">정상적으로 수집되는 글입니다.</div>
                     <div class="created-date">2026년 4월 21일</div>
+                  </a>
+                </div>
+              </body>
+            </html>
+            """.trimIndent()
+    }
+
+    private fun failingOnlyHtml(): String {
+        return """
+            <html>
+              <body>
+                <div class="article-card">
+                  <a class="article-link" href="/article/missing-date">
+                    <div class="title">생성일 없는 글</div>
+                    <div class="summary">생성일 selector가 맞지 않는 글입니다.</div>
                   </a>
                 </div>
               </body>
