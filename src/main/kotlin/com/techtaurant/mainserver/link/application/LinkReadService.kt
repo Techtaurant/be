@@ -29,6 +29,7 @@ class LinkReadService(
     private val userLinkRepository: UserLinkRepository,
     private val linkReadLogRepository: LinkReadLogRepository,
     private val userRepository: UserRepository,
+    private val linkSourceService: LinkSourceService,
 ) {
     fun getPublicLinkContents(
         cursor: String?,
@@ -301,8 +302,7 @@ class LinkReadService(
         }
 
         return linkIds.associateWith { linkId ->
-            userLinkRepository.findFirstSourceByLinkId(linkId, PageRequest.of(0, 1)).firstOrNull()?.user?.id
-                ?: throw ApiException(LinkStatus.LINK_NOT_FOUND)
+            linkSourceService.getSourceUserId(linkId)
         }
     }
 }
