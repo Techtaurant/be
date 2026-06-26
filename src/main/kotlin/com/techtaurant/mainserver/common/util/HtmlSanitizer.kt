@@ -1,5 +1,7 @@
 package com.techtaurant.mainserver.common.util
 
+import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.common.status.StatusIfs
 import org.jsoup.Jsoup
 import org.jsoup.safety.Cleaner
 import org.jsoup.safety.Safelist
@@ -97,5 +99,24 @@ object HtmlSanitizer {
      */
     fun sanitizeTitle(text: String): String {
         return Jsoup.clean(text, Safelist.none())
+    }
+
+    /**
+     * 모든 HTML 태그를 제거하고 공백을 정리한 필수 plain text를 반환합니다.
+     * sanitize 결과가 비어 있으면 전달받은 상태 코드로 예외를 던집니다.
+     *
+     * @param text sanitize할 문자열
+     * @param blankStatus sanitize 결과가 공백일 때 던질 상태 코드
+     * @return 태그가 제거되고 trim된 비어 있지 않은 plain text
+     */
+    fun sanitizeRequiredPlainText(
+        text: String,
+        blankStatus: StatusIfs,
+    ): String {
+        val sanitized = sanitizeTitle(text).trim()
+        if (sanitized.isBlank()) {
+            throw ApiException(blankStatus)
+        }
+        return sanitized
     }
 }

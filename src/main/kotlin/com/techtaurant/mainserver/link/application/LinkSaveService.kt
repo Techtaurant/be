@@ -47,11 +47,16 @@ class LinkSaveService(
         linkId: UUID,
         userId: UUID,
     ) {
-        val existingRelation = userLinkRepository.findByUserIdAndLinkIdForUpdate(userId, linkId)
-        if (existingRelation != null) {
-            val statDate = DateUtils.toUtcDate(existingRelation.createdAt)
-            userLinkRepository.delete(existingRelation)
-            linkDailyStatsService.decrementSaveCount(linkId, statDate)
+        val existingRelation = userLinkRepository.findByUserIdAndLinkIdForUpdate(userId, linkId) ?: return
+
+        val statDate = DateUtils.toUtcDate(existingRelation.createdAt)
+        userLinkRepository.delete(existingRelation)
+        linkDailyStatsService.decrementSaveCount(linkId, statDate)
+
+        // 마지막 저장자가 취소하면 고아 링크가 되므로 삭제한다.
+        // 다른 저장자가 남아 있으면 source(첫 번째 등록자)는 createdAt 순서상 다음 저장자로 자연스럽게 이전된다.
+        if (!userLinkRepository.existsByLinkId(linkId)) {
+            linkRepository.deleteById(linkId)
         }
     }
 }

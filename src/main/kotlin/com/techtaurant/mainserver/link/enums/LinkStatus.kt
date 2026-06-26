@@ -14,6 +14,12 @@ enum class LinkStatus(
     INVALID_LINK_CURSOR(HttpStatus.BAD_REQUEST.value(), 6005, "유효한 링크 커서가 아닙니다"),
     LINK_CRAWL_BATCH_CREATED_AT_REQUIRED(HttpStatus.BAD_REQUEST.value(), 6006, "링크 수집 배치에서 생성일을 수집할 수 없습니다"),
     LINK_CRAWL_BATCH_NOT_CRAWLABLE(HttpStatus.BAD_REQUEST.value(), 6007, "링크 수집 배치를 크롤링할 수 없습니다"),
+    CANNOT_MODIFY_LINK(HttpStatus.FORBIDDEN.value(), 6008, "첫 번째 등록자만 링크를 수정할 수 있습니다"),
+    LINK_TITLE_REQUIRED(HttpStatus.BAD_REQUEST.value(), 6009, "링크 제목은 필수입니다"),
+    LINK_URL_REQUIRED(HttpStatus.BAD_REQUEST.value(), 6010, "링크 URL은 필수입니다"),
+    LINK_SUMMARY_REQUIRED(HttpStatus.BAD_REQUEST.value(), 6011, "링크 요약은 필수입니다"),
+    INVALID_LINK_URL(HttpStatus.BAD_REQUEST.value(), 6012, "유효한 링크 URL이 아닙니다"),
+    LINK_URL_ALREADY_EXISTS(HttpStatus.CONFLICT.value(), 6013, "이미 등록된 링크 URL입니다"),
     ;
 
     override fun getHttpStatusCode(): Int {

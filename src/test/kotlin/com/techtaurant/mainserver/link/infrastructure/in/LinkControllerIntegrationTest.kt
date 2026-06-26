@@ -9,8 +9,11 @@ import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import io.restassured.RestAssured.given
+import org.hamcrest.Matchers.containsInAnyOrder
 import org.hamcrest.Matchers.equalTo
 import org.hamcrest.Matchers.hasSize
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -34,7 +37,9 @@ class LinkControllerIntegrationTest : IntegrationTest() {
 
     private lateinit var companyUser: User
     private lateinit var normalUser: User
+    private lateinit var anotherUser: User
     private lateinit var accessToken: String
+    private lateinit var anotherAccessToken: String
     private lateinit var firstLink: Link
     private lateinit var secondLink: Link
 
@@ -64,7 +69,20 @@ class LinkControllerIntegrationTest : IntegrationTest() {
                 ),
             )
 
+        anotherUser =
+            userRepository.save(
+                User(
+                    name = "다른사용자",
+                    email = "another-${UUID.randomUUID()}@example.com",
+                    provider = OAuthProvider.GOOGLE,
+                    identifier = "another-user-id-${UUID.randomUUID()}",
+                    role = UserRole.USER,
+                    profileImageUrl = "https://example.com/another.png",
+                ),
+            )
+
         accessToken = jwtTokenProvider.createAccessToken(normalUser.id!!, normalUser.role)
+        anotherAccessToken = jwtTokenProvider.createAccessToken(anotherUser.id!!, anotherUser.role)
 
         firstLink =
             linkRepository.save(
@@ -208,5 +226,121 @@ class LinkControllerIntegrationTest : IntegrationTest() {
             .statusCode(HttpStatus.OK.value())
             .body("data.content.find { it.id == '${firstLink.id}' }.likeCount", equalTo(1))
             .body("data.content.find { it.id == '${firstLink.id}' }.viewCount", equalTo(2))
+    }
+
+    @Test
+    @DisplayName("사용자는 링크를 직접 등록할 수 있다")
+    fun userCanCreateLink() {
+        val createdLinkId =
+            given()
+                .contentType("application/json")
+                .header("Authorization", "Bearer $accessToken")
+                .body(
+                    """
+                    {
+                      "title": "<b>직접 등록한 링크</b>",
+                      "url": "https://example.com/articles/direct-link",
+                      "summary": "직접 등록한 링크 요약입니다.",
+                      "tags": ["Kotlin", "api"]
+                    }
+                    """.trimIndent(),
+                )
+                .`when`()
+                .post("/api/links")
+                .then()
+                .statusCode(HttpStatus.CREATED.value())
+                .body("data.title", equalTo("직접 등록한 링크"))
+                .body("data.url", equalTo("https://example.com/articles/direct-link"))
+                .body("data.summary", equalTo("직접 등록한 링크 요약입니다."))
+                .body("data.sourceCompanyUserId", equalTo(normalUser.id.toString()))
+                .body("data.tags", containsInAnyOrder("api", "kotlin"))
+                .extract()
+                .path<String>("data.id")
+
+        val createdLink = linkRepository.findByUrl("https://example.com/articles/direct-link")
+        assertNotNull(createdLink)
+        assertEquals(createdLinkId, createdLink!!.id.toString())
+        assertNotNull(userLinkRepository.findByUserIdAndLinkId(normalUser.id!!, createdLink.id!!))
+    }
+
+    @Test
+    @DisplayName("첫 번째 등록자는 링크를 수정할 수 있다")
+    fun firstSourceCanUpdateLink() {
+        val createdLinkId = createLinkByApi(accessToken, "https://example.com/articles/updatable-link")
+
+        given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $accessToken")
+            .body(
+                """
+                {
+                  "title": "수정된 링크 제목",
+                  "summary": "수정된 링크 요약입니다.",
+                  "tags": ["Spring", "backend"]
+                }
+                """.trimIndent(),
+            )
+            .`when`()
+            .patch("/api/links/$createdLinkId")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data.id", equalTo(createdLinkId))
+            .body("data.title", equalTo("수정된 링크 제목"))
+            .body("data.summary", equalTo("수정된 링크 요약입니다."))
+            .body("data.tags", containsInAnyOrder("backend", "spring"))
+
+        val updatedLink = linkRepository.findByIdWithTags(UUID.fromString(createdLinkId))
+        assertNotNull(updatedLink)
+        assertEquals("수정된 링크 제목", updatedLink!!.title)
+        assertEquals("수정된 링크 요약입니다.", updatedLink.summary)
+        assertEquals(setOf("backend", "spring"), updatedLink.tags.map { it.name }.toSet())
+    }
+
+    @Test
+    @DisplayName("첫 번째 등록자가 아닌 사용자는 링크를 수정할 수 없다")
+    fun nonFirstSourceCannotUpdateLink() {
+        val createdLinkId = createLinkByApi(accessToken, "https://example.com/articles/owned-by-first-user")
+
+        given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $anotherAccessToken")
+            .body(
+                """
+                {
+                  "title": "권한 없는 수정",
+                  "summary": "수정되면 안 됩니다."
+                }
+                """.trimIndent(),
+            )
+            .`when`()
+            .patch("/api/links/$createdLinkId")
+            .then()
+            .statusCode(HttpStatus.FORBIDDEN.value())
+            .body("status", equalTo(6008))
+    }
+
+    private fun createLinkByApi(
+        token: String,
+        url: String,
+    ): String {
+        return given()
+            .contentType("application/json")
+            .header("Authorization", "Bearer $token")
+            .body(
+                """
+                {
+                  "title": "등록할 링크",
+                  "url": "$url",
+                  "summary": "등록할 링크 요약입니다.",
+                  "tags": ["tech"]
+                }
+                """.trimIndent(),
+            )
+            .`when`()
+            .post("/api/links")
+            .then()
+            .statusCode(HttpStatus.CREATED.value())
+            .extract()
+            .path("data.id")
     }
 }

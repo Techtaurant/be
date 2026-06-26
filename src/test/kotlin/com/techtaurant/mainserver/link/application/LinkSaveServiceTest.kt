@@ -29,6 +29,9 @@ class LinkSaveServiceTest : IntegrationTest() {
     private lateinit var linkSaveService: LinkSaveService
 
     @Autowired
+    private lateinit var linkSourceService: LinkSourceService
+
+    @Autowired
     private lateinit var linkRepository: LinkRepository
 
     @Autowired
@@ -96,8 +99,9 @@ class LinkSaveServiceTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("링크 저장 취소는 기존 저장 일자의 일별 저장수를 감소시킨다")
-    fun unsave_whenExistingRelation_shouldDecrementDailySaveCount() {
+    @DisplayName("다른 저장자가 남아 있으면 저장 취소는 일별 저장수를 감소시키고 링크는 유지된다")
+    fun unsave_whenOtherSaversRemain_shouldDecrementDailySaveCountAndKeepLink() {
+        registerSource(companyUser, daysAgo = 2)
         linkSaveService.save(testLink.id!!, normalUser.id!!)
         entityManager.flush()
         entityManager.clear()
@@ -108,11 +112,45 @@ class LinkSaveServiceTest : IntegrationTest() {
 
         assertThat(userLinkRepository.findByUserIdAndLinkId(normalUser.id!!, testLink.id!!)).isNull()
         assertThat(findDailyStats()?.saveCount).isEqualTo(0)
+        assertThat(linkRepository.findById(testLink.id!!)).isPresent()
+    }
+
+    @Test
+    @DisplayName("마지막 저장자가 취소하면 링크가 삭제된다")
+    fun unsave_whenLastSaver_shouldDeleteLink() {
+        linkSaveService.save(testLink.id!!, normalUser.id!!)
+        entityManager.flush()
+        entityManager.clear()
+
+        linkSaveService.unsave(testLink.id!!, normalUser.id!!)
+        entityManager.flush()
+        entityManager.clear()
+
+        assertThat(userLinkRepository.findByUserIdAndLinkId(normalUser.id!!, testLink.id!!)).isNull()
+        assertThat(linkRepository.findById(testLink.id!!)).isEmpty()
+        assertThat(linkDailyStatsRepository.findAll().any { it.link.id == testLink.id }).isFalse()
+    }
+
+    @Test
+    @DisplayName("첫 등록자가 취소해도 다른 저장자가 있으면 소유권이 다음 저장자로 이전된다")
+    fun unsave_whenFirstSourceWithOtherSavers_shouldTransferOwnership() {
+        registerSource(normalUser, daysAgo = 2)
+        registerSource(companyUser, daysAgo = 1)
+
+        linkSaveService.unsave(testLink.id!!, normalUser.id!!)
+        entityManager.flush()
+        entityManager.clear()
+
+        assertThat(userLinkRepository.findByUserIdAndLinkId(normalUser.id!!, testLink.id!!)).isNull()
+        assertThat(userLinkRepository.findByUserIdAndLinkId(companyUser.id!!, testLink.id!!)).isNotNull()
+        assertThat(linkRepository.findById(testLink.id!!)).isPresent()
+        assertThat(linkSourceService.getSourceUserId(testLink.id!!)).isEqualTo(companyUser.id)
     }
 
     @Test
     @DisplayName("일별 통계가 없는 기존 저장을 취소해도 음수 저장수 레코드를 만들지 않는다")
     fun unsave_whenLegacyRelationWithoutDailyStats_shouldNotCreateNegativeDailyStats() {
+        registerSource(companyUser, daysAgo = 2)
         val oldStatDate = DateUtils.today().minusDays(1)
         val existingRelation =
             userLinkRepository.saveAndFlush(
@@ -131,6 +169,22 @@ class LinkSaveServiceTest : IntegrationTest() {
 
         assertThat(userLinkRepository.findByUserIdAndLinkId(normalUser.id!!, testLink.id!!)).isNull()
         assertThat(linkDailyStatsRepository.findAll()).isEmpty()
+    }
+
+    private fun registerSource(
+        user: User,
+        daysAgo: Long,
+    ) {
+        val relation =
+            userLinkRepository.saveAndFlush(
+                UserLink(
+                    user = user,
+                    link = testLink,
+                ),
+            )
+        relation.createdAt = DateUtils.today().minusDays(daysAgo).atStartOfDay(ZoneOffset.UTC).toInstant()
+        userLinkRepository.saveAndFlush(relation)
+        entityManager.clear()
     }
 
     private fun findDailyStats(): LinkDailyStats? {

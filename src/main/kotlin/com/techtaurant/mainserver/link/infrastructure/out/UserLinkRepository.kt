@@ -34,6 +34,8 @@ interface UserLinkRepository : JpaRepository<UserLink, UUID> {
 
     fun findAllByUserId(userId: UUID): List<UserLink>
 
+    fun existsByLinkId(linkId: UUID): Boolean
+
     fun deleteAllByLink(link: Link): Long
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
