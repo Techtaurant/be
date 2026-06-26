@@ -93,7 +93,14 @@ interface LinkControllerDocs {
         @Parameter(description = "링크 ID") linkId: UUID,
     ): ApiResponse<Unit>
 
-    @Operation(summary = "링크 저장 취소", description = "사용자가 저장한 링크를 해제합니다")
+    @Operation(summary = "링크 저장 취소", description = "사용자가 저장한 링크를 해제합니다. 단, 첫 번째 등록자는 저장을 취소할 수 없습니다")
+    @ApiErrorCodeResponses(
+        [
+            ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED"]),
+            ApiErrorCodeResponse(LinkStatus::class, ["CANNOT_UNSAVE_OWN_LINK"]),
+            ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
+        ],
+    )
     fun unsaveLink(
         userId: UUID,
         @Parameter(description = "링크 ID") linkId: UUID,

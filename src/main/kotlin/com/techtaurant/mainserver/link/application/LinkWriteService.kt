@@ -20,7 +20,6 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.net.URI
-import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -42,15 +41,17 @@ class LinkWriteService(
 
         val link =
             existingLink
-                ?: linkRepository.save(
-                    Link(
-                        title = sanitizeRequiredTitle(request.title),
-                        url = url,
-                        summary = sanitizeRequiredSummary(request.summary),
-                        tags = resolveLinkTags(request.tags).toMutableSet(),
-                        createdAt = request.createdAt ?: Instant.now(),
-                    ),
-                )
+                ?: linkRepository
+                    .save(
+                        Link(
+                            title = sanitizeRequiredTitle(request.title),
+                            url = url,
+                            summary = sanitizeRequiredSummary(request.summary),
+                            tags = resolveLinkTags(request.tags).toMutableSet(),
+                        ),
+                    ).also { savedLink ->
+                        request.createdAt?.let { savedLink.createdAt = it }
+                    }
 
         connectUserToLink(user, link)
 

@@ -8,6 +8,7 @@ import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
 import com.techtaurant.mainserver.user.enums.UserStatus
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -49,9 +50,22 @@ class LinkSaveService(
     ) {
         val existingRelation = userLinkRepository.findByUserIdAndLinkIdForUpdate(userId, linkId)
         if (existingRelation != null) {
+            if (isFirstSource(linkId, userId)) {
+                throw ApiException(LinkStatus.CANNOT_UNSAVE_OWN_LINK)
+            }
             val statDate = DateUtils.toUtcDate(existingRelation.createdAt)
             userLinkRepository.delete(existingRelation)
             linkDailyStatsService.decrementSaveCount(linkId, statDate)
         }
     }
+
+    private fun isFirstSource(
+        linkId: UUID,
+        userId: UUID,
+    ): Boolean =
+        userLinkRepository
+            .findFirstSourceByLinkId(linkId, PageRequest.of(0, 1))
+            .firstOrNull()
+            ?.user
+            ?.id == userId
 }

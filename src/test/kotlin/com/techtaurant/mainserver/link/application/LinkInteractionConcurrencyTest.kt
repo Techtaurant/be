@@ -5,6 +5,7 @@ import com.techtaurant.mainserver.common.enums.LikeStatus
 import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.link.entity.Link
 import com.techtaurant.mainserver.link.entity.LinkDailyStats
+import com.techtaurant.mainserver.link.entity.UserLink
 import com.techtaurant.mainserver.link.infrastructure.out.LinkDailyStatsRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkLikeLogRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
@@ -19,6 +20,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
@@ -181,6 +183,7 @@ class LinkInteractionConcurrencyTest : IntegrationTest() {
     @Test
     @DisplayName("동시 저장 취소는 한 번만 저장수를 감소시킨다")
     fun unsave_whenConcurrentRequests_shouldDecrementDailySaveCountOnce() {
+        registerFirstSource(companyUser)
         linkSaveService.save(testLink.id!!, normalUser.id!!)
 
         runConcurrently {
@@ -192,6 +195,18 @@ class LinkInteractionConcurrencyTest : IntegrationTest() {
 
         assertThat(userLink).isNull()
         assertThat(dailyStats?.saveCount).isEqualTo(0)
+    }
+
+    private fun registerFirstSource(user: User) {
+        val relation =
+            userLinkRepository.saveAndFlush(
+                UserLink(
+                    user = user,
+                    link = testLink,
+                ),
+            )
+        relation.createdAt = DateUtils.today().minusDays(2).atStartOfDay(ZoneOffset.UTC).toInstant()
+        userLinkRepository.saveAndFlush(relation)
     }
 
     private fun findDailyStats(statDate: LocalDate = DateUtils.today()): LinkDailyStats? {

@@ -1,10 +1,12 @@
 package com.techtaurant.mainserver.link.application
 
 import com.techtaurant.mainserver.base.IntegrationTest
+import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.common.util.DateUtils
 import com.techtaurant.mainserver.link.entity.Link
 import com.techtaurant.mainserver.link.entity.LinkDailyStats
 import com.techtaurant.mainserver.link.entity.UserLink
+import com.techtaurant.mainserver.link.enums.LinkStatus
 import com.techtaurant.mainserver.link.infrastructure.out.LinkDailyStatsRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
@@ -14,6 +16,7 @@ import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import jakarta.persistence.EntityManager
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -96,8 +99,9 @@ class LinkSaveServiceTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("링크 저장 취소는 기존 저장 일자의 일별 저장수를 감소시킨다")
-    fun unsave_whenExistingRelation_shouldDecrementDailySaveCount() {
+    @DisplayName("첫 등록자가 아닌 사용자의 저장 취소는 기존 저장 일자의 일별 저장수를 감소시킨다")
+    fun unsave_whenNotFirstSource_shouldDecrementDailySaveCount() {
+        registerFirstSource(companyUser)
         linkSaveService.save(testLink.id!!, normalUser.id!!)
         entityManager.flush()
         entityManager.clear()
@@ -111,8 +115,24 @@ class LinkSaveServiceTest : IntegrationTest() {
     }
 
     @Test
+    @DisplayName("첫 등록자는 링크 저장을 취소할 수 없다")
+    fun unsave_whenFirstSource_shouldThrow() {
+        linkSaveService.save(testLink.id!!, normalUser.id!!)
+        entityManager.flush()
+        entityManager.clear()
+
+        assertThatThrownBy { linkSaveService.unsave(testLink.id!!, normalUser.id!!) }
+            .isInstanceOf(ApiException::class.java)
+            .extracting { (it as ApiException).status }
+            .isEqualTo(LinkStatus.CANNOT_UNSAVE_OWN_LINK)
+
+        assertThat(userLinkRepository.findByUserIdAndLinkId(normalUser.id!!, testLink.id!!)).isNotNull()
+    }
+
+    @Test
     @DisplayName("일별 통계가 없는 기존 저장을 취소해도 음수 저장수 레코드를 만들지 않는다")
     fun unsave_whenLegacyRelationWithoutDailyStats_shouldNotCreateNegativeDailyStats() {
+        registerFirstSource(companyUser)
         val oldStatDate = DateUtils.today().minusDays(1)
         val existingRelation =
             userLinkRepository.saveAndFlush(
@@ -131,6 +151,19 @@ class LinkSaveServiceTest : IntegrationTest() {
 
         assertThat(userLinkRepository.findByUserIdAndLinkId(normalUser.id!!, testLink.id!!)).isNull()
         assertThat(linkDailyStatsRepository.findAll()).isEmpty()
+    }
+
+    private fun registerFirstSource(user: User) {
+        val relation =
+            userLinkRepository.saveAndFlush(
+                UserLink(
+                    user = user,
+                    link = testLink,
+                ),
+            )
+        relation.createdAt = DateUtils.today().minusDays(2).atStartOfDay(ZoneOffset.UTC).toInstant()
+        userLinkRepository.saveAndFlush(relation)
+        entityManager.clear()
     }
 
     private fun findDailyStats(): LinkDailyStats? {
