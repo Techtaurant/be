@@ -20,7 +20,6 @@ enum class LinkStatus(
     LINK_SUMMARY_REQUIRED(HttpStatus.BAD_REQUEST.value(), 6011, "링크 요약은 필수입니다"),
     INVALID_LINK_URL(HttpStatus.BAD_REQUEST.value(), 6012, "유효한 링크 URL이 아닙니다"),
     LINK_URL_ALREADY_EXISTS(HttpStatus.CONFLICT.value(), 6013, "이미 등록된 링크 URL입니다"),
-    CANNOT_UNSAVE_OWN_LINK(HttpStatus.FORBIDDEN.value(), 6014, "첫 번째 등록자는 링크 저장을 취소할 수 없습니다"),
     ;
 
     override fun getHttpStatusCode(): Int {

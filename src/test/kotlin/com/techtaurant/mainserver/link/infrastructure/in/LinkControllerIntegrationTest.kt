@@ -241,8 +241,7 @@ class LinkControllerIntegrationTest : IntegrationTest() {
                       "title": "<b>직접 등록한 링크</b>",
                       "url": "https://example.com/articles/direct-link",
                       "summary": "직접 등록한 링크 요약입니다.",
-                      "tags": ["Kotlin", "api"],
-                      "createdAt": "2026-06-01T00:00:00Z"
+                      "tags": ["Kotlin", "api"]
                     }
                     """.trimIndent(),
                 )

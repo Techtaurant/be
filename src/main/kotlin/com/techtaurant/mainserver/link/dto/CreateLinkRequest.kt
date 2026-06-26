@@ -5,7 +5,6 @@ import io.swagger.v3.oas.annotations.media.ArraySchema
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Size
-import java.time.Instant
 
 @Schema(description = "링크 등록 요청")
 data class CreateLinkRequest(
@@ -23,6 +22,4 @@ data class CreateLinkRequest(
     @field:Size(max = TaggedContent.MAX_TAG_COUNT, message = "태그는 최대 10개까지 설정할 수 있습니다")
     @field:ArraySchema(maxItems = TaggedContent.MAX_TAG_COUNT, schema = Schema(description = "태그명", example = "spring"))
     val tags: List<String>? = null,
-    @field:Schema(description = "링크 생성일시 (ISO-8601 UTC, 입력하지 않으면 서버 시간이 사용됨)", example = "2026-06-01T00:00:00Z")
-    val createdAt: Instant? = null,
 )
