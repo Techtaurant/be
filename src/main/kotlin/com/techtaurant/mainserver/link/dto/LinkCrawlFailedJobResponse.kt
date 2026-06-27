@@ -9,6 +9,8 @@ import java.util.UUID
 data class LinkCrawlFailedJobResponse(
     @field:Schema(description = "실패 잡 ID")
     val id: UUID,
+    @field:Schema(description = "실행 이력 ID")
+    val runId: UUID,
     @field:Schema(description = "배치 ID")
     val batchId: UUID,
     @field:Schema(description = "실패가 발생한 목록 페이지 번호")
@@ -27,6 +29,10 @@ data class LinkCrawlFailedJobResponse(
     val errorMessage: String,
     @field:Schema(description = "누적 실패 횟수")
     val failureCount: Int,
+    @field:Schema(description = "해소 여부")
+    val resolved: Boolean,
+    @field:Schema(description = "해소 시각", nullable = true)
+    val resolvedAt: Instant?,
     @field:Schema(description = "마지막 실패 시각")
     val lastFailedAt: Instant,
     @field:Schema(description = "실패 잡 생성 시각")
@@ -36,9 +42,11 @@ data class LinkCrawlFailedJobResponse(
 ) {
     companion object {
         fun from(failedJob: LinkCrawlFailedJob): LinkCrawlFailedJobResponse {
+            val run = failedJob.run
             return LinkCrawlFailedJobResponse(
                 id = failedJob.id ?: throw IllegalStateException("실패 잡 ID가 없습니다"),
-                batchId = failedJob.batch.id ?: throw IllegalStateException("배치 ID가 없습니다"),
+                runId = run.id ?: throw IllegalStateException("실행 ID가 없습니다"),
+                batchId = run.batch.id ?: throw IllegalStateException("배치 ID가 없습니다"),
                 sourcePage = failedJob.sourcePage,
                 sourcePageUrl = failedJob.sourcePageUrl,
                 articleUrl = failedJob.articleUrl,
@@ -47,6 +55,8 @@ data class LinkCrawlFailedJobResponse(
                 errorStatusCode = failedJob.errorStatusCode,
                 errorMessage = failedJob.errorMessage,
                 failureCount = failedJob.failureCount,
+                resolved = failedJob.resolved,
+                resolvedAt = failedJob.resolvedAt,
                 lastFailedAt = failedJob.lastFailedAt,
                 createdAt = failedJob.createdAt,
                 updatedAt = failedJob.updatedAt,

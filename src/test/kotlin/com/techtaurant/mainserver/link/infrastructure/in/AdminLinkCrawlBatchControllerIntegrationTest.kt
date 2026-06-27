@@ -6,7 +6,7 @@ import com.techtaurant.mainserver.link.entity.Link
 import com.techtaurant.mainserver.link.entity.LinkCrawlBatch
 import com.techtaurant.mainserver.link.entity.UserLink
 import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlBatchRepository
-import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlFailedJobRepository
+import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlRunRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
 import com.techtaurant.mainserver.post.infrastructure.out.TagRepository
@@ -53,7 +53,7 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
     private lateinit var linkCrawlBatchRepository: LinkCrawlBatchRepository
 
     @Autowired
-    private lateinit var linkCrawlFailedJobRepository: LinkCrawlFailedJobRepository
+    private lateinit var linkCrawlRunRepository: LinkCrawlRunRepository
 
     @Autowired
     private lateinit var jwtTokenProvider: JwtTokenProvider
@@ -279,8 +279,8 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    @DisplayName("관리자는 실패 잡을 조회하고 수동 처리하거나 삭제할 수 있다")
-    fun adminCanReviewProcessAndDeleteFailedJobs() {
+    @DisplayName("관리자는 실행 이력을 조회하고 미해소 실패 잡을 재시도해 모두 해소되면 RESOLVED 상태가 된다")
+    fun adminCanReviewRunsAndRetryUnresolvedFailedJobsUntilResolved() {
         val batch =
             linkCrawlBatchRepository.save(
                 LinkCrawlBatch(
@@ -310,61 +310,67 @@ class AdminLinkCrawlBatchControllerIntegrationTest : IntegrationTest() {
             .body("data.newLinkCount", equalTo(0))
             .body("data.failedJobCount", equalTo(3))
 
-        val failedJobs = linkCrawlFailedJobRepository.findAllByBatchIdOrderByCreatedAtAsc(batch.id!!)
-        assertEquals(3, failedJobs.size)
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .get("/admin/link-crawl-batches/${batch.id}/runs")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data", hasSize<Any>(1))
+            .body("data[0].batchId", equalTo(batch.id.toString()))
+            .body("data[0].triggerType", equalTo("MANUAL"))
+            .body("data[0].status", equalTo("UNRESOLVED"))
+            .body("data[0].failedJobCount", equalTo(3))
+            .body("data[0].hasUnresolvedFailedJobs", equalTo(true))
+
+        val runId = linkCrawlRunRepository.findAllByBatchIdOrderByStartedAtDesc(batch.id!!).single().id!!
 
         given()
             .header("Authorization", "Bearer $adminAccessToken")
             .`when`()
-            .get("/admin/link-crawl-batches/${batch.id}/failed-jobs")
+            .get("/admin/link-crawl-runs/$runId/failed-jobs")
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("data", hasSize<Any>(3))
+            .body("data[0].runId", equalTo(runId.toString()))
             .body("data[0].batchId", equalTo(batch.id.toString()))
+            .body("data[0].resolved", equalTo(false))
             .body("data[0].failureCount", equalTo(1))
             .body("data[0].errorStatusCode", equalTo(6006))
 
         batch.createdAtSelectors = "div.o6bzluc"
         linkCrawlBatchRepository.saveAndFlush(batch)
 
-        val firstFailedJobId = failedJobs.first().id!!
         given()
             .header("Authorization", "Bearer $adminAccessToken")
             .`when`()
-            .post("/admin/link-crawl-failed-jobs/$firstFailedJobId/run")
+            .post("/admin/link-crawl-runs/$runId/failed-jobs/retry")
             .then()
             .statusCode(HttpStatus.OK.value())
-            .body("data.collectedCount", equalTo(1))
-            .body("data.newLinkCount", equalTo(1))
-            .body("data.failedJobCount", equalTo(0))
+            .body("data.retriedCount", equalTo(3))
+            .body("data.resolvedCount", equalTo(3))
+            .body("data.stillUnresolvedCount", equalTo(0))
+            .body("data.runStatus", equalTo("RESOLVED"))
 
-        assertTrue(linkCrawlFailedJobRepository.findById(firstFailedJobId).isEmpty)
-        assertEquals(1, linkRepository.findAll().size)
-
-        given()
-            .header("Authorization", "Bearer $adminAccessToken")
-            .`when`()
-            .get("/admin/link-crawl-batches/${batch.id}/failed-jobs")
-            .then()
-            .statusCode(HttpStatus.OK.value())
-            .body("data", hasSize<Any>(2))
-
-        linkCrawlFailedJobRepository.findAllByBatchIdOrderByCreatedAtAsc(batch.id!!).forEach { remaining ->
-            given()
-                .header("Authorization", "Bearer $adminAccessToken")
-                .`when`()
-                .delete("/admin/link-crawl-failed-jobs/${remaining.id}")
-                .then()
-                .statusCode(HttpStatus.OK.value())
-        }
+        assertEquals(3, linkRepository.findAll().size)
 
         given()
             .header("Authorization", "Bearer $adminAccessToken")
             .`when`()
-            .get("/admin/link-crawl-batches/${batch.id}/failed-jobs")
+            .get("/admin/link-crawl-runs/$runId/failed-jobs")
             .then()
             .statusCode(HttpStatus.OK.value())
             .body("data", hasSize<Any>(0))
+
+        given()
+            .header("Authorization", "Bearer $adminAccessToken")
+            .`when`()
+            .get("/admin/link-crawl-batches/${batch.id}/runs")
+            .then()
+            .statusCode(HttpStatus.OK.value())
+            .body("data", hasSize<Any>(1))
+            .body("data[0].status", equalTo("RESOLVED"))
+            .body("data[0].hasUnresolvedFailedJobs", equalTo(false))
     }
 
     @Test

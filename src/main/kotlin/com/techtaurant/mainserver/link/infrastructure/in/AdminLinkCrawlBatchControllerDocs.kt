@@ -9,6 +9,8 @@ import com.techtaurant.mainserver.link.dto.LinkBatchRunResponse
 import com.techtaurant.mainserver.link.dto.LinkCrawlBatchListItemResponse
 import com.techtaurant.mainserver.link.dto.LinkCrawlBatchResponse
 import com.techtaurant.mainserver.link.dto.LinkCrawlFailedJobResponse
+import com.techtaurant.mainserver.link.dto.LinkCrawlFailedJobRetryResponse
+import com.techtaurant.mainserver.link.dto.LinkCrawlRunResponse
 import com.techtaurant.mainserver.link.dto.UpdateLinkCrawlBatchRequest
 import com.techtaurant.mainserver.link.enums.LinkStatus
 import com.techtaurant.mainserver.security.jwt.JwtStatus
@@ -149,7 +151,10 @@ interface AdminLinkCrawlBatchControllerDocs {
         @Parameter(description = "배치 ID") batchId: UUID,
     ): ApiResponse<LinkBatchRunResponse>
 
-    @Operation(summary = "링크 수집 실패 잡 목록 조회", description = "관리자가 배치별 개별 링크 수집 실패 잡을 조회합니다")
+    @Operation(
+        summary = "링크 수집 실행 이력 목록 조회",
+        description = "관리자가 배치별 실행(run) 이력을 최신순으로 조회합니다. 각 이력은 아직 해소되지 않은 실패 잡 존재 여부(hasUnresolvedFailedJobs)를 함께 반환합니다",
+    )
     @ApiErrorCodeResponses(
         [
             ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED", "ACCESS_DENIED"]),
@@ -157,34 +162,37 @@ interface AdminLinkCrawlBatchControllerDocs {
             ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
         ],
     )
-    fun getFailedJobs(
+    fun getRuns(
         @Parameter(description = "배치 ID") batchId: UUID,
+    ): ApiResponse<List<LinkCrawlRunResponse>>
+
+    @Operation(
+        summary = "실행 이력의 미해소 실패 잡 조회",
+        description = "관리자가 특정 실행 이력에서 아직 해소되지 않은 실패 잡을 조회합니다",
+    )
+    @ApiErrorCodeResponses(
+        [
+            ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED", "ACCESS_DENIED"]),
+            ApiErrorCodeResponse(LinkStatus::class, ["LINK_CRAWL_RUN_NOT_FOUND"]),
+            ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
+        ],
+    )
+    fun getRunFailedJobs(
+        @Parameter(description = "실행 이력 ID") runId: UUID,
     ): ApiResponse<List<LinkCrawlFailedJobResponse>>
 
     @Operation(
-        summary = "링크 수집 실패 잡 수동 처리",
-        description = "관리자가 실패 잡 하나를 현재 배치 설정으로 다시 처리합니다. 성공하면 실패 잡을 삭제하고, 다시 실패하면 실패 횟수와 마지막 실패 사유를 갱신합니다",
+        summary = "실행 이력의 미해소 실패 잡 재시도",
+        description = "관리자가 특정 실행 이력의 미해소 실패 잡을 현재 배치 설정으로 일괄 재시도합니다. 성공한 잡은 해소 처리하고, 모두 해소되면 실행 이력 상태가 RESOLVED로 전환됩니다",
     )
     @ApiErrorCodeResponses(
         [
             ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED", "ACCESS_DENIED"]),
-            ApiErrorCodeResponse(LinkStatus::class, ["LINK_CRAWL_FAILED_JOB_NOT_FOUND"]),
+            ApiErrorCodeResponse(LinkStatus::class, ["LINK_CRAWL_RUN_NOT_FOUND"]),
             ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
         ],
     )
-    fun runFailedJob(
-        @Parameter(description = "실패 잡 ID") failedJobId: UUID,
-    ): ApiResponse<LinkBatchRunResponse>
-
-    @Operation(summary = "링크 수집 실패 잡 삭제", description = "관리자가 더 이상 처리하지 않을 실패 잡을 삭제합니다")
-    @ApiErrorCodeResponses(
-        [
-            ApiErrorCodeResponse(JwtStatus::class, ["AUTHENTICATION_REQUIRED", "ACCESS_DENIED"]),
-            ApiErrorCodeResponse(LinkStatus::class, ["LINK_CRAWL_FAILED_JOB_NOT_FOUND"]),
-            ApiErrorCodeResponse(DefaultStatus::class, ["UNKNOWN_EXCEPTION"]),
-        ],
-    )
-    fun deleteFailedJob(
-        @Parameter(description = "실패 잡 ID") failedJobId: UUID,
-    ): ApiResponse<Unit>
+    fun retryRunFailedJobs(
+        @Parameter(description = "실행 이력 ID") runId: UUID,
+    ): ApiResponse<LinkCrawlFailedJobRetryResponse>
 }

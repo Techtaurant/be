@@ -4,18 +4,23 @@ import com.techtaurant.mainserver.common.exception.ApiException
 import com.techtaurant.mainserver.link.entity.Link
 import com.techtaurant.mainserver.link.entity.LinkCrawlBatch
 import com.techtaurant.mainserver.link.entity.LinkCrawlFailedJob
+import com.techtaurant.mainserver.link.entity.LinkCrawlRun
 import com.techtaurant.mainserver.link.entity.UserLink
+import com.techtaurant.mainserver.link.enums.LinkCrawlRunStatus
 import com.techtaurant.mainserver.link.enums.LinkStatus
 import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlBatchRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlFailedJobRepository
+import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlRunRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
 import com.techtaurant.mainserver.post.application.TagWriteService
 import com.techtaurant.mainserver.security.enums.OAuthProvider
 import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
+import io.mockk.CapturingSlot
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
@@ -29,6 +34,7 @@ import kotlin.test.assertFailsWith
 @DisplayName("LinkBatchRunService 테스트")
 class LinkBatchRunServiceTest {
     private val linkCrawlBatchRepository: LinkCrawlBatchRepository = mockk()
+    private val linkCrawlRunRepository: LinkCrawlRunRepository = mockk(relaxed = true)
     private val linkCrawlFailedJobRepository: LinkCrawlFailedJobRepository = mockk(relaxed = true)
     private val linkRepository: LinkRepository = mockk(relaxed = true)
     private val userLinkRepository: UserLinkRepository = mockk(relaxed = true)
@@ -37,12 +43,21 @@ class LinkBatchRunServiceTest {
     private val linkBatchRunService =
         LinkBatchRunService(
             linkCrawlBatchRepository = linkCrawlBatchRepository,
+            linkCrawlRunRepository = linkCrawlRunRepository,
             linkCrawlFailedJobRepository = linkCrawlFailedJobRepository,
             linkRepository = linkRepository,
             userLinkRepository = userLinkRepository,
             tagWriteService = tagWriteService,
             linkDocumentFetcher = linkDocumentFetcher,
         )
+
+    private fun captureSavedRun(): CapturingSlot<LinkCrawlRun> {
+        val savedRun = slot<LinkCrawlRun>()
+        every { linkCrawlRunRepository.save(capture(savedRun)) } answers {
+            savedRun.captured.apply { id = UUID.randomUUID() }
+        }
+        return savedRun
+    }
 
     @Test
     @DisplayName("크롤링 가능한 첫 페이지이면 검증을 통과한다")
@@ -125,15 +140,40 @@ class LinkBatchRunServiceTest {
     }
 
     @Test
-    @DisplayName("배치 실행 중 개별 링크 실패를 기록하고 다음 링크 수집을 계속한다")
-    fun runRecordsFailedJobAndContinuesWhenSingleLinkCannotBeProcessed() {
+    @DisplayName("실패 없이 완료되면 실행 이력이 COMPLETED 상태로 기록된다")
+    fun runRecordsCompletedRunWhenNoLinkFails() {
+        val batchId = UUID.randomUUID()
+        val batch = createBatch(createdAtSelectors = ".created-date").apply { id = batchId }
+        linkDocumentFetcher.setHtml("https://example.com/articles?page=1", crawlableHtml())
+        val savedRun = captureSavedRun()
+        every { linkCrawlBatchRepository.findById(batchId) } returns Optional.of(batch)
+        every { linkRepository.findByUrl("https://example.com/article/metric-review") } returns null
+        every { linkRepository.save(any<Link>()) } answers {
+            (invocation.args[0] as Link).apply { id = UUID.randomUUID() }
+        }
+        every { userLinkRepository.findByUserIdAndLinkId(any(), any()) } returns null
+        every { userLinkRepository.save(any()) } answers { invocation.args[0] as UserLink }
+
+        val response = linkBatchRunService.run(batchId)
+
+        assertEquals(1, response.newLinkCount)
+        assertEquals(0, response.failedJobCount)
+        assertEquals(LinkCrawlRunStatus.COMPLETED, savedRun.captured.status)
+        assertEquals(0, savedRun.captured.failedJobCount)
+        verify(exactly = 0) { linkCrawlFailedJobRepository.save(any()) }
+    }
+
+    @Test
+    @DisplayName("배치 실행 중 개별 링크 실패를 실행 이력에 기록하고 다음 링크 수집을 계속한다")
+    fun runRecordsFailedJobUnderRunAndContinuesWhenSingleLinkCannotBeProcessed() {
         val batchId = UUID.randomUUID()
         val batch = createBatch(createdAtSelectors = ".created-date").apply { id = batchId }
         val pageUrl = "https://example.com/articles?page=1"
         linkDocumentFetcher.setHtml(pageUrl, mixedCrawlHtml())
         linkDocumentFetcher.setHtml("https://example.com/article/missing-date", articleDetailWithoutCreatedAt())
+        val savedRun = captureSavedRun()
         every { linkCrawlBatchRepository.findById(batchId) } returns Optional.of(batch)
-        every { linkCrawlFailedJobRepository.findByBatchIdAndArticleUrl(batchId, "https://example.com/article/missing-date") } returns null
+        every { linkCrawlFailedJobRepository.findByRunIdAndArticleUrl(any(), any()) } returns null
         every { linkCrawlFailedJobRepository.save(any()) } answers { invocation.args[0] as LinkCrawlFailedJob }
         every { tagWriteService.resolveTags(any()) } returns emptySet()
         every { linkRepository.findByUrl("https://example.com/article/valid") } returns null
@@ -150,49 +190,22 @@ class LinkBatchRunServiceTest {
         assertEquals(0, response.existingLinkCount)
         assertEquals(0, response.skippedCount)
         assertEquals(1, response.failedJobCount)
+        assertEquals(LinkCrawlRunStatus.UNRESOLVED, savedRun.captured.status)
+        assertEquals(1, savedRun.captured.failedJobCount)
         verify(exactly = 1) { linkRepository.save(any()) }
         verify(exactly = 1) {
             linkCrawlFailedJobRepository.save(
                 match {
-                    it.batch.id == batchId &&
+                    it.run.batch.id == batchId &&
                         it.sourcePage == 1 &&
                         it.sourcePageUrl == pageUrl &&
                         it.articleUrl == "https://example.com/article/missing-date" &&
                         it.title == "생성일 없는 글" &&
+                        !it.resolved &&
                         it.errorStatusCode == LinkStatus.LINK_CRAWL_BATCH_CREATED_AT_REQUIRED.getCustomStatusCode()
                 },
             )
         }
-    }
-
-    @Test
-    @DisplayName("정상 재수집에 성공하면 이전에 쌓인 실패 작업을 제거한다")
-    fun runClearsStaleFailedJobWhenPreviouslyFailedLinkIsCollected() {
-        val batchId = UUID.randomUUID()
-        val batch = createBatch(createdAtSelectors = ".created-date").apply { id = batchId }
-        val pageUrl = "https://example.com/articles?page=1"
-        val articleUrl = "https://example.com/article/metric-review"
-        val staleJob =
-            LinkCrawlFailedJob(
-                batch = batch,
-                sourcePage = 1,
-                sourcePageUrl = pageUrl,
-                articleUrl = articleUrl,
-                errorStatusCode = 500,
-                errorMessage = "이전 실패",
-            )
-        linkDocumentFetcher.setHtml(pageUrl, crawlableHtml())
-        every { linkCrawlBatchRepository.findById(batchId) } returns Optional.of(batch)
-        every { linkCrawlFailedJobRepository.findByBatchIdAndArticleUrl(batchId, articleUrl) } returns staleJob
-        every { linkRepository.findByUrl(articleUrl) } returns null
-        every { linkRepository.save(any<Link>()) } answers {
-            (invocation.args[0] as Link).apply { id = UUID.randomUUID() }
-        }
-
-        val response = linkBatchRunService.run(batchId)
-
-        assertEquals(1, response.newLinkCount)
-        verify(exactly = 1) { linkCrawlFailedJobRepository.delete(staleJob) }
     }
 
     @Test
@@ -205,7 +218,9 @@ class LinkBatchRunServiceTest {
         linkDocumentFetcher.setHtml(firstPageUrl, failingOnlyHtml())
         linkDocumentFetcher.setHtml("https://example.com/article/missing-date", articleDetailWithoutCreatedAt())
         linkDocumentFetcher.setHtml(secondPageUrl, crawlableHtml())
+        captureSavedRun()
         every { linkCrawlBatchRepository.findById(batchId) } returns Optional.of(batch)
+        every { linkCrawlFailedJobRepository.findByRunIdAndArticleUrl(any(), any()) } returns null
         every { linkCrawlFailedJobRepository.save(any()) } answers { invocation.args[0] as LinkCrawlFailedJob }
         every { linkRepository.findByUrl("https://example.com/article/metric-review") } returns null
         every { linkRepository.save(any<Link>()) } answers {

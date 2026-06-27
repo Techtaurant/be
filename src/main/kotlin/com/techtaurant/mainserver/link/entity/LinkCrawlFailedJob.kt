@@ -15,17 +15,17 @@ import java.time.Instant
 @Table(
     name = "link_crawl_failed_jobs",
     uniqueConstraints = [
-        UniqueConstraint(name = "uk_link_crawl_failed_jobs_batch_article_url", columnNames = ["batch_id", "article_url"]),
+        UniqueConstraint(name = "uk_link_crawl_failed_jobs_run_article_url", columnNames = ["run_id", "article_url"]),
     ],
     indexes = [
-        Index(name = "idx_link_crawl_failed_jobs_batch_id", columnList = "batch_id"),
+        Index(name = "idx_link_crawl_failed_jobs_run_id", columnList = "run_id"),
         Index(name = "idx_link_crawl_failed_jobs_created_at", columnList = "created_at_utc"),
     ],
 )
 class LinkCrawlFailedJob(
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "batch_id", nullable = false)
-    var batch: LinkCrawlBatch,
+    @JoinColumn(name = "run_id", nullable = false)
+    var run: LinkCrawlRun,
     @Column(name = "source_page", nullable = false)
     var sourcePage: Int,
     @Column(name = "source_page_url", nullable = false, length = 2048)
@@ -42,6 +42,10 @@ class LinkCrawlFailedJob(
     var errorMessage: String,
     @Column(name = "failure_count", nullable = false)
     var failureCount: Int = 1,
+    @Column(name = "resolved", nullable = false)
+    var resolved: Boolean = false,
+    @Column(name = "resolved_at_utc")
+    var resolvedAt: Instant? = null,
     @Column(name = "last_failed_at_utc", nullable = false)
     var lastFailedAt: Instant = Instant.now(),
 ) : EntityBase()
