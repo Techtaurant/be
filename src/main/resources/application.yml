@@ -135,6 +135,9 @@ cookie:
 
 # Springdoc OpenAPI
 springdoc:
+    # actuator endpoint(/actuator/health 등)를 OpenAPI 문서에 포함시킨다.
+    # 노출 범위는 SwaggerConfig의 GroupedOpenApi에서 health로 제한한다.
+    show-actuator: true
     swagger-ui:
         # Cookie 전송을 위한 withCredentials 활성화
         request-interceptor: >

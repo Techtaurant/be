@@ -9,6 +9,7 @@ import io.swagger.v3.oas.models.security.SecurityRequirement
 import io.swagger.v3.oas.models.security.SecurityScheme
 import io.swagger.v3.oas.models.servers.Server
 import org.springdoc.core.customizers.OpenApiCustomizer
+import org.springdoc.core.models.GroupedOpenApi
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
@@ -51,6 +52,36 @@ class SwaggerConfig(
                 }
             }
         }
+    }
+
+    /**
+     * 기존 애플리케이션 API 그룹.
+     *
+     * GroupedOpenApi Bean을 정의하면 SpringDoc은 기본 단일 문서 대신 그룹별 문서를 제공한다.
+     * 따라서 actuator 그룹을 추가할 때 기존 엔드포인트가 사라지지 않도록 별도 그룹으로 명시한다.
+     * (actuator 경로는 actuatorOpenApi에서 다루므로 여기서는 제외한다.)
+     */
+    @Bean
+    fun apiOpenApi(): GroupedOpenApi {
+        return GroupedOpenApi
+            .builder()
+            .group("api")
+            .pathsToMatch("/**")
+            .pathsToExclude("/actuator/**")
+            .build()
+    }
+
+    /**
+     * actuator 그룹. health endpoint만 Swagger 문서에 노출한다.
+     * prometheus 등 다른 actuator endpoint는 문서에 드러나지 않도록 health 경로만 매칭한다.
+     */
+    @Bean
+    fun actuatorOpenApi(): GroupedOpenApi {
+        return GroupedOpenApi
+            .builder()
+            .group("actuator")
+            .pathsToMatch("/actuator/health", "/actuator/health/**")
+            .build()
     }
 
     private fun apiInfo(): Info {
