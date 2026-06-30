@@ -54,7 +54,7 @@ class CommentLikeLogService(
                 ApiException(UserStatus.ID_NOT_FOUND)
             }
 
-        val existingLog = commentLikeLogRepository.findByCommentIdAndUserId(commentId, userId)
+        val existingLog = commentLikeLogRepository.findByCommentIdAndUserIdForUpdate(commentId, userId)
 
         if (existingLog != null) {
             val previousIsLiked = existingLog.isLiked

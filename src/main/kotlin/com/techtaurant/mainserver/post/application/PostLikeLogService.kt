@@ -53,7 +53,7 @@ class PostLikeLogService(
                 ApiException(UserStatus.ID_NOT_FOUND)
             }
 
-        val existingLog = postLikeLogRepository.findByPostIdAndUserId(postId, userId)
+        val existingLog = postLikeLogRepository.findByPostIdAndUserIdForUpdate(postId, userId)
 
         if (existingLog != null) {
             val previousIsLiked = existingLog.isLiked
