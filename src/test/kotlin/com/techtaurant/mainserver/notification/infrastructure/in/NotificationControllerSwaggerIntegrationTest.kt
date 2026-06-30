@@ -72,7 +72,7 @@ class NotificationControllerSwaggerIntegrationTest : IntegrationTest() {
             RestAssured
                 .given()
                 .`when`()
-                .get("/v3/api-docs/api")
+                .get("/v3/api-docs")
                 .then()
                 .statusCode(200)
                 .extract()
