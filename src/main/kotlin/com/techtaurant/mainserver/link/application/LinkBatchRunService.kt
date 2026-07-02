@@ -1,12 +1,22 @@
 package com.techtaurant.mainserver.link.application
 
 import com.techtaurant.mainserver.common.exception.ApiException
+import com.techtaurant.mainserver.common.status.DefaultStatus
 import com.techtaurant.mainserver.link.dto.LinkBatchRunResponse
+import com.techtaurant.mainserver.link.dto.LinkCrawlFailedJobResponse
+import com.techtaurant.mainserver.link.dto.LinkCrawlFailedJobRetryResponse
+import com.techtaurant.mainserver.link.dto.LinkCrawlRunResponse
 import com.techtaurant.mainserver.link.entity.Link
 import com.techtaurant.mainserver.link.entity.LinkCrawlBatch
+import com.techtaurant.mainserver.link.entity.LinkCrawlFailedJob
+import com.techtaurant.mainserver.link.entity.LinkCrawlRun
 import com.techtaurant.mainserver.link.entity.UserLink
+import com.techtaurant.mainserver.link.enums.LinkCrawlRunStatus
+import com.techtaurant.mainserver.link.enums.LinkCrawlRunTriggerType
 import com.techtaurant.mainserver.link.enums.LinkStatus
 import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlBatchRepository
+import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlFailedJobRepository
+import com.techtaurant.mainserver.link.infrastructure.out.LinkCrawlRunRepository
 import com.techtaurant.mainserver.link.infrastructure.out.LinkRepository
 import com.techtaurant.mainserver.link.infrastructure.out.UserLinkRepository
 import com.techtaurant.mainserver.post.application.TagWriteService
@@ -29,6 +39,8 @@ import java.util.UUID
 @Service
 class LinkBatchRunService(
     private val linkCrawlBatchRepository: LinkCrawlBatchRepository,
+    private val linkCrawlRunRepository: LinkCrawlRunRepository,
+    private val linkCrawlFailedJobRepository: LinkCrawlFailedJobRepository,
     private val linkRepository: LinkRepository,
     private val userLinkRepository: UserLinkRepository,
     private val tagWriteService: TagWriteService,
@@ -39,17 +51,98 @@ class LinkBatchRunService(
     }
 
     @Transactional
-    fun run(batchId: UUID): LinkBatchRunResponse {
+    fun run(
+        batchId: UUID,
+        triggerType: LinkCrawlRunTriggerType = LinkCrawlRunTriggerType.MANUAL,
+    ): LinkBatchRunResponse {
         val batch =
             linkCrawlBatchRepository.findById(batchId).orElseThrow {
                 ApiException(LinkStatus.LINK_CRAWL_BATCH_NOT_FOUND)
             }
 
+        val startedAt = Instant.now()
+        val run =
+            linkCrawlRunRepository.save(
+                LinkCrawlRun(
+                    batch = batch,
+                    triggerType = triggerType,
+                    status = LinkCrawlRunStatus.COMPLETED,
+                    startedAt = startedAt,
+                    finishedAt = startedAt,
+                ),
+            )
+
         val tagResolver = LinkTagResolver(resolveLinkTagNames(batch.tagNames), tagWriteService::resolveTags)
-        val result = crawl(batch, tagResolver)
+        val crawlResult = crawl(batch, tagResolver)
+        crawlResult.failedJobs.forEach { failedJob -> recordFailedJob(run, failedJob) }
+        val result = crawlResult.response
+
+        run.collectedCount = result.collectedCount
+        run.newLinkCount = result.newLinkCount
+        run.existingLinkCount = result.existingLinkCount
+        run.skippedCount = result.skippedCount
+        run.failedJobCount = result.failedJobCount
+        run.finishedAt = Instant.now()
+        run.status =
+            if (result.failedJobCount == 0) LinkCrawlRunStatus.COMPLETED else LinkCrawlRunStatus.UNRESOLVED
         batch.lastTriggeredAt = Instant.now()
 
         return result
+    }
+
+    @Transactional(readOnly = true)
+    fun getRuns(batchId: UUID): List<LinkCrawlRunResponse> {
+        if (!linkCrawlBatchRepository.existsById(batchId)) {
+            throw ApiException(LinkStatus.LINK_CRAWL_BATCH_NOT_FOUND)
+        }
+
+        val runs = linkCrawlRunRepository.findAllByBatchIdOrderByStartedAtDesc(batchId)
+        if (runs.isEmpty()) {
+            return emptyList()
+        }
+
+        val runIdsWithUnresolved = linkCrawlFailedJobRepository.findRunIdsWithUnresolvedJobs(runs.mapNotNull { it.id })
+        return runs.map { run -> LinkCrawlRunResponse.from(run, run.id in runIdsWithUnresolved) }
+    }
+
+    @Transactional(readOnly = true)
+    fun getUnresolvedFailedJobs(runId: UUID): List<LinkCrawlFailedJobResponse> {
+        if (!linkCrawlRunRepository.existsById(runId)) {
+            throw ApiException(LinkStatus.LINK_CRAWL_RUN_NOT_FOUND)
+        }
+
+        return linkCrawlFailedJobRepository.findAllByRunIdAndResolvedFalseOrderByCreatedAtAsc(runId)
+            .map(LinkCrawlFailedJobResponse::from)
+    }
+
+    @Transactional
+    fun retryRunFailedJobs(runId: UUID): LinkCrawlFailedJobRetryResponse {
+        val run =
+            linkCrawlRunRepository.findById(runId).orElseThrow {
+                ApiException(LinkStatus.LINK_CRAWL_RUN_NOT_FOUND)
+            }
+
+        val unresolvedJobs = linkCrawlFailedJobRepository.findAllByRunIdAndResolvedFalseOrderByCreatedAtAsc(runId)
+        val resolvedCount = unresolvedJobs.count { retryFailedJob(it) }
+        refreshRunStatus(run)
+
+        return LinkCrawlFailedJobRetryResponse(
+            retriedCount = unresolvedJobs.size,
+            resolvedCount = resolvedCount,
+            stillUnresolvedCount = unresolvedJobs.size - resolvedCount,
+            runStatus = run.status,
+        )
+    }
+
+    @Transactional
+    fun retryAllUnresolvedFailedJobs() {
+        val unresolvedJobs = linkCrawlFailedJobRepository.findAllByResolvedFalseOrderByCreatedAtAsc()
+        if (unresolvedJobs.isEmpty()) {
+            return
+        }
+
+        unresolvedJobs.forEach { retryFailedJob(it) }
+        unresolvedJobs.map(LinkCrawlFailedJob::run).distinctBy(LinkCrawlRun::id).forEach(::refreshRunStatus)
     }
 
     fun validateCrawlable(batch: LinkCrawlBatch) {
@@ -67,13 +160,16 @@ class LinkBatchRunService(
     private fun crawl(
         batch: LinkCrawlBatch,
         tagResolver: LinkTagResolver,
-    ): LinkBatchRunResponse {
-        var crawlResult = emptyCrawlResult()
+    ): LinkCrawlResult {
+        var crawlResponse = emptyCrawlResponse()
+        val failedJobs = mutableListOf<LinkFailedJobRecord>()
+        val seenFailedArticleUrls = mutableSetOf<String>()
         var page = batch.startPage
 
         while (true) {
-            val pageResult = crawlPage(batch, tagResolver, page) ?: break
-            crawlResult = crawlResult.mergePageResult(pageResult.response)
+            val pageResult = crawlPage(batch, tagResolver, page, seenFailedArticleUrls) ?: break
+            crawlResponse = crawlResponse.mergePageResult(pageResult.response)
+            failedJobs += pageResult.failedJobs
 
             if (!pageResult.hasProgress) {
                 break
@@ -81,26 +177,34 @@ class LinkBatchRunService(
             page++
         }
 
-        return crawlResult
+        return LinkCrawlResult(
+            response = crawlResponse,
+            failedJobs = failedJobs,
+        )
     }
 
     private fun crawlPage(
         batch: LinkCrawlBatch,
         tagResolver: LinkTagResolver,
         page: Int,
+        seenFailedArticleUrls: MutableSet<String>,
     ): LinkPageCrawlResult? {
         val pageUrl = buildPageUrl(batch.baseUrl, batch.pageUriTemplate, page)
         val document = fetchPageOrNull(pageUrl) ?: return null
         var pageResult = emptyPageCrawlResult()
 
         document.select(batch.itemSelector).forEach { item ->
-            pageResult = pageResult.recordCollectionResult(collectLinkFromCrawledItem(item, batch, tagResolver, pageUrl))
+            val collectionResult = collectLinkFromCrawledItem(item, batch, tagResolver, page, pageUrl)
+            val hasNewFailedArticleUrl =
+                collectionResult is LinkCollectionResult.Failed &&
+                    seenFailedArticleUrls.add(collectionResult.failedJob.draft.articleUrl)
+            pageResult = pageResult.recordCollectionResult(collectionResult, hasNewFailedArticleUrl)
         }
 
         return pageResult
     }
 
-    private fun emptyCrawlResult(): LinkBatchRunResponse =
+    private fun emptyCrawlResponse(): LinkBatchRunResponse =
         LinkBatchRunResponse(
             collectedCount = 0,
             newLinkCount = 0,
@@ -110,32 +214,44 @@ class LinkBatchRunService(
 
     private fun emptyPageCrawlResult(): LinkPageCrawlResult =
         LinkPageCrawlResult(
-            response = emptyCrawlResult(),
+            response = emptyCrawlResponse(),
+            failedJobs = emptyList(),
             hasProgress = false,
         )
 
-    private fun LinkPageCrawlResult.recordCollectionResult(result: LinkCollectionResult): LinkPageCrawlResult {
+    private fun LinkPageCrawlResult.recordCollectionResult(
+        result: LinkCollectionResult,
+        hasNewFailedArticleUrl: Boolean,
+    ): LinkPageCrawlResult {
         val updatedResponse =
             when (result) {
-                LinkCollectionResult.CREATED_NEW_LINK ->
+                LinkCollectionResult.CreatedNewLink ->
                     response.copy(
                         collectedCount = response.collectedCount + 1,
                         newLinkCount = response.newLinkCount + 1,
                     )
-                LinkCollectionResult.CONNECTED_EXISTING_LINK,
-                LinkCollectionResult.UPDATED_EXISTING_LINK,
+                LinkCollectionResult.ConnectedExistingLink,
+                LinkCollectionResult.UpdatedExistingLink,
                 ->
                     response.copy(
                         collectedCount = response.collectedCount + 1,
                         existingLinkCount = response.existingLinkCount + 1,
                     )
-                LinkCollectionResult.SKIPPED ->
+                LinkCollectionResult.Skipped ->
                     response.copy(skippedCount = response.skippedCount + 1)
+                is LinkCollectionResult.Failed ->
+                    response.copy(failedJobCount = response.failedJobCount + 1)
             }
 
         return copy(
             response = updatedResponse,
-            hasProgress = hasProgress || result.hasProgress,
+            failedJobs =
+                if (result is LinkCollectionResult.Failed) {
+                    failedJobs + result.failedJob
+                } else {
+                    failedJobs
+                },
+            hasProgress = hasProgress || result.hasProgress || hasNewFailedArticleUrl,
         )
     }
 
@@ -145,16 +261,43 @@ class LinkBatchRunService(
             newLinkCount = newLinkCount + pageResult.newLinkCount,
             existingLinkCount = existingLinkCount + pageResult.existingLinkCount,
             skippedCount = skippedCount + pageResult.skippedCount,
+            failedJobCount = failedJobCount + pageResult.failedJobCount,
         )
 
     private fun collectLinkFromCrawledItem(
         item: Element,
         batch: LinkCrawlBatch,
         tagResolver: LinkTagResolver,
+        page: Int,
         pageUrl: String,
     ): LinkCollectionResult {
-        val snapshot = extractSnapshot(item, batch, pageUrl) ?: return LinkCollectionResult.SKIPPED
-        return saveNewLinkOrRefreshExistingLink(snapshot, batch, tagResolver)
+        val snapshot =
+            try {
+                extractSnapshot(item, batch, pageUrl) ?: return LinkCollectionResult.Skipped
+            } catch (exception: Exception) {
+                val failedJobDraft = extractFailedJobDraft(item, batch, pageUrl) ?: return LinkCollectionResult.Skipped
+                return LinkCollectionResult.Failed(
+                    LinkFailedJobRecord(
+                        draft = failedJobDraft,
+                        sourcePage = page,
+                        sourcePageUrl = pageUrl,
+                        exception = exception,
+                    ),
+                )
+            }
+
+        return runCatching {
+            saveNewLinkOrRefreshExistingLink(snapshot, batch, tagResolver)
+        }.getOrElse { exception ->
+            LinkCollectionResult.Failed(
+                LinkFailedJobRecord(
+                    draft = snapshot.toFailedJobDraft(),
+                    sourcePage = page,
+                    sourcePageUrl = pageUrl,
+                    exception = exception,
+                ),
+            )
+        }
     }
 
     private fun saveNewLinkOrRefreshExistingLink(
@@ -166,15 +309,15 @@ class LinkBatchRunService(
         if (existingLink == null) {
             val savedLink = saveNewLink(snapshot, tagResolver.resolve())
             connectUserToLink(batch.companyUser, savedLink)
-            return LinkCollectionResult.CREATED_NEW_LINK
+            return LinkCollectionResult.CreatedNewLink
         }
 
         refreshExistingLink(existingLink, snapshot)
         val isConnected = connectUserToLink(batch.companyUser, existingLink)
         return if (isConnected) {
-            LinkCollectionResult.CONNECTED_EXISTING_LINK
+            LinkCollectionResult.ConnectedExistingLink
         } else {
-            LinkCollectionResult.UPDATED_EXISTING_LINK
+            LinkCollectionResult.UpdatedExistingLink
         }
     }
 
@@ -233,21 +376,171 @@ class LinkBatchRunService(
             }
     }
 
-    private fun extractSnapshot(
+    private fun retryFailedJob(failedJob: LinkCrawlFailedJob): Boolean {
+        val batch = failedJob.run.batch
+        val tagResolver = LinkTagResolver(resolveLinkTagNames(batch.tagNames), tagWriteService::resolveTags)
+
+        return runCatching {
+            val snapshot = resolveSnapshotForFailedJob(failedJob)
+            saveNewLinkOrRefreshExistingLink(snapshot, batch, tagResolver)
+        }.map {
+            markResolved(failedJob)
+            true
+        }.getOrElse { exception ->
+            markRetryFailure(failedJob, exception)
+            false
+        }
+    }
+
+    private fun markResolved(failedJob: LinkCrawlFailedJob) {
+        failedJob.resolved = true
+        failedJob.resolvedAt = Instant.now()
+        linkCrawlFailedJobRepository.save(failedJob)
+    }
+
+    private fun markRetryFailure(
+        failedJob: LinkCrawlFailedJob,
+        exception: Throwable,
+    ) {
+        failedJob.failureCount += 1
+        failedJob.errorStatusCode = exception.toErrorStatusCode()
+        failedJob.errorMessage = exception.toErrorMessage()
+        failedJob.lastFailedAt = Instant.now()
+        linkCrawlFailedJobRepository.save(failedJob)
+    }
+
+    private fun refreshRunStatus(run: LinkCrawlRun) {
+        val runId = run.id ?: return
+        run.status =
+            when {
+                linkCrawlFailedJobRepository.existsByRunIdAndResolvedFalse(runId) -> LinkCrawlRunStatus.UNRESOLVED
+                run.failedJobCount > 0 -> LinkCrawlRunStatus.RESOLVED
+                else -> LinkCrawlRunStatus.COMPLETED
+            }
+    }
+
+    private fun resolveSnapshotForFailedJob(failedJob: LinkCrawlFailedJob): LinkSnapshot {
+        val batch = failedJob.run.batch
+        val snapshotFromSourcePage =
+            fetchPageOrNull(failedJob.sourcePageUrl)
+                ?.select(batch.itemSelector)
+                ?.firstNotNullOfOrNull { item ->
+                    val articleUrl = extractArticleUrl(item, batch, failedJob.sourcePageUrl)
+                    if (articleUrl == failedJob.articleUrl) {
+                        extractSnapshot(item, batch, failedJob.sourcePageUrl)
+                    } else {
+                        null
+                    }
+                }
+
+        if (snapshotFromSourcePage != null) {
+            return snapshotFromSourcePage
+        }
+
+        val title =
+            failedJob.title?.trim()?.takeIf(String::isNotEmpty)
+                ?: throw ApiException(LinkStatus.LINK_CRAWL_BATCH_NOT_CRAWLABLE)
+        val createdAt =
+            parseCreatedAtFromArticlePage(failedJob.articleUrl, batch.createdAtSelectors)
+                ?: throw ApiException(LinkStatus.LINK_CRAWL_BATCH_CREATED_AT_REQUIRED)
+
+        return LinkSnapshot(
+            title = title,
+            url = failedJob.articleUrl,
+            summary = failedJob.summary.orEmpty(),
+            createdAt = createdAt,
+        )
+    }
+
+    private fun recordFailedJob(
+        run: LinkCrawlRun,
+        failedJobRecord: LinkFailedJobRecord,
+    ) {
+        val runId = run.id ?: throw IllegalStateException("실행 ID가 없습니다")
+        val now = Instant.now()
+        val errorStatusCode = failedJobRecord.exception.toErrorStatusCode()
+        val errorMessage = failedJobRecord.exception.toErrorMessage()
+        val failedJob =
+            linkCrawlFailedJobRepository.findByRunIdAndArticleUrl(runId, failedJobRecord.draft.articleUrl)
+                ?.apply {
+                    this.sourcePage = failedJobRecord.sourcePage
+                    this.sourcePageUrl = failedJobRecord.sourcePageUrl
+                    this.title = failedJobRecord.draft.title
+                    this.summary = failedJobRecord.draft.summary
+                    this.errorStatusCode = errorStatusCode
+                    this.errorMessage = errorMessage
+                    this.failureCount += 1
+                    this.lastFailedAt = now
+                }
+                ?: LinkCrawlFailedJob(
+                    run = run,
+                    sourcePage = failedJobRecord.sourcePage,
+                    sourcePageUrl = failedJobRecord.sourcePageUrl,
+                    articleUrl = failedJobRecord.draft.articleUrl,
+                    title = failedJobRecord.draft.title,
+                    summary = failedJobRecord.draft.summary,
+                    errorStatusCode = errorStatusCode,
+                    errorMessage = errorMessage,
+                    lastFailedAt = now,
+                )
+
+        linkCrawlFailedJobRepository.save(failedJob)
+    }
+
+    private fun Throwable.toErrorStatusCode(): Int {
+        return if (this is ApiException) {
+            status.getCustomStatusCode()
+        } else {
+            DefaultStatus.UNKNOWN_EXCEPTION.getCustomStatusCode()
+        }
+    }
+
+    private fun Throwable.toErrorMessage(): String {
+        return if (this is ApiException) {
+            detail
+        } else {
+            message ?: javaClass.simpleName
+        }
+    }
+
+    private fun extractArticleUrl(
         item: Element,
         batch: LinkCrawlBatch,
         pageUrl: String,
-    ): LinkSnapshot? {
+    ): String? {
         val linkElement = resolveElement(item, batch.articleLinkSelector) ?: return null
         val href = linkElement.attr("href").trim()
         if (href.isBlank()) {
             return null
         }
 
-        val absoluteUrl =
-            linkElement.absUrl("href").ifBlank {
-                URI.create(pageUrl).resolve(href).toString()
-            }
+        return linkElement.absUrl("href").ifBlank {
+            URI.create(pageUrl).resolve(href).toString()
+        }
+    }
+
+    private fun extractFailedJobDraft(
+        item: Element,
+        batch: LinkCrawlBatch,
+        pageUrl: String,
+    ): LinkFailedJobDraft? {
+        val articleUrl = extractArticleUrl(item, batch, pageUrl) ?: return null
+        val title = resolveText(item, batch.titleSelector)?.trim()?.takeIf(String::isNotEmpty)?.take(200)
+        val summary = batch.summarySelector?.let { resolveText(item, it) }?.trim()?.takeIf(String::isNotEmpty)
+
+        return LinkFailedJobDraft(
+            articleUrl = articleUrl,
+            title = title,
+            summary = summary,
+        )
+    }
+
+    private fun extractSnapshot(
+        item: Element,
+        batch: LinkCrawlBatch,
+        pageUrl: String,
+    ): LinkSnapshot? {
+        val absoluteUrl = extractArticleUrl(item, batch, pageUrl) ?: return null
 
         val title =
             resolveText(item, batch.titleSelector)
@@ -402,20 +695,53 @@ class LinkBatchRunService(
         val url: String,
         val summary: String,
         val createdAt: Instant,
+    ) {
+        fun toFailedJobDraft(): LinkFailedJobDraft =
+            LinkFailedJobDraft(
+                articleUrl = url,
+                title = title.take(200),
+                summary = summary.takeIf(String::isNotBlank),
+            )
+    }
+
+    private data class LinkFailedJobDraft(
+        val articleUrl: String,
+        val title: String?,
+        val summary: String?,
+    )
+
+    private data class LinkFailedJobRecord(
+        val draft: LinkFailedJobDraft,
+        val sourcePage: Int,
+        val sourcePageUrl: String,
+        val exception: Throwable,
+    )
+
+    private data class LinkCrawlResult(
+        val response: LinkBatchRunResponse,
+        val failedJobs: List<LinkFailedJobRecord>,
     )
 
     private data class LinkPageCrawlResult(
         val response: LinkBatchRunResponse,
+        val failedJobs: List<LinkFailedJobRecord>,
         val hasProgress: Boolean,
     )
 
-    private enum class LinkCollectionResult(
+    private sealed class LinkCollectionResult(
         val hasProgress: Boolean,
     ) {
-        CREATED_NEW_LINK(true),
-        CONNECTED_EXISTING_LINK(true),
-        UPDATED_EXISTING_LINK(false),
-        SKIPPED(false),
+        data object CreatedNewLink : LinkCollectionResult(true)
+
+        data object ConnectedExistingLink : LinkCollectionResult(true)
+
+        data object UpdatedExistingLink : LinkCollectionResult(false)
+
+        data object Skipped : LinkCollectionResult(false)
+
+        data class Failed(
+            val failedJob: LinkFailedJobRecord,
+        ) : LinkCollectionResult(false)
     }
 
     private class LinkTagResolver(
