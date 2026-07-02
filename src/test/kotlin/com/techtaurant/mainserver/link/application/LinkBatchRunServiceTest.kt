@@ -234,6 +234,30 @@ class LinkBatchRunServiceTest {
         verify(exactly = 1) { linkRepository.save(any()) }
     }
 
+    @Test
+    @DisplayName("반복 페이지가 이미 실패로 관측한 링크만 포함하면 다음 페이지를 조회하지 않는다")
+    fun runStopsWhenRepeatedPageContainsOnlyAlreadyFailedLink() {
+        val batchId = UUID.randomUUID()
+        val batch = createBatch(createdAtSelectors = ".created-date").apply { id = batchId }
+        val firstPageUrl = "https://example.com/articles?page=1"
+        val secondPageUrl = "https://example.com/articles?page=2"
+        val thirdPageUrl = "https://example.com/articles?page=3"
+        linkDocumentFetcher.setHtml(firstPageUrl, failingOnlyHtml())
+        linkDocumentFetcher.setHtml(secondPageUrl, failingOnlyHtml())
+        linkDocumentFetcher.setHtml(thirdPageUrl, crawlableHtml())
+        linkDocumentFetcher.setHtml("https://example.com/article/missing-date", articleDetailWithoutCreatedAt())
+        captureSavedRun()
+        every { linkCrawlBatchRepository.findById(batchId) } returns Optional.of(batch)
+        every { linkCrawlFailedJobRepository.findByRunIdAndArticleUrl(any(), any()) } returns null
+        every { linkCrawlFailedJobRepository.save(any()) } answers { invocation.args[0] as LinkCrawlFailedJob }
+        every { linkRepository.findByUrl("https://example.com/article/metric-review") } returns null
+
+        val response = linkBatchRunService.run(batchId)
+
+        assertEquals(0, response.newLinkCount)
+        verify(exactly = 0) { linkRepository.save(any()) }
+    }
+
     private fun createBatch(createdAtSelectors: String): LinkCrawlBatch {
         return LinkCrawlBatch(
             companyUser =
