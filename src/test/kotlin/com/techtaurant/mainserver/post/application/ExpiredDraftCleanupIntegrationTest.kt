@@ -272,8 +272,12 @@ class ExpiredDraftCleanupIntegrationTest : IntegrationTest() {
         jdbcTemplate.update("UPDATE posts SET updated_at_utc = ? WHERE id = ?", updatedAt.atOffset(ZoneOffset.UTC), postId)
     }
 
+    /**
+     * 소유가 기록된 첨부는 업로드 시각과 무관하게 임시저장을 따라 지워집니다.
+     * 첨부를 보관 기간 안쪽으로 만들어, 삭제 근거가 첨부의 만료가 아니라 임시저장의 만료임을 드러냅니다.
+     */
     private fun claimTmpAttachment(draftId: UUID): UUID {
-        val attachmentId = saveTmpAttachment(createdAt = daysAgo(21))
+        val attachmentId = saveTmpAttachment(createdAt = daysAgo(1))
         attachmentService.claimTmpAttachments(draftId, AttachmentReferenceType.POST, listOf(attachmentId))
         return attachmentId
     }
