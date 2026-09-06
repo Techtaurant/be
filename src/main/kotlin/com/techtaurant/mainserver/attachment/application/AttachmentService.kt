@@ -161,7 +161,7 @@ class AttachmentService(
 
         if (expiredAttachments.isEmpty()) return 0
 
-        deleteAttachmentsWithObjectsFirst(expiredAttachments)
+        deleteAttachmentsWithObjects(expiredAttachments)
 
         return expiredAttachments.size
     }
@@ -184,26 +184,18 @@ class AttachmentService(
         val attachments = attachmentRepository.findAllByReferenceIdInAndReferenceType(referenceIds, referenceType)
         if (attachments.isEmpty()) return 0
 
-        deleteAttachmentsWithObjectsFirst(attachments)
+        deleteAttachmentsWithObjects(attachments)
 
         return attachments.size
     }
 
     /**
-     * S3 객체를 먼저 지우고 DB 행을 삭제합니다.
-     *
-     * 이미 만료된 대상을 지우는 경로 전용 순서다. 정리 배치와 임시저장 목록 조회가 함께 쓴다.
-     * S3 삭제가 실패하면 트랜잭션이 롤백되어 첨부 행이 그대로 남고 다음 실행이 같은 대상을 다시 집어간다.
-     * 반대로 행을 먼저 지우면 남은 객체를 가리킬 키가 사라져 재시도할 수 없다.
-     * 버저닝이 꺼진 버킷이라 이미 없는 키를 다시 지워도 S3는 성공으로 응답하므로 재시도가 안전하다.
-     *
-     * 살아 있는 게시물의 첨부를 지우는 [deleteAttachmentsByReference]와 [deleteOrphanedAttachmentsByIds]는
-     * 이 순서를 쓰지 않고 [deleteObjectsAfterCommit]으로 커밋 후에 지운다. 그쪽에서 객체를 먼저 지우면
-     * 이후 롤백 시 살아 있는 게시물이 존재하지 않는 객체를 가리키게 되어 이미지가 깨진다.
+     * 첨부 행을 지우고 S3 객체 삭제를 커밋 직전으로 예약합니다.
+     * 행과 객체를 함께 지우는 경로가 모두 같은 순서를 쓰도록 이 함수를 거친다.
      */
-    private fun deleteAttachmentsWithObjectsFirst(attachments: List<Attachment>) {
-        s3StorageService.deleteObjects(attachments.map { it.objectKey })
+    private fun deleteAttachmentsWithObjects(attachments: List<Attachment>) {
         attachmentRepository.deleteAll(attachments)
+        deleteObjectsBeforeCommit(attachments.map { it.objectKey })
     }
 
     /**
@@ -309,7 +301,7 @@ class AttachmentService(
         if (attachments.isEmpty()) return
 
         attachmentRepository.deleteAllByReferenceIdAndReferenceType(referenceId, referenceType)
-        deleteObjectsAfterCommit(attachments.map { it.objectKey })
+        deleteObjectsBeforeCommit(attachments.map { it.objectKey })
     }
 
     /**
@@ -338,31 +330,29 @@ class AttachmentService(
             }
         if (orphaned.isEmpty()) return
 
-        attachmentRepository.deleteAll(orphaned)
-        deleteObjectsAfterCommit(orphaned.map { it.objectKey })
+        deleteAttachmentsWithObjects(orphaned)
     }
 
     /**
-     * S3 객체 삭제를 트랜잭션 커밋 이후로 미룹니다.
-     * 커밋 전에 지우면 롤백됐을 때 DB에는 첨부 행이 남고 S3 객체만 사라져,
-     * 정상으로 보이는 presigned URL이 존재하지 않는 객체를 가리키게 된다.
-     * 커밋 뒤로 미루면 실패해도 참조되지 않는 객체만 남으므로 조회 결과가 깨지지 않는다.
+     * S3 객체 삭제를 트랜잭션 커밋 직전으로 예약합니다.
+     *
+     * 삭제가 실패하면 예외가 커밋 절차 밖으로 전파되어 트랜잭션이 롤백되므로, 객체가 남아 있는 한
+     * 그 객체를 가리키는 첨부 행도 함께 남는다. 덕분에 다음 요청이 같은 키로 재시도할 수 있고,
+     * 커밋 이후로 미뤘을 때처럼 아무도 참조하지 않는 객체가 버킷에 쌓이지 않는다.
+     * 이미 지워진 키를 다시 지우는 요청은 [S3StorageService.deleteObjects]가 성공으로 취급하므로
+     * 재시도가 안전하다.
+     *
+     * 다만 키가 [S3StorageService]의 요청당 상한을 넘어 여러 요청으로 나뉘면 앞선 요청만 반영된 채
+     * 롤백될 수 있고, 그때는 살아남은 첨부 행이 존재하지 않는 객체를 가리킨다.
      *
      * @param objectKeys 삭제할 S3 오브젝트 키 목록
      */
-    private fun deleteObjectsAfterCommit(objectKeys: List<String>) {
+    private fun deleteObjectsBeforeCommit(objectKeys: List<String>) {
         TransactionSynchronizationManager.registerSynchronization(
             object : TransactionSynchronization {
-                override fun afterCommit() {
-                    log.info("Deleting S3 objects after commit: {}", objectKeys)
-                    try {
-                        s3StorageService.deleteObjects(objectKeys)
-                    } catch (e: Exception) {
-                        // afterCommit 예외는 호출자에게 전파되어 이미 커밋된 요청이 실패로 보이고,
-                        // 클라이언트가 반영이 끝난 상태에 재시도하게 된다. 정리 실패의 결과는
-                        // 참조되지 않는 객체가 남는 것뿐이므로 여기서 가두고 로그로만 남긴다.
-                        log.error("Failed to delete S3 objects after commit: {}", objectKeys, e)
-                    }
+                override fun beforeCommit(readOnly: Boolean) {
+                    log.info("Deleting S3 objects before commit: {}", objectKeys)
+                    s3StorageService.deleteObjects(objectKeys)
                 }
             },
         )

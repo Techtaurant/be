@@ -15,7 +15,6 @@ import io.mockk.runs
 import io.mockk.slot
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatCode
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -41,7 +40,7 @@ class AttachmentServiceTest {
 
     private val postId = UUID.randomUUID()
 
-    // 파괴적 S3 삭제는 커밋 이후로 미뤄지므로, 단위 테스트도 트랜잭션 동기화를 활성화해야 콜백이 등록된다.
+    // 파괴적 S3 삭제는 커밋 직전으로 미뤄지므로, 단위 테스트도 트랜잭션 동기화를 활성화해야 콜백이 등록된다.
     @BeforeEach
     fun initTransactionSynchronization() {
         TransactionSynchronizationManager.initSynchronization()
@@ -52,9 +51,9 @@ class AttachmentServiceTest {
         TransactionSynchronizationManager.clearSynchronization()
     }
 
-    /** 등록된 커밋 후 콜백을 실행해 커밋 시점을 재현한다. */
-    private fun triggerAfterCommit() {
-        TransactionSynchronizationManager.getSynchronizations().forEach { it.afterCommit() }
+    /** 등록된 커밋 직전 콜백을 실행해 커밋 시점을 재현한다. */
+    private fun triggerBeforeCommit() {
+        TransactionSynchronizationManager.getSynchronizations().forEach { it.beforeCommit(false) }
     }
 
     private fun makeAttachment(
@@ -567,7 +566,7 @@ class AttachmentServiceTest {
 
             // when
             val deletedCount = attachmentService.deleteExpiredTmpAttachments(threshold, 100)
-            triggerAfterCommit()
+            triggerBeforeCommit()
 
             // then
             assertThat(deletedCount).isEqualTo(1)
@@ -687,7 +686,7 @@ class AttachmentServiceTest {
             verify { attachmentRepository.deleteAllByReferenceIdAndReferenceType(postId, AttachmentReferenceType.POST) }
             verify(exactly = 0) { s3StorageService.deleteObjects(any()) }
 
-            triggerAfterCommit()
+            triggerBeforeCommit()
             verify {
                 s3StorageService.deleteObjects(
                     match { it.containsAll(listOf("posts/$postId/uuid1/a.jpg", "posts/$postId/uuid2/b.jpg")) },
@@ -745,7 +744,7 @@ class AttachmentServiceTest {
             verify { attachmentRepository.deleteAll(listOf(orphanAttachment)) }
             verify(exactly = 0) { s3StorageService.deleteObjects(any()) }
 
-            triggerAfterCommit()
+            triggerBeforeCommit()
             verify { s3StorageService.deleteObjects(listOf(orphanAttachment.objectKey)) }
         }
 
@@ -802,13 +801,13 @@ class AttachmentServiceTest {
             }
             verify { attachmentRepository.deleteAll(listOf(orphanAttachment)) }
 
-            triggerAfterCommit()
+            triggerBeforeCommit()
             verify { s3StorageService.deleteObjects(listOf(orphanAttachment.objectKey)) }
         }
 
         @Test
-        @DisplayName("커밋 후 S3 삭제가 실패해도 예외를 호출자에게 전파하지 않는다")
-        fun deleteOrphanedAttachmentsByIds_s3DeleteFailsAfterCommit_doesNotPropagateException() {
+        @DisplayName("커밋 직전 S3 삭제가 실패하면 예외를 전파해 트랜잭션을 롤백시킨다")
+        fun deleteOrphanedAttachmentsByIds_s3DeleteFailsBeforeCommit_propagatesException() {
             // given
             val orphanAttachment = makeAttachment("posts/$postId/uuid2/orphan.jpg")
 
@@ -826,8 +825,10 @@ class AttachmentServiceTest {
             )
 
             // then
-            // 전파되면 DB 커밋이 끝난 요청이 실패로 보이고 클라이언트가 반영된 상태에 재시도한다.
-            assertThatCode { triggerAfterCommit() }.doesNotThrowAnyException()
+            // 여기서 예외를 가두면 객체가 남은 채 첨부 행만 사라져 다음 요청이 같은 키를 재시도할 수 없다.
+            assertThatThrownBy { triggerBeforeCommit() }
+                .isInstanceOf(RuntimeException::class.java)
+                .hasMessage("S3 unavailable")
             verify { s3StorageService.deleteObjects(listOf(orphanAttachment.objectKey)) }
         }
     }
