@@ -192,12 +192,14 @@ class AttachmentService(
     /**
      * S3 객체를 먼저 지우고 DB 행을 삭제합니다.
      *
-     * 정리 배치 전용 순서다. S3 삭제가 실패하면 트랜잭션이 롤백되어 첨부 행이 그대로 남고 다음 실행이
-     * 같은 대상을 다시 집어간다. 반대로 행을 먼저 지우면 남은 객체를 가리킬 키가 사라져 재시도할 수 없다.
+     * 이미 만료된 대상을 지우는 경로 전용 순서다. 정리 배치와 임시저장 목록 조회가 함께 쓴다.
+     * S3 삭제가 실패하면 트랜잭션이 롤백되어 첨부 행이 그대로 남고 다음 실행이 같은 대상을 다시 집어간다.
+     * 반대로 행을 먼저 지우면 남은 객체를 가리킬 키가 사라져 재시도할 수 없다.
      * 버저닝이 꺼진 버킷이라 이미 없는 키를 다시 지워도 S3는 성공으로 응답하므로 재시도가 안전하다.
      *
-     * 사용자 요청 경로는 이 순서를 쓰지 않는다. 그쪽에서 객체를 먼저 지우면 이후 롤백 시
-     * 살아 있는 게시물이 존재하지 않는 객체를 가리키게 되어 이미지가 깨진다.
+     * 살아 있는 게시물의 첨부를 지우는 [deleteAttachmentsByReference]와 [deleteOrphanedAttachmentsByIds]는
+     * 이 순서를 쓰지 않고 [deleteObjectsAfterCommit]으로 커밋 후에 지운다. 그쪽에서 객체를 먼저 지우면
+     * 이후 롤백 시 살아 있는 게시물이 존재하지 않는 객체를 가리키게 되어 이미지가 깨진다.
      */
     private fun deleteAttachmentsWithObjectsFirst(attachments: List<Attachment>) {
         s3StorageService.deleteObjects(attachments.map { it.objectKey })
