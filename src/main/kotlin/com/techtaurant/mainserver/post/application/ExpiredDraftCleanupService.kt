@@ -5,7 +5,6 @@ import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.policy.TemporaryContentRetention
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
@@ -29,14 +28,14 @@ class ExpiredDraftCleanupService(
      *
      * 첨부를 먼저 지워도 `posts.thumbnail_image` 외래키가 ON DELETE SET NULL이라 참조가 남지 않습니다.
      *
-     * 호출자의 트랜잭션에 합류하지 않고 자기 트랜잭션에서 돕니다. 임시저장 목록 조회가 이 정리를 함께
-     * 수행하는데, 정리 실패가 조회 트랜잭션을 rollback-only로 만들면 목록 자체를 응답하지 못한다.
+     * 두 호출자(정리 배치, 임시저장 목록 조회) 모두 트랜잭션을 열지 않은 채 부르므로 이 정리는 자기
+     * 트랜잭션에서 독립적으로 커밋·롤백됩니다. 정리가 실패해도 목록 조회는 그대로 응답합니다.
      *
      * @param limit 한 번에 삭제할 최대 게시물 수
      * @param authorId 작성자 ID (null이면 작성자를 가리지 않고 정리)
      * @return 삭제한 임시저장 수
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     fun deleteExpiredDrafts(
         limit: Int,
         authorId: UUID?,

@@ -16,6 +16,7 @@ import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.user.application.UserProfileImageResolver
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
 import java.util.UUID
@@ -233,7 +234,9 @@ class PostListReadService(
      * @param size 페이지 크기
      * @return DRAFT 게시물 목록 커서 페이지
      */
-    @Transactional
+    // 만료 임시저장 정리가 자기 트랜잭션에서 돌기 때문에, 이 메서드가 트랜잭션을 열면
+    // 요청 하나가 커넥션 두 개를 동시에 잡는다. 단일 조회 쿼리와 순수 매핑뿐이라 트랜잭션이 필요 없다.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     fun getMyDrafts(
         userId: UUID,
         cursor: String?,
