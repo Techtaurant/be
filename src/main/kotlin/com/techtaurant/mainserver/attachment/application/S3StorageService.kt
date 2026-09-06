@@ -133,7 +133,10 @@ class S3StorageService(
      * DeleteObjects API는 요청당 키 [MAX_KEYS_PER_DELETE_REQUEST]개가 상한이고 넘기면 MalformedXML로 거절하므로
      * 요청을 그 단위로 나눠 보냅니다. 호출부마다 상한을 계산하지 않도록 API 제약을 아는 이 계층이 맡습니다.
      *
+     * 이미 지워진 키는 삭제 성공으로 취급하고, 그 밖의 키 단위 실패는 예외로 알립니다.
+     *
      * @param objectKeys 삭제할 오브젝트 키 목록
+     * @throws IllegalStateException 이미 지워진 키가 아닌 이유로 삭제하지 못한 키가 있을 때
      */
     fun deleteObjects(objectKeys: List<String>) {
         objectKeys.chunked(MAX_KEYS_PER_DELETE_REQUEST).forEach(::deleteObjectChunk)
@@ -151,10 +154,20 @@ class S3StorageService(
                 .delete(Delete.builder().objects(identifiers).build())
                 .build()
 
-        s3Client.deleteObjects(request)
+        val response = s3Client.deleteObjects(request)
+
+        // DeleteObjects는 일부 키만 실패해도 요청 자체는 성공으로 응답하므로, 응답을 읽지 않으면
+        // 남아 있는 객체를 지운 것으로 착각한 채 진행하게 된다.
+        val undeleted = response.errors().filterNot { it.code() == ALREADY_DELETED_ERROR_CODE }
+        check(undeleted.isEmpty()) {
+            "S3 오브젝트 삭제에 실패했습니다: " + undeleted.joinToString { "${it.key()}(${it.code()})" }
+        }
     }
 
     companion object {
         private const val MAX_KEYS_PER_DELETE_REQUEST = 1000
+
+        /** 지우려는 키가 이미 없을 때 돌아오는 코드. 정리 재시도가 이 때문에 실패하면 안 되므로 성공으로 본다. */
+        private const val ALREADY_DELETED_ERROR_CODE = "NoSuchKey"
     }
 }

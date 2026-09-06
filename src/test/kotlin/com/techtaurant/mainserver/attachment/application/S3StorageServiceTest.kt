@@ -4,11 +4,14 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatCode
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import software.amazon.awssdk.services.s3.S3Client
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest
 import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse
+import software.amazon.awssdk.services.s3.model.S3Error
 import software.amazon.awssdk.services.s3.presigner.S3Presigner
 
 @DisplayName("S3 오브젝트 배치 삭제 단위 테스트")
@@ -63,5 +66,35 @@ class S3StorageServiceTest {
 
         // then - 빈 Delete 요청은 S3가 MalformedXML로 거절한다
         verify(exactly = 0) { s3Client.deleteObjects(any<DeleteObjectsRequest>()) }
+    }
+
+    @Test
+    @DisplayName("이미 지워진 키만 실패로 돌아오면 삭제에 성공한 것으로 본다")
+    fun deleteObjects_alreadyDeletedKeyReported_treatsAsSuccess() {
+        // given - 정리를 재시도해 이미 없는 키를 다시 지우는 상황
+        every { s3Client.deleteObjects(any<DeleteObjectsRequest>()) } returns
+            DeleteObjectsResponse.builder()
+                .errors(S3Error.builder().key("tmp/gone/image.jpg").code("NoSuchKey").build())
+                .build()
+
+        // when & then - 여기서 실패하면 재시도가 영원히 완료되지 못한다
+        assertThatCode { s3StorageService.deleteObjects(listOf("tmp/gone/image.jpg")) }
+            .doesNotThrowAnyException()
+    }
+
+    @Test
+    @DisplayName("지우지 못한 키가 응답에 남으면 예외를 던진다")
+    fun deleteObjects_keyLeftUndeleted_throwsWithFailedKey() {
+        // given - 요청 자체는 성공하지만 키 하나가 권한 문제로 남은 응답
+        every { s3Client.deleteObjects(any<DeleteObjectsRequest>()) } returns
+            DeleteObjectsResponse.builder()
+                .errors(S3Error.builder().key("posts/kept/image.jpg").code("AccessDenied").build())
+                .build()
+
+        // when & then - 삼키면 남아 있는 객체를 지운 것으로 착각한 채 커밋된다
+        assertThatThrownBy { s3StorageService.deleteObjects(listOf("posts/kept/image.jpg")) }
+            .isInstanceOf(IllegalStateException::class.java)
+            .hasMessageContaining("posts/kept/image.jpg")
+            .hasMessageContaining("AccessDenied")
     }
 }
