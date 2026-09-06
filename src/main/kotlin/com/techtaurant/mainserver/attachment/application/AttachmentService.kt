@@ -142,7 +142,7 @@ class AttachmentService(
     }
 
     /**
-     * 보관 기간이 지난 미확정 첨부를 DB와 S3에서 삭제합니다.
+     * 보관 기간이 지난 미확정 첨부를 S3와 DB에서 삭제합니다.
      * 어느 대상에도 확정되지 못한 첨부는 정리 경로가 referenceId로 찾을 수 없으므로 이 배치가 회수합니다.
      * S3 객체까지 지우는 이유는 tmp/ lifecycle 정책이 설정되어 있지 않을 수 있기 때문이며,
      * 이미 만료된 객체에 대한 삭제는 S3에서 무해하게 무시됩니다.
@@ -161,10 +161,47 @@ class AttachmentService(
 
         if (expiredAttachments.isEmpty()) return 0
 
-        attachmentRepository.deleteAll(expiredAttachments)
-        deleteObjectsAfterCommit(expiredAttachments.map { it.objectKey })
+        deleteAttachmentsWithObjectsFirst(expiredAttachments)
 
         return expiredAttachments.size
+    }
+
+    /**
+     * 여러 소유 대상에 연결된 첨부를 S3와 DB에서 한 번에 삭제합니다.
+     * 만료된 임시저장을 정리할 때 대상마다 조회를 반복하지 않도록 배치 경로가 사용합니다.
+     *
+     * @param referenceIds 연관 도메인 PK 목록
+     * @param referenceType 연관 도메인 타입
+     * @return 삭제한 첨부 수
+     */
+    @Transactional
+    fun deleteAttachmentsByReferenceIds(
+        referenceIds: List<UUID>,
+        referenceType: AttachmentReferenceType,
+    ): Int {
+        if (referenceIds.isEmpty()) return 0
+
+        val attachments = attachmentRepository.findAllByReferenceIdInAndReferenceType(referenceIds, referenceType)
+        if (attachments.isEmpty()) return 0
+
+        deleteAttachmentsWithObjectsFirst(attachments)
+
+        return attachments.size
+    }
+
+    /**
+     * S3 객체를 먼저 지우고 DB 행을 삭제합니다.
+     *
+     * 정리 배치 전용 순서다. S3 삭제가 실패하면 트랜잭션이 롤백되어 첨부 행이 그대로 남고 다음 실행이
+     * 같은 대상을 다시 집어간다. 반대로 행을 먼저 지우면 남은 객체를 가리킬 키가 사라져 재시도할 수 없다.
+     * 버저닝이 꺼진 버킷이라 이미 없는 키를 다시 지워도 S3는 성공으로 응답하므로 재시도가 안전하다.
+     *
+     * 사용자 요청 경로는 이 순서를 쓰지 않는다. 그쪽에서 객체를 먼저 지우면 이후 롤백 시
+     * 살아 있는 게시물이 존재하지 않는 객체를 가리키게 되어 이미지가 깨진다.
+     */
+    private fun deleteAttachmentsWithObjectsFirst(attachments: List<Attachment>) {
+        s3StorageService.deleteObjects(attachments.map { it.objectKey })
+        attachmentRepository.deleteAll(attachments)
     }
 
     /**
