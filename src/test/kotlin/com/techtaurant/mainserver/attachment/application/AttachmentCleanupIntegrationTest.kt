@@ -14,8 +14,11 @@ import com.techtaurant.mainserver.user.entity.User
 import com.techtaurant.mainserver.user.enums.UserRole
 import com.techtaurant.mainserver.user.infrastructure.out.UserRepository
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.mockito.ArgumentMatchers.anyList
+import org.mockito.Mockito.doThrow
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.bean.override.mockito.MockitoBean
@@ -39,6 +42,9 @@ class AttachmentCleanupIntegrationTest : IntegrationTest() {
 
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
+
+    @Autowired
+    private lateinit var temporaryContentRetention: TemporaryContentRetention
 
     @MockitoBean
     private lateinit var s3StorageService: S3StorageService
@@ -93,7 +99,22 @@ class AttachmentCleanupIntegrationTest : IntegrationTest() {
         assertThat(attachmentRepository.existsById(recentAttachmentId)).isTrue()
     }
 
-    private fun expirationThreshold(): Instant = Instant.now().minus(TemporaryContentRetention.DAYS, ChronoUnit.DAYS)
+    @Test
+    @DisplayName("S3 삭제가 실패하면 첨부 행이 남아 다음 실행이 다시 지운다")
+    fun deleteExpiredTmpAttachments_storageDeleteFails_keepsAttachment() {
+        // given
+        val unclaimedAttachmentId = saveTmpAttachment(referenceId = null, createdAt = daysAgo(20))
+        doThrow(IllegalStateException("S3 unavailable")).`when`(s3StorageService).deleteObjects(anyList())
+
+        // when
+        assertThatThrownBy { attachmentService.deleteExpiredTmpAttachments(expirationThreshold(), 100) }
+            .isInstanceOf(IllegalStateException::class.java)
+
+        // then
+        assertThat(attachmentRepository.existsById(unclaimedAttachmentId)).isTrue()
+    }
+
+    private fun expirationThreshold(): Instant = temporaryContentRetention.expirationThreshold()
 
     private fun daysAgo(days: Long): Instant = Instant.now().minus(days, ChronoUnit.DAYS)
 

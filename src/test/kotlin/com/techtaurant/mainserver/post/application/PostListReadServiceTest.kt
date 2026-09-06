@@ -36,6 +36,7 @@ class PostListReadServiceTest {
     private val postLikeLogRepository: PostLikeLogRepository = mockk()
     private val attachmentService: AttachmentService = mockk()
     private val userBanService: UserBanService = mockk()
+    private val expiredDraftCleanupService: ExpiredDraftCleanupService = mockk()
     private val defaultThumbnailUrl = "/static/images/post-thumbnail.png"
     private val baseUrl = "http://localhost:8080"
     private val userProfileImageResolver = UserProfileImageResolver(attachmentService)
@@ -61,10 +62,10 @@ class PostListReadServiceTest {
     private fun createPostListReadService() =
         PostListReadService(
             postRepository = postRepository,
-            attachmentService = attachmentService,
             postMetadataReadService = postMetadataReadService,
             postViewerStateReadService = postViewerStateReadService,
             userProfileImageResolver = userProfileImageResolver,
+            expiredDraftCleanupService = expiredDraftCleanupService,
         )
 
     private lateinit var testUser: User
