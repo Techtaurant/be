@@ -291,17 +291,21 @@ class ExpiredDraftCleanupIntegrationTest : IntegrationTest() {
             ).apply { this.createdAt = createdAt },
         ).id!!
 
-    private fun createUser(): User =
-        userRepository.save(
+    // users.name에 UNIQUE 제약(V21)이 있어 한 테스트에서 작성자를 둘 이상 만들려면 이름도 매번 달라야 한다.
+    private fun createUser(): User {
+        val uniqueId = UUID.randomUUID()
+
+        return userRepository.save(
             User(
-                name = "임시저장 작성자",
-                email = "draft-${UUID.randomUUID()}@example.com",
+                name = "임시저장 작성자 $uniqueId",
+                email = "draft-$uniqueId@example.com",
                 provider = OAuthProvider.GOOGLE,
-                identifier = "draft-${UUID.randomUUID()}",
+                identifier = "draft-$uniqueId",
                 role = UserRole.USER,
                 profileImageUrl = "https://example.com/profile.png",
             ),
         )
+    }
 
     private fun createDraft(
         author: User,
