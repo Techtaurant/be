@@ -130,11 +130,16 @@ class S3StorageService(
     /**
      * S3 오브젝트 여러 개를 배치로 삭제합니다.
      *
+     * DeleteObjects API는 요청당 키 [MAX_KEYS_PER_DELETE_REQUEST]개가 상한이고 넘기면 MalformedXML로 거절하므로
+     * 요청을 그 단위로 나눠 보냅니다. 호출부마다 상한을 계산하지 않도록 API 제약을 아는 이 계층이 맡습니다.
+     *
      * @param objectKeys 삭제할 오브젝트 키 목록
      */
     fun deleteObjects(objectKeys: List<String>) {
-        if (objectKeys.isEmpty()) return
+        objectKeys.chunked(MAX_KEYS_PER_DELETE_REQUEST).forEach(::deleteObjectChunk)
+    }
 
+    private fun deleteObjectChunk(objectKeys: List<String>) {
         val identifiers =
             objectKeys.map { key ->
                 ObjectIdentifier.builder().key(key).build()
@@ -147,5 +152,9 @@ class S3StorageService(
                 .build()
 
         s3Client.deleteObjects(request)
+    }
+
+    companion object {
+        private const val MAX_KEYS_PER_DELETE_REQUEST = 1000
     }
 }
