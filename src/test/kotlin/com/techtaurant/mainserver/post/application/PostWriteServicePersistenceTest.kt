@@ -1,5 +1,6 @@
 package com.techtaurant.mainserver.post.application
 
+import com.techtaurant.mainserver.attachment.application.S3StorageService
 import com.techtaurant.mainserver.attachment.entity.Attachment
 import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.attachment.enums.AttachmentStatus
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import java.time.Instant
 import java.util.UUID
 
@@ -42,6 +44,11 @@ class PostWriteServicePersistenceTest : IntegrationTest() {
 
     @Autowired
     private lateinit var userRepository: UserRepository
+
+    // 게시물 삭제는 커밋 직전에 첨부의 S3 객체까지 지운다. 실제 버킷이 없는 환경에서 그 삭제가 실패하면
+    // 삭제 트랜잭션이 통째로 롤백되어, 이 테스트가 보려는 DB 반영 결과를 확인할 수 없다.
+    @MockitoBean
+    private lateinit var s3StorageService: S3StorageService
 
     private lateinit var author: User
 
