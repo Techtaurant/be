@@ -1,7 +1,5 @@
 package com.techtaurant.mainserver.post.application
 
-import com.techtaurant.mainserver.attachment.application.AttachmentService
-import com.techtaurant.mainserver.attachment.enums.AttachmentReferenceType
 import com.techtaurant.mainserver.common.dto.CursorPageResponse
 import com.techtaurant.mainserver.post.dto.CategoryResponse
 import com.techtaurant.mainserver.post.dto.DraftListItemResponse
@@ -16,10 +14,11 @@ import com.techtaurant.mainserver.post.entity.PostPeriod
 import com.techtaurant.mainserver.post.entity.PostSortType
 import com.techtaurant.mainserver.post.infrastructure.out.PostRepository
 import com.techtaurant.mainserver.user.application.UserProfileImageResolver
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 /**
@@ -29,14 +28,19 @@ import java.util.UUID
 @Transactional(readOnly = true)
 class PostListReadService(
     private val postRepository: PostRepository,
-    private val attachmentService: AttachmentService,
     private val postMetadataReadService: PostMetadataReadService,
     private val postViewerStateReadService: PostViewerStateReadService,
     private val userProfileImageResolver: UserProfileImageResolver,
+    private val expiredDraftCleanupService: ExpiredDraftCleanupService,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     companion object {
-        private const val STALE_DRAFT_DAYS = 14
         private const val POST_LIST_CONTENT_MAX_LENGTH = 2000
+
+        // 목록 조회가 정리까지 떠안으므로, 밀린 물량이 많은 사용자의 응답이 그만큼 느려지지 않도록 상한을 둔다.
+        // 이 상한을 넘긴 나머지는 정리 배치가 회수한다.
+        private const val MAX_EXPIRED_DRAFT_DELETE_COUNT_PER_REQUEST = 100
     }
 
     /**
@@ -230,13 +234,15 @@ class PostListReadService(
      * @param size 페이지 크기
      * @return DRAFT 게시물 목록 커서 페이지
      */
-    @Transactional
+    // 만료 임시저장 정리가 자기 트랜잭션에서 돌기 때문에, 이 메서드가 트랜잭션을 열면
+    // 요청 하나가 커넥션 두 개를 동시에 잡는다. 단일 조회 쿼리와 순수 매핑뿐이라 트랜잭션이 필요 없다.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     fun getMyDrafts(
         userId: UUID,
         cursor: String?,
         size: Int,
     ): CursorPageResponse<DraftListItemResponse> {
-        deleteExpiredDrafts(userId)
+        deleteExpiredDraftsBeforeListing(userId)
 
         val posts =
             if (cursor == null) {
@@ -272,27 +278,25 @@ class PostListReadService(
 
     private fun parseCursorInstant(value: String): Instant = value.toLongOrNull()?.let(Instant::ofEpochMilli) ?: Instant.parse(value)
 
+    /**
+     * 목록을 내려주기 전에 그 사용자의 만료 임시저장을 정리합니다.
+     * 정리 배치가 같은 대상을 다시 지우므로, 여기서 실패하면 목록 응답을 막는 대신 로그만 남기고 넘어갑니다.
+     *
+     * @param userId 사용자 ID
+     */
+    private fun deleteExpiredDraftsBeforeListing(userId: UUID) {
+        try {
+            expiredDraftCleanupService.deleteExpiredDrafts(MAX_EXPIRED_DRAFT_DELETE_COUNT_PER_REQUEST, userId)
+        } catch (e: Exception) {
+            log.error("Failed to delete expired drafts of user {}", userId, e)
+        }
+    }
+
     private fun encodeDraftCursor(
         updatedAt: Instant,
         id: UUID,
     ): String {
         return "${updatedAt}_$id"
-    }
-
-    /**
-     * 2주 이상 경과한 DRAFT 게시물을 삭제합니다.
-     * S3 첨부파일도 함께 삭제됩니다.
-     *
-     * @param userId 사용자 ID
-     */
-    private fun deleteExpiredDrafts(userId: UUID) {
-        val expirationDate = Instant.now().minus(STALE_DRAFT_DAYS.toLong(), ChronoUnit.DAYS)
-
-        val staleDrafts = postRepository.findStaleDraftsByAuthor(userId, expirationDate)
-        staleDrafts.forEach { post ->
-            attachmentService.deleteAttachmentsByReference(post.id!!, AttachmentReferenceType.POST)
-            postRepository.delete(post)
-        }
     }
 
     /**
