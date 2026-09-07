@@ -147,9 +147,14 @@ class AttachmentService(
      * S3 객체까지 지우는 이유는 tmp/ lifecycle 정책이 설정되어 있지 않을 수 있기 때문이며,
      * 이미 만료된 객체에 대한 삭제는 S3에서 무해하게 무시됩니다.
      *
+     * 다른 삭제 경로와 달리 객체를 먼저 지우고 성공한 키의 행만 회수합니다. 지우지 못한 객체를 가리키는 행이
+     * 남아야 그 객체를 다시 찾을 수단이 생기고, 실패한 키 하나가 같은 배치의 나머지 회수까지 되돌리지 않습니다.
+     * 남은 행은 소유가 기록되지 않은 TMP 상태 그대로라 다음 실행이 같은 조회로 다시 집어 재시도합니다.
+     * 이 트랜잭션에는 첨부 정리 뒤에 실패할 단계가 없어 객체를 먼저 지워도 살아 있는 대상이 첨부를 잃지 않습니다.
+     *
      * @param expirationThreshold 이 시각 이전에 생성된 첨부가 삭제 대상
      * @param limit 한 번에 삭제할 최대 건수
-     * @return 삭제한 첨부 수
+     * @return 객체까지 지우고 회수한 첨부 수
      */
     @Transactional
     fun deleteExpiredTmpAttachments(
@@ -161,9 +166,16 @@ class AttachmentService(
 
         if (expiredAttachments.isEmpty()) return 0
 
-        deleteAttachmentsWithObjects(expiredAttachments)
+        val undeletedObjectKeys = s3StorageService.deleteObjects(expiredAttachments.map { it.objectKey }).toSet()
+        val reclaimedAttachments = expiredAttachments.filterNot { it.objectKey in undeletedObjectKeys }
 
-        return expiredAttachments.size
+        if (undeletedObjectKeys.isNotEmpty()) {
+            log.warn("Keeping expired attachments whose S3 objects remain: {}", undeletedObjectKeys)
+        }
+
+        attachmentRepository.deleteAll(reclaimedAttachments)
+
+        return reclaimedAttachments.size
     }
 
     /**
@@ -191,7 +203,7 @@ class AttachmentService(
 
     /**
      * 첨부 행을 지우고 S3 객체 삭제를 커밋 직전으로 예약합니다.
-     * 행과 객체를 함께 지우는 경로가 모두 같은 순서를 쓰도록 이 함수를 거친다.
+     * 첨부 정리 뒤에 실패할 단계가 남아 있는 경로가 모두 같은 순서를 쓰도록 이 함수를 거친다.
      */
     private fun deleteAttachmentsWithObjects(attachments: List<Attachment>) {
         attachmentRepository.deleteAll(attachments)
@@ -336,13 +348,16 @@ class AttachmentService(
     /**
      * S3 객체 삭제를 트랜잭션 커밋 직전으로 예약합니다.
      *
-     * 삭제가 실패하면 예외가 커밋 절차 밖으로 전파되어 트랜잭션이 롤백되므로, 객체가 남아 있는 한
+     * 키 하나라도 지우지 못하면 예외를 던져 트랜잭션을 롤백시키므로, 객체가 남아 있는 한
      * 그 객체를 가리키는 첨부 행도 함께 남는다. 덕분에 다음 요청이 같은 키로 재시도할 수 있고,
      * 커밋 이후로 미뤘을 때처럼 아무도 참조하지 않는 객체가 버킷에 쌓이지 않는다.
      * 이미 지워진 키를 다시 지우는 요청은 [S3StorageService.deleteObjects]가 성공으로 취급하므로
      * 재시도가 안전하다.
      *
-     * 다만 키가 [S3StorageService]의 요청당 상한을 넘어 여러 요청으로 나뉘면 앞선 요청만 반영된 채
+     * 성공한 키의 행만 남기고 지우는 부분 회수는 여기서 하지 않는다. 커밋 직전이라 이미 지운 행을 되살릴
+     * 수단이 없고, 이 순서를 쓰는 경로는 첨부를 지운 뒤에도 실패할 단계가 남아 있어 전부 되돌리는 편이 안전하다.
+     *
+     * 다만 키가 [S3StorageService]의 요청당 상한을 넘어 여러 요청으로 나뉘면 일부 요청만 반영된 채
      * 롤백될 수 있고, 그때는 살아남은 첨부 행이 존재하지 않는 객체를 가리킨다.
      *
      * @param objectKeys 삭제할 S3 오브젝트 키 목록
@@ -352,7 +367,10 @@ class AttachmentService(
             object : TransactionSynchronization {
                 override fun beforeCommit(readOnly: Boolean) {
                     log.info("Deleting S3 objects before commit: {}", objectKeys)
-                    s3StorageService.deleteObjects(objectKeys)
+                    val undeletedObjectKeys = s3StorageService.deleteObjects(objectKeys)
+                    check(undeletedObjectKeys.isEmpty()) {
+                        "S3 오브젝트 삭제에 실패했습니다: " + undeletedObjectKeys.joinToString()
+                    }
                 }
             },
         )

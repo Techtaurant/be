@@ -4,8 +4,6 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatCode
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import software.amazon.awssdk.services.s3.S3Client
@@ -77,24 +75,26 @@ class S3StorageServiceTest {
                 .errors(S3Error.builder().key("tmp/gone/image.jpg").code("NoSuchKey").build())
                 .build()
 
-        // when & then - 여기서 실패하면 재시도가 영원히 완료되지 못한다
-        assertThatCode { s3StorageService.deleteObjects(listOf("tmp/gone/image.jpg")) }
-            .doesNotThrowAnyException()
+        // when
+        val undeletedObjectKeys = s3StorageService.deleteObjects(listOf("tmp/gone/image.jpg"))
+
+        // then - 여기서 남은 키로 보고하면 재시도가 영원히 완료되지 못한다
+        assertThat(undeletedObjectKeys).isEmpty()
     }
 
     @Test
-    @DisplayName("지우지 못한 키가 응답에 남으면 예외를 던진다")
-    fun deleteObjects_keyLeftUndeleted_throwsWithFailedKey() {
+    @DisplayName("지우지 못한 키를 돌려줘 다음 정리가 다시 시도하게 한다")
+    fun deleteObjects_keyLeftUndeleted_returnsFailedKey() {
         // given - 요청 자체는 성공하지만 키 하나가 권한 문제로 남은 응답
         every { s3Client.deleteObjects(any<DeleteObjectsRequest>()) } returns
             DeleteObjectsResponse.builder()
                 .errors(S3Error.builder().key("posts/kept/image.jpg").code("AccessDenied").build())
                 .build()
 
-        // when & then - 삼키면 남아 있는 객체를 지운 것으로 착각한 채 커밋된다
-        assertThatThrownBy { s3StorageService.deleteObjects(listOf("posts/kept/image.jpg")) }
-            .isInstanceOf(IllegalStateException::class.java)
-            .hasMessageContaining("posts/kept/image.jpg")
-            .hasMessageContaining("AccessDenied")
+        // when
+        val undeletedObjectKeys = s3StorageService.deleteObjects(listOf("posts/kept/image.jpg"))
+
+        // then - 빠뜨리면 남아 있는 객체를 지운 것으로 착각한 채 진행한다
+        assertThat(undeletedObjectKeys).containsExactly("posts/kept/image.jpg")
     }
 }

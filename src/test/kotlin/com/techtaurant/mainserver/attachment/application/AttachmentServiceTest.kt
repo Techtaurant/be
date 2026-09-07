@@ -562,16 +562,36 @@ class AttachmentServiceTest {
                 attachmentRepository.findAllUnclaimedByStatusAndCreatedAtBefore(AttachmentStatus.TMP, threshold, 100)
             } returns listOf(expired)
             every { attachmentRepository.deleteAll(any<List<Attachment>>()) } just runs
-            every { s3StorageService.deleteObjects(any()) } just runs
+            every { s3StorageService.deleteObjects(any()) } returns emptyList()
 
             // when
             val deletedCount = attachmentService.deleteExpiredTmpAttachments(threshold, 100)
-            triggerBeforeCommit()
 
             // then
             assertThat(deletedCount).isEqualTo(1)
             verify { attachmentRepository.deleteAll(listOf(expired)) }
             verify { s3StorageService.deleteObjects(listOf(expired.objectKey)) }
+        }
+
+        @Test
+        @DisplayName("객체를 지우지 못한 첨부는 행을 남겨 다음 실행이 다시 시도하게 한다")
+        fun deleteExpiredTmpAttachments_objectLeftUndeleted_keepsAttachmentRow() {
+            // given - 두 건 중 한 건의 객체만 버킷에 남은 상황
+            val threshold = Instant.parse("2026-09-01T00:00:00Z")
+            val reclaimed = makeAttachment("tmp/${UUID.randomUUID()}/gone.jpg", AttachmentStatus.TMP, referenceId = null)
+            val undeletable = makeAttachment("tmp/${UUID.randomUUID()}/kept.jpg", AttachmentStatus.TMP, referenceId = null)
+            every {
+                attachmentRepository.findAllUnclaimedByStatusAndCreatedAtBefore(AttachmentStatus.TMP, threshold, 100)
+            } returns listOf(reclaimed, undeletable)
+            every { attachmentRepository.deleteAll(any<List<Attachment>>()) } just runs
+            every { s3StorageService.deleteObjects(any()) } returns listOf(undeletable.objectKey)
+
+            // when
+            val deletedCount = attachmentService.deleteExpiredTmpAttachments(threshold, 100)
+
+            // then - 남은 행이 없으면 그 객체를 다시 찾을 수단이 사라진다
+            assertThat(deletedCount).isEqualTo(1)
+            verify { attachmentRepository.deleteAll(listOf(reclaimed)) }
         }
 
         @Test
@@ -674,7 +694,7 @@ class AttachmentServiceTest {
             every {
                 attachmentRepository.findAllByReferenceIdAndReferenceType(postId, AttachmentReferenceType.POST)
             } returns listOf(attachment1, attachment2)
-            every { s3StorageService.deleteObjects(any()) } just runs
+            every { s3StorageService.deleteObjects(any()) } returns emptyList()
             every {
                 attachmentRepository.deleteAllByReferenceIdAndReferenceType(postId, AttachmentReferenceType.POST)
             } just runs
@@ -730,7 +750,7 @@ class AttachmentServiceTest {
                     listOf(keepAttachment.id!!),
                 )
             } returns listOf(orphanAttachment)
-            every { s3StorageService.deleteObjects(any()) } just runs
+            every { s3StorageService.deleteObjects(any()) } returns emptyList()
             every { attachmentRepository.deleteAll(any<List<Attachment>>()) } just runs
 
             // when
@@ -782,7 +802,7 @@ class AttachmentServiceTest {
             every {
                 attachmentRepository.findAllByReferenceIdAndReferenceType(postId, AttachmentReferenceType.POST)
             } returns listOf(orphanAttachment)
-            every { s3StorageService.deleteObjects(any()) } just runs
+            every { s3StorageService.deleteObjects(any()) } returns emptyList()
             every { attachmentRepository.deleteAll(any<List<Attachment>>()) } just runs
 
             // when

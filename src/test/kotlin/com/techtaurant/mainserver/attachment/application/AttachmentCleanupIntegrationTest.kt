@@ -18,6 +18,7 @@ import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.anyList
+import org.mockito.Mockito.doReturn
 import org.mockito.Mockito.doThrow
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.jdbc.core.JdbcTemplate
@@ -112,6 +113,24 @@ class AttachmentCleanupIntegrationTest : IntegrationTest() {
 
         // then
         assertThat(attachmentRepository.existsById(unclaimedAttachmentId)).isTrue()
+    }
+
+    @Test
+    @DisplayName("객체가 버킷에 남은 첨부만 남기고 나머지는 회수한다")
+    fun deleteExpiredTmpAttachments_objectLeftUndeleted_keepsOnlyThatAttachment() {
+        // given - 두 건 중 한 건의 객체만 지우지 못한 응답
+        val reclaimedAttachmentId = saveTmpAttachment(referenceId = null, createdAt = daysAgo(20))
+        val keptAttachmentId = saveTmpAttachment(referenceId = null, createdAt = daysAgo(20))
+        val keptObjectKey = attachmentRepository.findAllById(listOf(keptAttachmentId)).first().objectKey
+        doReturn(listOf(keptObjectKey)).`when`(s3StorageService).deleteObjects(anyList())
+
+        // when
+        val deletedCount = attachmentService.deleteExpiredTmpAttachments(expirationThreshold(), 100)
+
+        // then - 행까지 지우면 남은 객체를 다시 찾을 수단이 사라진다
+        assertThat(deletedCount).isEqualTo(1)
+        assertThat(attachmentRepository.existsById(reclaimedAttachmentId)).isFalse()
+        assertThat(attachmentRepository.existsById(keptAttachmentId)).isTrue()
     }
 
     private fun expirationThreshold(): Instant = temporaryContentRetention.expirationThreshold()
